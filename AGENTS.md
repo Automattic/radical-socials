@@ -1,5 +1,27 @@
 # Radical Socials — Agent Context
 
+## Local Development Environment
+
+Uses `@wordpress/env` (wp-env) via Docker. Requires Docker Desktop running.
+
+```bash
+npm install          # install deps (first time only)
+npm run env:start    # start WP at http://localhost:8890 (admin: http://localhost:8890/wp-admin)
+npm run env:stop     # stop containers
+npm run env:logs     # tail container logs
+npm run env:run -- help   # run any WP-CLI command, e.g. npm run env:run -- post list
+npm run env:clean    # wipe DB and uploads, keep containers
+npm run env:destroy  # remove containers and volumes entirely
+```
+
+Default credentials: `admin` / `password`
+
+Debug is on by default (`WP_DEBUG`, `WP_DEBUG_LOG`, `SCRIPT_DEBUG`). Logs write to `wp-content/debug.log` inside the container — visible via `npm run env:logs`.
+
+Query Monitor plugin is pre-installed for inspecting queries, hooks, and HTTP requests.
+
+To override settings locally (e.g. a different PHP version or extra plugins) create `.wp-env.override.json` — it is gitignored.
+
 ## What We're Building
 
 A WordPress plugin that lets people escape walled-garden social media (Instagram, TikTok, Twitter, Bluesky) by importing their archive into a self-hosted WordPress site. The site should feel like the social network they came from — not like WordPress.
