@@ -1,0 +1,18 @@
+{
+  "name": "radical-socials",
+  "version": "0.1.0",
+  "description": "Escape closed-wall social media platforms with a self-hosted WordPress alternative.",
+  "private": true,
+  "scripts": {
+    "env:start": "wp-env start",
+    "env:stop": "wp-env stop",
+    "env:clean": "wp-env clean all",
+    "env:destroy": "wp-env destroy",
+    "env:logs": "wp-env logs",
+    "env:run": "wp-env run cli wp",
+    "env:reset": "wp-env clean all && wp-env start"
+  },
+  "devDependencies": {
+    "@wordpress/env": "^10.14.0"
+  }
+}
