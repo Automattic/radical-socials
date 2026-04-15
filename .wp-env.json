@@ -4,7 +4,7 @@
   "port": 8890,
   "testsPort": 8891,
   "plugins": [
-    "./radical-socials",
+    ".",
     "https://downloads.wordpress.org/plugin/query-monitor.latest-stable.zip"
   ],
   "themes": [],
