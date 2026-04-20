@@ -14,6 +14,12 @@
 
 defined( 'ABSPATH' ) || exit;
 
+// ── Modules ──────────────────────────────────────────────────────────────────
+
+require_once __DIR__ . '/modules/custom-bar/class-custom-bar.php';
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
  * Register the top-level admin menu page.
  */
