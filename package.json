@@ -13,6 +13,7 @@
     "env:logs": "wp-env logs",
     "env:run": "wp-env run cli wp",
     "env:reset": "wp-env clean all && wp-env start",
+    "playground:start": "wp-playground-cli server --mount=./radical-socials:/wordpress/wp-content/plugins/radical-socials --mount=./radical-theme:/wordpress/wp-content/themes/radical-theme --port=8890 --blueprint=./playground-blueprint.json",
     "test": "wp-scripts test-unit-js"
   },
   "devDependencies": {
@@ -20,6 +21,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@wordpress/env": "^10.14.0",
-    "@wordpress/scripts": "^30.8.0"
+    "@wordpress/scripts": "^30.8.0",
+    "@wp-playground/cli": "^3.1.21"
   }
 }
