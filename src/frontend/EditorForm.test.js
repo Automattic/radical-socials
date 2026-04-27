@@ -50,9 +50,12 @@ describe( 'form fields by media type', () => {
 		expect( screen.getByPlaceholderText( /location/i         ) ).toBeInTheDocument();
 	} );
 
-	it( 'shows file upload after selecting Video', () => {
+	it( 'shows file upload + caption + tags + location after selecting Video', () => {
 		selectType( 'video' );
-		expect( screen.getByLabelText( /upload video/i ) ).toBeInTheDocument();
+		expect( screen.getByLabelText(       /upload video/i    ) ).toBeInTheDocument();
+		expect( screen.getByPlaceholderText( /write a caption/i ) ).toBeInTheDocument();
+		expect( screen.getByPlaceholderText( /#tags/i           ) ).toBeInTheDocument();
+		expect( screen.getByPlaceholderText( /location/i        ) ).toBeInTheDocument();
 	} );
 
 	it( 'does not show file upload for Text type', () => {
