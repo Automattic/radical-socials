@@ -4,15 +4,16 @@
   "description": "Escape closed-wall social media platforms with a self-hosted WordPress alternative.",
   "private": true,
   "scripts": {
-    "build": "wp-scripts build --webpack-src-dir=radical-socials/src --output-path=radical-socials/build",
-    "start": "wp-scripts start --webpack-src-dir=radical-socials/src --output-path=radical-socials/build",
+    "build": "wp-scripts build",
+    "start": "wp-scripts start",
     "env:start": "wp-env start",
     "env:stop": "wp-env stop",
     "env:clean": "wp-env clean all",
     "env:destroy": "wp-env destroy",
     "env:logs": "wp-env logs",
     "env:run": "wp-env run cli wp",
-    "env:reset": "wp-env clean all && wp-env start"
+    "env:reset": "wp-env clean all && wp-env start",
+    "test": "wp-scripts test-unit-js"
   },
   "devDependencies": {
     "@wordpress/env": "^10.14.0",
