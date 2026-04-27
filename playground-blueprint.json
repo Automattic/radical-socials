@@ -1,0 +1,17 @@
+{
+  "steps": [
+    {
+      "step": "login",
+      "username": "admin",
+      "password": "password"
+    },
+    {
+      "step": "activatePlugin",
+      "pluginPath": "radical-socials/radical-socials.php"
+    },
+    {
+      "step": "activateTheme",
+      "themeFolderName": "radical-theme"
+    }
+  ]
+}
