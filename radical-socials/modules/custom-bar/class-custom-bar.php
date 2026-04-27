@@ -100,7 +100,7 @@ class Radical_Socials_Custom_Bar {
 		<nav id="rs-bar" aria-label="<?php esc_attr_e( 'Site navigation', 'radical-socials' ); ?>">
 			<ul>
 				<li>
-					<a href="#" class="rs-bar-link" aria-label="<?php esc_attr_e( 'Home', 'radical-socials' ); ?>">
+					<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="rs-bar-link" aria-label="<?php esc_attr_e( 'Home', 'radical-socials' ); ?>">
 						<span class="dashicons dashicons-admin-home" aria-hidden="true"></span>
 						<span class="rs-bar-label"><?php esc_html_e( 'Home', 'radical-socials' ); ?></span>
 					</a>
