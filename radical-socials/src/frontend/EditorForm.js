@@ -72,8 +72,8 @@ export default function EditorForm( { onSuccess, onCancel } ) {
 
 			if ( ! postRes.ok ) throw new Error( 'Post creation failed' );
 			const post = await postRes.json();
-			reset();
 			onSuccess( post );
+			reset();
 		} catch ( err ) {
 			setError( err.message );
 		} finally {

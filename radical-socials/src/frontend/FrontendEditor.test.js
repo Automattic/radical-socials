@@ -16,13 +16,6 @@ jest.mock( './EditorForm', () => {
 	};
 } );
 
-beforeEach( () => {
-	global.window.radicalSocials = {
-		nonce:   'test-nonce',
-		restUrl: 'http://localhost/wp-json/',
-	};
-} );
-
 describe( 'idle state', () => {
 	it( 'renders the prompt text', () => {
 		render( <FrontendEditor /> );
