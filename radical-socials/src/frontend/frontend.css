@@ -123,3 +123,25 @@
 	font-size: 0.9375rem;
 	line-height: 1.5;
 }
+
+/* Modal overlay */
+.rs-modal-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba( 0, 0, 0, 0.55 );
+	z-index: 9999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+/* Modal dialog */
+.rs-modal-dialog {
+	background: #fff;
+	border-radius: 10px;
+	padding: 1.5rem;
+	width: min( 480px, 92vw );
+	box-shadow: 0 8px 32px rgba( 0, 0, 0, 0.18 );
+	max-height: 90vh;
+	overflow-y: auto;
+}
