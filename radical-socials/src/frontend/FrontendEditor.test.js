@@ -84,3 +84,108 @@ describe( 'form fields by media type', () => {
 		expect( screen.getByRole( 'button', { name: /^text$/i } ) ).not.toHaveClass( 'is-active' );
 	} );
 } );
+
+describe( 'REST submission', () => {
+	beforeEach( () => {
+		global.fetch = jest.fn();
+	} );
+
+	afterEach( () => {
+		jest.restoreAllMocks();
+	} );
+
+	it( 'disables Post button when caption is empty', () => {
+		render( <FrontendEditor /> );
+		fireEvent.click( screen.getByText( /what's on your mind/i ) );
+		fireEvent.click( screen.getByRole( 'button', { name: /^text$/i } ) );
+		expect( screen.getByRole( 'button', { name: /^post$/i } ) ).toBeDisabled();
+	} );
+
+	it( 'enables Post button when caption has content', () => {
+		render( <FrontendEditor /> );
+		fireEvent.click( screen.getByText( /what's on your mind/i ) );
+		fireEvent.click( screen.getByRole( 'button', { name: /^text$/i } ) );
+		fireEvent.change( screen.getByPlaceholderText( /write a caption/i ), {
+			target: { value: 'Hello world' },
+		} );
+		expect( screen.getByRole( 'button', { name: /^post$/i } ) ).not.toBeDisabled();
+	} );
+
+	it( 'POSTs to /wp/v2/instagram-posts with caption and meta on text submit', async () => {
+		fetch.mockResolvedValueOnce( {
+			ok:   true,
+			json: async () => ( {
+				id:      42,
+				content: { rendered: '<p>Hello world</p>' },
+				date:    '2026-04-27T00:00:00',
+				meta:    { _instagram_location: '', _instagram_media_type: 'text', _instagram_tags: '' },
+			} ),
+		} );
+
+		render( <FrontendEditor /> );
+		fireEvent.click( screen.getByText( /what's on your mind/i ) );
+		fireEvent.click( screen.getByRole( 'button', { name: /^text$/i } ) );
+		fireEvent.change( screen.getByPlaceholderText( /write a caption/i ), {
+			target: { value: 'Hello world' },
+		} );
+		fireEvent.click( screen.getByRole( 'button', { name: /^post$/i } ) );
+
+		await screen.findByText( /what's on your mind/i );
+
+		expect( fetch ).toHaveBeenCalledWith(
+			'http://localhost/wp-json/wp/v2/instagram-posts',
+			expect.objectContaining( {
+				method:  'POST',
+				headers: expect.objectContaining( {
+					'Content-Type': 'application/json',
+					'X-WP-Nonce':  'test-nonce',
+				} ),
+				body: JSON.stringify( {
+					status:  'publish',
+					content: 'Hello world',
+					meta: {
+						_instagram_location:   '',
+						_instagram_media_type: 'text',
+						_instagram_tags:       '',
+					},
+				} ),
+			} )
+		);
+	} );
+
+	it( 'renders the new post above the fold after success', async () => {
+		fetch.mockResolvedValueOnce( {
+			ok:   true,
+			json: async () => ( {
+				id:      42,
+				content: { rendered: '<p>Hello world</p>' },
+				date:    '2026-04-27T00:00:00',
+				meta:    { _instagram_location: '', _instagram_media_type: 'text', _instagram_tags: '' },
+			} ),
+		} );
+
+		render( <FrontendEditor /> );
+		fireEvent.click( screen.getByText( /what's on your mind/i ) );
+		fireEvent.click( screen.getByRole( 'button', { name: /^text$/i } ) );
+		fireEvent.change( screen.getByPlaceholderText( /write a caption/i ), {
+			target: { value: 'Hello world' },
+		} );
+		fireEvent.click( screen.getByRole( 'button', { name: /^post$/i } ) );
+
+		expect( await screen.findByText( 'Hello world' ) ).toBeInTheDocument();
+	} );
+
+	it( 'shows an error message when the request fails', async () => {
+		fetch.mockResolvedValueOnce( { ok: false } );
+
+		render( <FrontendEditor /> );
+		fireEvent.click( screen.getByText( /what's on your mind/i ) );
+		fireEvent.click( screen.getByRole( 'button', { name: /^text$/i } ) );
+		fireEvent.change( screen.getByPlaceholderText( /write a caption/i ), {
+			target: { value: 'Hello world' },
+		} );
+		fireEvent.click( screen.getByRole( 'button', { name: /^post$/i } ) );
+
+		expect( await screen.findByText( /post creation failed/i ) ).toBeInTheDocument();
+	} );
+} );
