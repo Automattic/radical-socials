@@ -6,10 +6,18 @@ const TYPES = [ 'text', 'photo', 'video' ];
 export default function FrontendEditor() {
 	const [ expanded,  setExpanded  ] = useState( false );
 	const [ mediaType, setMediaType ] = useState( null );
+	const [ caption,   setCaption   ] = useState( '' );
+	const [ tags,      setTags      ] = useState( '' );
+	const [ location,  setLocation  ] = useState( '' );
+	const [ file,      setFile      ] = useState( null );
 
 	function collapse() {
 		setExpanded( false );
 		setMediaType( null );
+		setCaption( '' );
+		setTags( '' );
+		setLocation( '' );
+		setFile( null );
 	}
 
 	if ( ! expanded ) {
@@ -37,6 +45,45 @@ export default function FrontendEditor() {
 						</button>
 					) ) }
 				</div>
+
+				{ mediaType && (
+					<>
+						{ ( mediaType === 'photo' || mediaType === 'video' ) && (
+							<label className="rs-upload-label">
+								{ `Upload ${ mediaType.charAt( 0 ).toUpperCase() + mediaType.slice( 1 ) }` }
+								<input
+									type="file"
+									accept={ mediaType === 'photo' ? 'image/*' : 'video/*' }
+									onChange={ ( e ) => setFile( e.target.files[ 0 ] ?? null ) }
+								/>
+							</label>
+						) }
+
+						<textarea
+							className="rs-caption"
+							placeholder="Write a caption…"
+							value={ caption }
+							onChange={ ( e ) => setCaption( e.target.value ) }
+						/>
+
+						<input
+							className="rs-tags"
+							type="text"
+							placeholder="#tags"
+							value={ tags }
+							onChange={ ( e ) => setTags( e.target.value ) }
+						/>
+
+						<input
+							className="rs-location"
+							type="text"
+							placeholder="Location"
+							value={ location }
+							onChange={ ( e ) => setLocation( e.target.value ) }
+						/>
+					</>
+				) }
+
 				<div className="rs-editor-actions">
 					<button type="button" onClick={ collapse }>Cancel</button>
 				</div>
