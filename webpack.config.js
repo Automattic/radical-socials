@@ -4,11 +4,11 @@ const path = require( 'path' );
 module.exports = {
 	...defaultConfig,
 	entry: {
-		index:    path.resolve( __dirname, 'radical-socials/src/index.js' ),
-		frontend: path.resolve( __dirname, 'radical-socials/src/frontend.js' ),
+		index:    path.resolve( __dirname, 'plugins/radical-socials/src/index.js' ),
+		frontend: path.resolve( __dirname, 'plugins/radical-socials/src/frontend.js' ),
 	},
 	output: {
 		...defaultConfig.output,
-		path: path.resolve( __dirname, 'radical-socials/build' ),
+		path: path.resolve( __dirname, 'plugins/radical-socials/build' ),
 	},
 };
