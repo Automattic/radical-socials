@@ -22,7 +22,8 @@ export default function EditorModal() {
 	}, [ open, closeModal ] );
 
 	useEffect( () => {
-		document.body.style.overflow = open ? 'hidden' : '';
+		if ( ! open ) return;
+		document.body.style.overflow = 'hidden';
 		return () => {
 			document.body.style.overflow = '';
 		};
@@ -35,6 +36,7 @@ export default function EditorModal() {
 			className="rs-modal-overlay"
 			role="dialog"
 			aria-modal="true"
+			aria-label="Create post"
 			onClick={ closeModal }
 		>
 			<div
