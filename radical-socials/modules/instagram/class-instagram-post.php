@@ -40,10 +40,11 @@ class Radical_Socials_Instagram_Post {
 
 		foreach ( $metas as $key => $type ) {
 			register_post_meta( 'instagram-post', $key, [
-				'show_in_rest' => true,
-				'single'       => true,
-				'type'         => $type,
-				'default'      => '',
+				'show_in_rest'  => true,
+				'single'        => true,
+				'type'          => $type,
+				'default'       => '',
+				'auth_callback' => '__return_true',
 			] );
 		}
 	}
