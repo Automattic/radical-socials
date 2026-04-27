@@ -106,7 +106,7 @@ class Radical_Socials_Custom_Bar {
 					</a>
 				</li>
 				<li>
-					<a href="#" class="rs-bar-link" aria-label="<?php esc_attr_e( 'Create', 'radical-socials' ); ?>">
+					<a href="#" class="rs-bar-link" data-rs-action="open-editor" aria-label="<?php esc_attr_e( 'Create', 'radical-socials' ); ?>">
 						<span class="dashicons dashicons-plus-alt2" aria-hidden="true"></span>
 						<span class="rs-bar-label"><?php esc_html_e( 'Create', 'radical-socials' ); ?></span>
 					</a>
