@@ -34,13 +34,14 @@ export default function EditorModal() {
 	return (
 		<div
 			className="rs-modal-overlay"
-			role="dialog"
-			aria-modal="true"
-			aria-label="Create post"
+			data-testid="modal-overlay"
 			onClick={ closeModal }
 		>
 			<div
 				className="rs-modal-dialog"
+				role="dialog"
+				aria-modal="true"
+				aria-label="Create post"
 				onClick={ ( e ) => e.stopPropagation() }
 			>
 				<EditorForm onSuccess={ closeModal } onCancel={ closeModal } />

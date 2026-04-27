@@ -11,8 +11,6 @@ export default function EditorForm( { onSuccess, onCancel } ) {
 	const [ submitting, setSubmitting ] = useState( false );
 	const [ error,      setError      ] = useState( null );
 
-	const { nonce, restUrl } = window.radicalSocials;
-
 	function reset() {
 		setMediaType( null );
 		setCaption( '' );
@@ -32,15 +30,18 @@ export default function EditorForm( { onSuccess, onCancel } ) {
 		setSubmitting( true );
 		setError( null );
 
+		const { nonce, restUrl } = window.radicalSocials;
+
 		try {
 			let featuredMedia = null;
 
 			if ( file ) {
+				const safeFilename = file.name.replace( /"/g, '' );
 				const mediaRes = await fetch( `${ restUrl }wp/v2/media`, {
 					method:  'POST',
 					headers: {
 						'X-WP-Nonce':          nonce,
-						'Content-Disposition': `attachment; filename="${ file.name }"`,
+						'Content-Disposition': `attachment; filename="${ safeFilename }"`,
 						'Content-Type':        file.type,
 					},
 					body: file,

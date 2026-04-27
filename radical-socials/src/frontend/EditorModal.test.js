@@ -40,7 +40,7 @@ it( 'closes when the overlay is clicked', () => {
 	act( () => {
 		document.dispatchEvent( new CustomEvent( 'rs:open-editor' ) );
 	} );
-	fireEvent.click( screen.getByRole( 'dialog' ) );
+	fireEvent.click( screen.getByTestId( 'modal-overlay' ) );
 	expect( screen.queryByRole( 'dialog' ) ).not.toBeInTheDocument();
 } );
 
@@ -84,6 +84,6 @@ it( 'restores body overflow when closed', () => {
 	act( () => {
 		document.dispatchEvent( new CustomEvent( 'rs:open-editor' ) );
 	} );
-	fireEvent.click( screen.getByRole( 'dialog' ) );
+	fireEvent.click( screen.getByTestId( 'modal-overlay' ) );
 	expect( document.body.style.overflow ).toBe( '' );
 } );
