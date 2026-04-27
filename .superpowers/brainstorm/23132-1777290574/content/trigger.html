@@ -1,0 +1,44 @@
+<h2>How should the modal editor be triggered?</h2>
+<p class="subtitle">The trigger needs to work on any third-party theme without requiring theme changes.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8f8f8;padding:1rem;font-family:system-ui">
+      <div style="display:flex;gap:8px;align-items:center;background:#111;padding:8px 12px;border-radius:6px;color:#fff;font-size:13px;margin-bottom:8px">
+        <span>🏠</span><span>+</span><span>🔍</span><span>🔔</span><span style="margin-left:auto;background:#fff;color:#111;border-radius:4px;padding:2px 8px;font-weight:600">Create</span>
+      </div>
+      <div style="font-size:11px;color:#666;text-align:center">Modal opens when "Create" is clicked in the custom bar</div>
+    </div>
+    <div class="card-body">
+      <h3>A — Custom Bar button</h3>
+      <p>Wire up the existing "Create" nav item in the custom bar. Works on any theme since the bar is always injected by the plugin.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8f8f8;padding:1rem;font-family:system-ui;position:relative;min-height:100px">
+      <div style="position:absolute;bottom:12px;right:12px;width:40px;height:40px;border-radius:50%;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 2px 8px rgba(0,0,0,0.25)">+</div>
+      <div style="font-size:11px;color:#666;text-align:center;padding-top:8px">Floating "+" button fixed to corner of the page</div>
+    </div>
+    <div class="card-body">
+      <h3>B — Floating action button</h3>
+      <p>A fixed-position "+" button rendered by the plugin, independent of both theme and the custom bar. Works everywhere.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8f8f8;padding:1rem;font-family:system-ui;position:relative;min-height:100px">
+      <div style="display:flex;gap:8px;align-items:center;background:#111;padding:8px 12px;border-radius:6px;color:#fff;font-size:13px;margin-bottom:8px">
+        <span>🏠</span><span>+</span><span style="background:#fff;color:#111;border-radius:4px;padding:2px 8px;font-weight:600">Create</span>
+      </div>
+      <div style="position:absolute;bottom:12px;right:12px;width:36px;height:36px;border-radius:50%;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 2px 8px rgba(0,0,0,0.25)">+</div>
+      <div style="font-size:11px;color:#666;text-align:center">Both — bar button and floating button both open the modal</div>
+    </div>
+    <div class="card-body">
+      <h3>C — Both</h3>
+      <p>Custom bar "Create" button AND a floating "+" button. The bar button is primary; the floating button is a fallback for themes without the custom bar.</p>
+    </div>
+  </div>
+
+</div>

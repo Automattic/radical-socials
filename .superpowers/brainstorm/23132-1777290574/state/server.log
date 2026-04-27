@@ -1,0 +1,5 @@
+{"type":"server-started","port":52304,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:52304","screen_dir":"/Users/sarahnorris/Source/Automattic/wp-dev/plugins/radical-socials/.superpowers/brainstorm/23132-1777290574/content","state_dir":"/Users/sarahnorris/Source/Automattic/wp-dev/plugins/radical-socials/.superpowers/brainstorm/23132-1777290574/state"}
+{"type":"screen-added","file":"/Users/sarahnorris/Source/Automattic/wp-dev/plugins/radical-socials/.superpowers/brainstorm/23132-1777290574/content/trigger.html"}
+{"type":"screen-added","file":"/Users/sarahnorris/Source/Automattic/wp-dev/plugins/radical-socials/.superpowers/brainstorm/23132-1777290574/content/modal-style.html"}
+{"type":"screen-added","file":"/Users/sarahnorris/Source/Automattic/wp-dev/plugins/radical-socials/.superpowers/brainstorm/23132-1777290574/content/waiting.html"}
+{"type":"server-stopped","reason":"idle timeout"}
