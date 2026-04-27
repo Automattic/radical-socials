@@ -18,6 +18,7 @@ defined( 'ABSPATH' ) || exit;
 
 require_once __DIR__ . '/modules/custom-bar/class-custom-bar.php';
 require_once __DIR__ . '/modules/instagram/class-instagram-post.php';
+require_once __DIR__ . '/modules/frontend-editor/class-frontend-editor.php';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
