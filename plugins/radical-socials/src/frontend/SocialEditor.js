@@ -1,4 +1,4 @@
-import { useState, useCallback } from '@wordpress/element';
+import { useState, useCallback, useMemo } from '@wordpress/element';
 import {
 	BlockEditorProvider,
 	BlockList,
@@ -10,11 +10,10 @@ import {
 import { createBlock, serialize } from '@wordpress/blocks';
 import { registerEditorBlocks, getEditorSettings } from './editor-settings';
 
+registerEditorBlocks();
+
 export default function SocialEditor( { onSuccess, onCancel } ) {
-	const [ blocks, setBlocks ] = useState( () => {
-		registerEditorBlocks();
-		return [ createBlock( 'core/paragraph' ) ];
-	} );
+	const [ blocks, setBlocks ] = useState( () => [ createBlock( 'core/paragraph' ) ] );
 	const [ hashtags, setHashtags ]       = useState( '' );
 	const [ location, setLocation ]       = useState( '' );
 	const [ isSubmitting, setIsSubmitting ] = useState( false );
@@ -33,12 +32,12 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 			.then( ( attachment ) =>
 				onFileChange( [ { id: attachment.id, url: attachment.source_url } ] )
 			)
-			.catch( ( err ) => onError( err.message ) );
+			.catch( ( err ) => onError( err instanceof Error ? err : new Error( err.message ) ) );
 	}, [] );
 
-	const editorSettings = getEditorSettings( mediaUpload );
+	const editorSettings = useMemo( () => getEditorSettings( mediaUpload ), [ mediaUpload ] );
 
-	async function handleSubmit( e ) {
+	const handleSubmit = useCallback( async ( e ) => {
 		e.preventDefault();
 		setIsSubmitting( true );
 		setError( null );
@@ -58,6 +57,8 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 						meta: {
 							_instagram_tags:     hashtags,
 							_instagram_location: location,
+							// _instagram_media_type is intentionally omitted: block type (image/video/paragraph)
+							// implicitly determines media type from the block content.
 						},
 					} ),
 				}
@@ -73,7 +74,11 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 		} finally {
 			setIsSubmitting( false );
 		}
-	}
+	}, [ blocks, hashtags, location, onSuccess ] );
+
+	const isEmpty = blocks.every(
+		( b ) => b.name === 'core/paragraph' && ! b.attributes?.content
+	);
 
 	return (
 		<form className="rs-social-editor" onSubmit={ handleSubmit }>
@@ -117,7 +122,7 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 						Cancel
 					</button>
 				) }
-				<button type="submit" disabled={ isSubmitting }>
+				<button type="submit" disabled={ isSubmitting || isEmpty }>
 					{ isSubmitting ? 'Posting\u2026' : 'Post' }
 				</button>
 			</div>

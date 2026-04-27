@@ -16,7 +16,7 @@ jest.mock( '@wordpress/blocks', () => ( {
 	createBlock: ( name ) => ( {
 		clientId:    'test-id',
 		name,
-		attributes:  {},
+		attributes:  { content: 'test content' },  // non-empty so Post button is enabled
 		innerBlocks: [],
 	} ),
 	serialize: () =>
