@@ -35,6 +35,12 @@ A WordPress plugin that lets people escape walled-garden social media (Instagram
 - **No extra database tables.** Use standard WP post/meta so the data works with WP CLI, backup plugins, and search without modification.
 - **The import runs once** (or can be re-run for a newer export). No ongoing API sync in v1.
 
+## Plugin vs Theme Boundary
+
+**The plugin is the product. The theme is a swappable design layer.**
+
+Plugin functionality must work on any installed WordPress theme. The `radical-theme` we're building is the default design layer — an FSE block theme styled to feel like a social network — but it is not required for the plugin to function. Any extra frontend behaviour the plugin adds (custom bar, feed, navigation) must be theme-agnostic.
+
 ## Rough Architecture (subject to change)
 
 The plugin will likely be organized into modules:
@@ -42,9 +48,11 @@ The plugin will likely be organized into modules:
 - **importers** — one per platform (Instagram, Bluesky, Twitter, TikTok). Each implements a shared interface: parse source → normalized posts → import to WP.
 - **post-types** — registers custom post types and taxonomies for social content. Each platform may get its own CPT so they can have different metadata and different admin UI per platform.
 - **admin** — a React app registered as a WP admin page, communicating via the REST API. Three core screens: feed/grid view, new post composer, settings.
-- **theme-companion** — block patterns, template parts, theme.json overrides.
+- **custom-bar** — a fixed navigation bar rendered in `wp_footer`. Provides home/explore/create/profile navigation and frontend post creation. May become a block eventually, but starts as a PHP module.
+- **feed** — pulls from social media APIs and surfaces content in the frontend. Uses native core blocks (primarily `core/query`) rather than custom blocks.
+- **client-side navigation** — makes page transitions seamless using the WordPress Interactivity API router. Implemented via `render_block` filters that inject router region attributes onto existing core block output.
 
-There will also be a companion block theme (FSE) that adapts its visual style to the platform the user migrated from (photo grid for Instagram, text feed for Twitter/Bluesky, vertical video for TikTok).
+`radical-theme` is a standalone block theme (not a "companion"). It adapts its visual style to the platform the user migrated from (photo grid for Instagram, text feed for Twitter/Bluesky, vertical video for TikTok).
 
 ## Supported Platforms (v1 targets)
 
