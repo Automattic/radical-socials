@@ -42,6 +42,23 @@
 	pointer-events: none;
 }
 
+/* Block toolbar portals to the document body, outside .rs-social-editor.
+   Hide it — the MediaBar covers all needed insertion actions. */
+.block-editor-block-contextual-toolbar {
+	display: none;
+}
+
+/* Responsive images inside the composer */
+.rs-social-editor .wp-block-image {
+	max-width: 100%;
+}
+
+.rs-social-editor .wp-block-image img {
+	max-width: 100%;
+	height: auto;
+	display: block;
+}
+
 .rs-social-editor .wp-block-paragraph.block-editor-rich-text__editable {
 	padding: 0.5rem;
 }
