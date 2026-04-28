@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from '@wordpress/element';
-import EditorForm from './EditorForm';
+import SocialEditor from './SocialEditor';
 
 export default function EditorModal() {
 	const [ open, setOpen ] = useState( false );
@@ -44,7 +44,7 @@ export default function EditorModal() {
 				aria-label="Create post"
 				onClick={ ( e ) => e.stopPropagation() }
 			>
-				<EditorForm onSuccess={ closeModal } onCancel={ closeModal } />
+				<SocialEditor onSuccess={ closeModal } onCancel={ closeModal } />
 			</div>
 		</div>
 	);
