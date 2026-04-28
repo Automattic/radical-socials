@@ -41,7 +41,7 @@ class Radical_Socials_Frontend_Editor {
 		wp_enqueue_style(
 			'radical-socials-frontend',
 			plugin_dir_url( __FILE__ ) . '../../build/frontend.css',
-			[],
+			[ 'wp-block-editor', 'wp-block-library' ],
 			$asset['version']
 		);
 

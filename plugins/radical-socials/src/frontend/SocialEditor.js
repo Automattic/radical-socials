@@ -1,8 +1,8 @@
-import { useState, useCallback, useMemo } from '@wordpress/element';
+import { useState, useCallback, useMemo, useEffect, useRef } from '@wordpress/element';
+import { useSelect, useDispatch } from '@wordpress/data';
 import {
 	BlockEditorProvider,
 	BlockList,
-	BlockToolbar,
 	BlockTools,
 	WritingFlow,
 	ObserveTyping,
@@ -12,8 +12,49 @@ import { registerEditorBlocks, getEditorSettings } from './editor-settings';
 
 registerEditorBlocks();
 
+const MEDIA_BLOCKS = [
+	{ label: 'Photo', name: 'core/image' },
+	{ label: 'Video', name: 'core/video' },
+	{ label: 'Quote', name: 'core/quote' },
+	{ label: 'Link',  name: 'core/embed' },
+];
+
+function EditorAutoFocus() {
+	const firstClientId = useSelect(
+		( select ) => select( 'core/block-editor' ).getBlockOrder()[ 0 ],
+		[]
+	);
+	const { selectBlock } = useDispatch( 'core/block-editor' );
+	const hasFocused = useRef( false );
+	useEffect( () => {
+		if ( firstClientId && ! hasFocused.current ) {
+			hasFocused.current = true;
+			selectBlock( firstClientId );
+		}
+	}, [ firstClientId, selectBlock ] );
+	return null;
+}
+
+function MediaBar() {
+	const { insertBlocks } = useDispatch( 'core/block-editor' );
+	return (
+		<div className="rs-media-bar">
+			{ MEDIA_BLOCKS.map( ( { label, name } ) => (
+				<button
+					key={ name }
+					type="button"
+					className="rs-media-btn"
+					onClick={ () => insertBlocks( createBlock( name ) ) }
+				>
+					{ label }
+				</button>
+			) ) }
+		</div>
+	);
+}
+
 export default function SocialEditor( { onSuccess, onCancel } ) {
-	const [ blocks, setBlocks ] = useState( () => [ createBlock( 'core/paragraph' ) ] );
+	const [ blocks, setBlocks ] = useState( () => [ createBlock( 'core/paragraph', { placeholder: "What's on your mind?" } ) ] );
 	const [ hashtags, setHashtags ]       = useState( '' );
 	const [ location, setLocation ]       = useState( '' );
 	const [ isSubmitting, setIsSubmitting ] = useState( false );
@@ -65,7 +106,7 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 			);
 			if ( ! response.ok ) throw new Error( 'Post creation failed.' );
 			const post = await response.json();
-			setBlocks( [ createBlock( 'core/paragraph' ) ] );
+			setBlocks( [ createBlock( 'core/paragraph', { placeholder: "What's on your mind?" } ) ] );
 			setHashtags( '' );
 			setLocation( '' );
 			onSuccess?.( post );
@@ -89,7 +130,6 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 				settings={ editorSettings }
 				useSubRegistry={ true }
 			>
-				<BlockToolbar />
 				<BlockTools>
 					<WritingFlow>
 						<ObserveTyping>
@@ -97,6 +137,8 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 						</ObserveTyping>
 					</WritingFlow>
 				</BlockTools>
+				<EditorAutoFocus />
+				<MediaBar />
 			</BlockEditorProvider>
 
 			<div className="rs-editor-meta">

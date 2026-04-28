@@ -1,6 +1,6 @@
 .rs-frontend-editor {
 	max-width: 600px;
-	margin: 0 auto 1.5rem;
+	margin: 0 auto 3.5rem;
 	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
@@ -27,6 +27,79 @@
 	border: 1px solid #ddd;
 	border-radius: 8px;
 	padding: 1rem;
+}
+
+.rs-social-editor {
+	background: #fff;
+	border: 1px solid #ddd;
+	border-radius: 8px;
+	padding: 1rem;
+}
+
+.rs-social-editor .block-editor-block-list__layout {
+	min-height: 80px;
+}
+
+.rs-social-editor .wp-block-paragraph.block-editor-rich-text__editable {
+	padding: 0.5rem;
+}
+
+
+/* Paragraph placeholder — Gutenberg renders this as an empty span with the text
+   in data-rich-text-placeholder, relying on ::before to make it visible */
+.rs-social-editor [data-rich-text-placeholder]::before {
+	content: attr( data-rich-text-placeholder );
+	color: #aaa;
+}
+
+.rs-editor-meta {
+	display: flex;
+	gap: 0.5rem;
+	margin-top: 0.75rem;
+}
+
+.rs-editor-meta input {
+	flex: 1;
+	padding: 0.5rem;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	font-size: 0.875rem;
+	font-family: inherit;
+	box-sizing: border-box;
+}
+
+.rs-editor-error {
+	color: #c00;
+	font-size: 0.875rem;
+	margin: 0.25rem 0;
+}
+
+.rs-editor-loading {
+	min-height: 120px;
+}
+
+.rs-media-bar {
+	display: flex;
+	gap: 0.5rem;
+	padding: 0.5rem 0 0;
+	border-top: 1px solid #eee;
+	margin-top: 0.5rem;
+}
+
+.rs-media-btn {
+	padding: 0.35rem 0.75rem;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	background: #f5f5f5;
+	font-size: 0.8125rem;
+	font-family: inherit;
+	cursor: pointer;
+	color: #555;
+}
+
+.rs-media-btn:hover {
+	border-color: #aaa;
+	background: #eee;
 }
 
 .rs-editor-types {

@@ -10,7 +10,6 @@ export function registerEditorBlocks() {
 
 export function getEditorSettings( mediaUpload ) {
 	return {
-		hasFixedToolbar: true,
 		bodyPlaceholder: "What's on your mind?",
 		codeEditingEnabled: false,
 		canLockBlocks: false,
