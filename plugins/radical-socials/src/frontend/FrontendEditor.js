@@ -1,5 +1,5 @@
 import { useState } from '@wordpress/element';
-import EditorForm from './EditorForm';
+import SocialEditor from './SocialEditor';
 import './frontend.css';
 
 export default function FrontendEditor() {
@@ -32,7 +32,7 @@ export default function FrontendEditor() {
 			) }
 
 			{ expanded && (
-				<EditorForm onSuccess={ handleSuccess } onCancel={ collapse } />
+				<SocialEditor onSuccess={ handleSuccess } onCancel={ collapse } />
 			) }
 		</div>
 	);

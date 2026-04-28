@@ -1,8 +1,8 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import FrontendEditor from './FrontendEditor';
 
-jest.mock( './EditorForm', () => {
-	return function MockEditorForm( { onSuccess, onCancel } ) {
+jest.mock( './SocialEditor', () => {
+	return function MockSocialEditor( { onSuccess, onCancel } ) {
 		return (
 			<div data-testid="editor-form">
 				<button onClick={ onCancel }>Cancel</button>
