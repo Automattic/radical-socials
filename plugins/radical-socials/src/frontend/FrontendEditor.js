@@ -1,6 +1,7 @@
-import { useState } from '@wordpress/element';
-import SocialEditor from './SocialEditor';
+import { useState, lazy, Suspense } from '@wordpress/element';
 import './frontend.css';
+
+const SocialEditor = lazy( () => import( './SocialEditor' ) );
 
 export default function FrontendEditor() {
 	const [ expanded, setExpanded ] = useState( false );
@@ -32,7 +33,9 @@ export default function FrontendEditor() {
 			) }
 
 			{ expanded && (
-				<SocialEditor onSuccess={ handleSuccess } onCancel={ collapse } />
+				<Suspense fallback={ <div className="rs-editor-loading" /> }>
+					<SocialEditor onSuccess={ handleSuccess } onCancel={ collapse } />
+				</Suspense>
 			) }
 		</div>
 	);

@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from '@wordpress/element';
-import SocialEditor from './SocialEditor';
+import { useState, useEffect, useCallback, lazy, Suspense } from '@wordpress/element';
+
+const SocialEditor = lazy( () => import( './SocialEditor' ) );
 
 export default function EditorModal() {
 	const [ open, setOpen ] = useState( false );
@@ -44,7 +45,9 @@ export default function EditorModal() {
 				aria-label="Create post"
 				onClick={ ( e ) => e.stopPropagation() }
 			>
-				<SocialEditor onSuccess={ closeModal } onCancel={ closeModal } />
+				<Suspense fallback={ <div className="rs-editor-loading" /> }>
+					<SocialEditor onSuccess={ closeModal } onCancel={ closeModal } />
+				</Suspense>
 			</div>
 		</div>
 	);

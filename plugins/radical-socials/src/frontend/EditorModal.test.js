@@ -1,15 +1,19 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
-import EditorModal from './EditorModal';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 
 jest.mock( './SocialEditor', () => {
-	return function MockSocialEditor( { onCancel } ) {
-		return (
-			<div data-testid="editor-form">
-				<button onClick={ onCancel }>Cancel</button>
-			</div>
-		);
+	return {
+		__esModule: true,
+		default: function MockSocialEditor( { onCancel } ) {
+			return (
+				<div data-testid="editor-form">
+					<button onClick={ onCancel }>Cancel</button>
+				</div>
+			);
+		},
 	};
 } );
+
+import EditorModal from './EditorModal';
 
 beforeEach( () => {
 	global.window.radicalSocials = {
@@ -27,62 +31,81 @@ it( 'is hidden by default', () => {
 	expect( screen.queryByRole( 'dialog' ) ).not.toBeInTheDocument();
 } );
 
-it( 'opens when rs:open-editor is dispatched', () => {
+it( 'opens when rs:open-editor is dispatched', async () => {
 	render( <EditorModal /> );
 	act( () => {
 		document.dispatchEvent( new CustomEvent( 'rs:open-editor' ) );
 	} );
-	expect( screen.getByRole( 'dialog' ) ).toBeInTheDocument();
+	await waitFor( () => {
+		expect( screen.getByRole( 'dialog' ) ).toBeInTheDocument();
+	} );
 } );
 
-it( 'closes when the overlay is clicked', () => {
+it( 'closes when the overlay is clicked', async () => {
 	render( <EditorModal /> );
 	act( () => {
 		document.dispatchEvent( new CustomEvent( 'rs:open-editor' ) );
+	} );
+	await waitFor( () => {
+		expect( screen.getByTestId( 'modal-overlay' ) ).toBeInTheDocument();
 	} );
 	fireEvent.click( screen.getByTestId( 'modal-overlay' ) );
 	expect( screen.queryByRole( 'dialog' ) ).not.toBeInTheDocument();
 } );
 
-it( 'does not close when the dialog inner area is clicked', () => {
+it( 'does not close when the dialog inner area is clicked', async () => {
 	render( <EditorModal /> );
 	act( () => {
 		document.dispatchEvent( new CustomEvent( 'rs:open-editor' ) );
+	} );
+	await waitFor( () => {
+		expect( screen.getByTestId( 'editor-form' ) ).toBeInTheDocument();
 	} );
 	fireEvent.click( screen.getByTestId( 'editor-form' ) );
 	expect( screen.getByRole( 'dialog' ) ).toBeInTheDocument();
 } );
 
-it( 'closes when Escape is pressed', () => {
+it( 'closes when Escape is pressed', async () => {
 	render( <EditorModal /> );
 	act( () => {
 		document.dispatchEvent( new CustomEvent( 'rs:open-editor' ) );
+	} );
+	await waitFor( () => {
+		expect( screen.getByRole( 'dialog' ) ).toBeInTheDocument();
 	} );
 	fireEvent.keyDown( document, { key: 'Escape' } );
 	expect( screen.queryByRole( 'dialog' ) ).not.toBeInTheDocument();
 } );
 
-it( 'closes when EditorForm calls onCancel', () => {
+it( 'closes when EditorForm calls onCancel', async () => {
 	render( <EditorModal /> );
 	act( () => {
 		document.dispatchEvent( new CustomEvent( 'rs:open-editor' ) );
+	} );
+	await waitFor( () => {
+		expect( screen.getByRole( 'button', { name: /cancel/i } ) ).toBeInTheDocument();
 	} );
 	fireEvent.click( screen.getByRole( 'button', { name: /cancel/i } ) );
 	expect( screen.queryByRole( 'dialog' ) ).not.toBeInTheDocument();
 } );
 
-it( 'sets body overflow to hidden when open', () => {
+it( 'sets body overflow to hidden when open', async () => {
 	render( <EditorModal /> );
 	act( () => {
 		document.dispatchEvent( new CustomEvent( 'rs:open-editor' ) );
 	} );
-	expect( document.body.style.overflow ).toBe( 'hidden' );
+	await waitFor( () => {
+		expect( document.body.style.overflow ).toBe( 'hidden' );
+	} );
 } );
 
-it( 'restores body overflow when closed', () => {
+it( 'restores body overflow when closed', async () => {
 	render( <EditorModal /> );
 	act( () => {
 		document.dispatchEvent( new CustomEvent( 'rs:open-editor' ) );
+	} );
+	await waitFor( () => {
+		expect( screen.getByTestId( 'modal-overlay' ) ).toBeInTheDocument();
 	} );
 	fireEvent.click( screen.getByTestId( 'modal-overlay' ) );
 	expect( document.body.style.overflow ).toBe( '' );
