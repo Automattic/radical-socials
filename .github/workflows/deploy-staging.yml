@@ -1,0 +1,52 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - trunk
+
+jobs:
+  deploy:
+    name: Build and Deploy to WordPress.com
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build plugin assets
+        run: npm run build
+
+      - name: Install lftp
+        run: sudo apt-get update && sudo apt-get install -y lftp
+
+      - name: Deploy plugin
+        run: |
+          lftp -u "${{ secrets.SFTP_USERNAME }},${{ secrets.SFTP_PASSWORD }}" sftp://sftp.wp.com <<EOF
+          set sftp:auto-confirm yes
+          mirror --reverse --delete --verbose \
+            --exclude node_modules/ \
+            --exclude src/ \
+            --exclude .gitignore \
+            ./plugins/radical-socials/ \
+            /htdocs/wp-content/plugins/radical-socials/
+          bye
+          EOF
+
+      - name: Deploy theme
+        run: |
+          lftp -u "${{ secrets.SFTP_USERNAME }},${{ secrets.SFTP_PASSWORD }}" sftp://sftp.wp.com <<EOF
+          set sftp:auto-confirm yes
+          mirror --reverse --delete --verbose \
+            ./themes/radical-theme/ \
+            /htdocs/wp-content/themes/radical-theme/
+          bye
+          EOF

@@ -78,8 +78,7 @@
 				"rem",
 				"vh",
 				"vw"
-			],
-		  "useRootPaddingAwareAlignments": true
+			]
 		},
 		"typography": {
 			"defaultFontSizes": false,
@@ -141,6 +140,21 @@
 	},
 	"styles": {
 		"blocks": {
+			"core/search": {
+				"css": "& .wp-block-search__input{padding: 4px 16px;}",
+				"elements": {
+					"button": {
+						"spacing": {
+							"padding": {
+								"bottom": "4px",
+								"left": "8px",
+								"right": "8px",
+								"top": "4px"
+							}
+						}
+					}
+				}
+			},
 			"core/separator": {
 				"border": {
 					"color": "currentColor",
@@ -156,13 +170,6 @@
 			"background": "var(--wp--preset--color--base)",
 			"text": "var(--wp--preset--color--contrast-1)"
 		},
-		"spacing": {
-			"blockGap": "1.2rem",
-			"padding": {
-				"left": "var:preset|spacing|30",
-				"right": "var:preset|spacing|30"
-			}
-		},
 		"elements": {
 			"link": {
 				"color": {
@@ -171,6 +178,13 @@
 				"typography": {
 					"textDecoration": "none"
 				}
+			}
+		},
+		"spacing": {
+			"blockGap": "1.2rem",
+			"padding": {
+				"left": "var(--wp--preset--spacing--30)",
+				"right": "var(--wp--preset--spacing--30)"
 			}
 		},
 		"typography": {
