@@ -83,7 +83,10 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 		setIsSubmitting( true );
 		setError( null );
 		try {
-			const content  = serialize( blocks );
+			const content       = serialize( blocks );
+			const firstImage    = blocks.find( ( b ) => b.name === 'core/image' );
+			const featuredMedia = firstImage?.attributes?.id;
+
 			const response = await fetch(
 				`${ window.radicalSocials.restUrl }wp/v2/instagram-posts`,
 				{
@@ -93,13 +96,12 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 						'X-WP-Nonce':  window.radicalSocials.nonce,
 					},
 					body: JSON.stringify( {
-						status: 'publish',
+						status:  'publish',
 						content,
+						...( featuredMedia && { featured_media: featuredMedia } ),
 						meta: {
 							_instagram_tags:     hashtags,
 							_instagram_location: location,
-							// _instagram_media_type is intentionally omitted: block type (image/video/paragraph)
-							// implicitly determines media type from the block content.
 						},
 					} ),
 				}
