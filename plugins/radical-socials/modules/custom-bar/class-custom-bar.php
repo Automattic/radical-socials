@@ -130,7 +130,7 @@ class Radical_Socials_Custom_Bar {
 					</a>
 				</li>
 				<li>
-					<a href="<?php echo esc_url( get_edit_user_link( $user->ID ) ); ?>" class="rs-bar-link" aria-label="<?php esc_attr_e( 'Profile', 'radical-socials' ); ?>">
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=radical-socials-settings' ) ); ?>" class="rs-bar-link" aria-label="<?php esc_attr_e( 'Profile', 'radical-socials' ); ?>">
 						<?php echo $avatar; ?>
 						<span class="rs-bar-label"><?php esc_html_e( 'Profile', 'radical-socials' ); ?></span>
 					</a>
