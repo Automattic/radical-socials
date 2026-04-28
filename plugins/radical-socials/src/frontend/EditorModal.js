@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from '@wordpress/element';
+import refreshFeed from './refreshFeed';
 
 const SocialEditor = lazy( () => import( './SocialEditor' ) );
 
@@ -46,7 +47,10 @@ export default function EditorModal() {
 				onClick={ ( e ) => e.stopPropagation() }
 			>
 				<Suspense fallback={ <div className="rs-editor-loading" /> }>
-					<SocialEditor onSuccess={ closeModal } onCancel={ closeModal } />
+					<SocialEditor
+						onSuccess={ async () => { closeModal(); await refreshFeed(); } }
+						onCancel={ closeModal }
+					/>
 				</Suspense>
 			</div>
 		</div>

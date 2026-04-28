@@ -1,4 +1,5 @@
 import { useState, lazy, Suspense } from '@wordpress/element';
+import refreshFeed from './refreshFeed';
 import './frontend.css';
 
 const SocialEditor = lazy( () => import( './SocialEditor' ) );
@@ -10,8 +11,9 @@ export default function FrontendEditor() {
 		setExpanded( false );
 	}
 
-	function handleSuccess() {
-		window.location.reload();
+	async function handleSuccess() {
+		collapse();
+		await refreshFeed();
 	}
 
 	return (
