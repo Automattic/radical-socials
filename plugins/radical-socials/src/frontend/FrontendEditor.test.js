@@ -1,5 +1,10 @@
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 
+jest.mock( './refreshFeed', () => ( {
+	__esModule: true,
+	default: jest.fn(),
+} ) );
+
 jest.mock( './SocialEditor', () => {
 	return {
 		__esModule: true,
@@ -69,21 +74,7 @@ describe( 'expand on click', () => {
 	} );
 } );
 
-describe( 'new post display', () => {
-	it( 'shows a new post above the fold after success', async () => {
-		render( <FrontendEditor /> );
-		act( () => {
-			fireEvent.click( screen.getByText( /what's on your mind/i ) );
-		} );
-		await waitFor( () => {
-			expect( screen.getByTestId( 'editor-form' ) ).toBeInTheDocument();
-		} );
-		act( () => {
-			fireEvent.click( screen.getByRole( 'button', { name: /simulate success/i } ) );
-		} );
-		expect( screen.getByText( 'New post' ) ).toBeInTheDocument();
-	} );
-
+describe( 'after success', () => {
 	it( 'collapses back to idle after success', async () => {
 		render( <FrontendEditor /> );
 		act( () => {

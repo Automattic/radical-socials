@@ -22,13 +22,6 @@
 	border-color: #aaa;
 }
 
-.rs-editor-form {
-	background: #fff;
-	border: 1px solid #ddd;
-	border-radius: 8px;
-	padding: 1rem;
-}
-
 .rs-social-editor {
 	background: #fff;
 	border: 1px solid #ddd;
@@ -37,7 +30,16 @@
 }
 
 .rs-social-editor .block-editor-block-list__layout {
-	min-height: 80px;
+	min-height: unset;
+}
+
+.rs-social-editor .block-editor-block-list__insertion-point {
+	display: none;
+}
+
+.rs-social-editor .block-editor-block-list__empty-block-inserter {
+	opacity: 0;
+	pointer-events: none;
 }
 
 .rs-social-editor .wp-block-paragraph.block-editor-rich-text__editable {
@@ -104,60 +106,6 @@
 	background: #eee;
 }
 
-.rs-editor-types {
-	display: flex;
-	gap: 0.5rem;
-	margin-bottom: 0.75rem;
-}
-
-.rs-type-btn {
-	padding: 0.4rem 1rem;
-	border: 1px solid #ddd;
-	border-radius: 4px;
-	background: #f5f5f5;
-	cursor: pointer;
-	font-size: 0.875rem;
-}
-
-.rs-type-btn.is-active {
-	background: #000;
-	color: #fff;
-	border-color: #000;
-}
-
-.rs-upload-label {
-	display: block;
-	margin-bottom: 0.5rem;
-	font-size: 0.875rem;
-	font-weight: 500;
-	cursor: pointer;
-}
-
-.rs-caption,
-.rs-tags,
-.rs-location {
-	display: block;
-	width: 100%;
-	padding: 0.5rem;
-	border: 1px solid #ddd;
-	border-radius: 4px;
-	font-size: 0.875rem;
-	margin-bottom: 0.5rem;
-	box-sizing: border-box;
-	font-family: inherit;
-}
-
-.rs-caption {
-	min-height: 80px;
-	resize: vertical;
-}
-
-.rs-error {
-	color: #c00;
-	font-size: 0.875rem;
-	margin: 0.25rem 0;
-}
-
 .rs-editor-actions {
 	display: flex;
 	justify-content: flex-end;
@@ -187,28 +135,6 @@
 .rs-editor-actions button[type="button"] {
 	background: none;
 	border: 1px solid #ddd;
-}
-
-.rs-new-post {
-	background: #fff;
-	border: 1px solid #e8e8e8;
-	border-radius: 8px;
-	padding: 1rem;
-	margin-bottom: 1rem;
-	font-size: 0.9375rem;
-	line-height: 1.5;
-}
-
-/* Modal overlay */
-.rs-modal-overlay {
-	position: fixed;
-	inset: 0;
-	background: rgba( 0, 0, 0, 0.55 );
-	z-index: 9999;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 1rem;
 }
 
 .rs-modal-dialog {

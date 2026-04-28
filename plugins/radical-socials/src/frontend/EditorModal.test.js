@@ -1,12 +1,43 @@
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 
+jest.mock( './refreshFeed', () => ( {
+	__esModule: true,
+	default: jest.fn(),
+} ) );
+
+jest.mock( '@wordpress/components', () => ( {
+	Modal: ( { onRequestClose, children, className } ) => {
+		function handleKeyDown( e ) {
+			if ( e.key === 'Escape' ) onRequestClose();
+		}
+		return (
+			// eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+			<div
+				role="dialog"
+				aria-modal="true"
+				className={ className }
+				data-testid="modal-overlay"
+				onKeyDown={ handleKeyDown }
+			>
+				<button aria-label="Close" onClick={ onRequestClose }>×</button>
+				{ children }
+			</div>
+		);
+	},
+} ) );
+
+jest.mock( '@wordpress/i18n', () => ( {
+	__: ( str ) => str,
+} ) );
+
 jest.mock( './SocialEditor', () => {
 	return {
 		__esModule: true,
-		default: function MockSocialEditor( { onCancel } ) {
+		default: function MockSocialEditor( { onSuccess, onCancel } ) {
 			return (
 				<div data-testid="editor-form">
 					<button onClick={ onCancel }>Cancel</button>
+					<button onClick={ () => onSuccess( { id: 1 } ) }>Simulate Success</button>
 				</div>
 			);
 		},
@@ -20,10 +51,6 @@ beforeEach( () => {
 		nonce:   'test-nonce',
 		restUrl: 'http://localhost/wp-json/',
 	};
-} );
-
-afterEach( () => {
-	document.body.style.overflow = '';
 } );
 
 it( 'is hidden by default', () => {
@@ -41,15 +68,15 @@ it( 'opens when rs:open-editor is dispatched', async () => {
 	} );
 } );
 
-it( 'closes when the overlay is clicked', async () => {
+it( 'closes when the close button is clicked', async () => {
 	render( <EditorModal /> );
 	act( () => {
 		document.dispatchEvent( new CustomEvent( 'rs:open-editor' ) );
 	} );
 	await waitFor( () => {
-		expect( screen.getByTestId( 'modal-overlay' ) ).toBeInTheDocument();
+		expect( screen.getByRole( 'dialog' ) ).toBeInTheDocument();
 	} );
-	fireEvent.click( screen.getByTestId( 'modal-overlay' ) );
+	fireEvent.click( screen.getByRole( 'button', { name: /close/i } ) );
 	expect( screen.queryByRole( 'dialog' ) ).not.toBeInTheDocument();
 } );
 
@@ -73,7 +100,7 @@ it( 'closes when Escape is pressed', async () => {
 	await waitFor( () => {
 		expect( screen.getByRole( 'dialog' ) ).toBeInTheDocument();
 	} );
-	fireEvent.keyDown( document, { key: 'Escape' } );
+	fireEvent.keyDown( screen.getByRole( 'dialog' ), { key: 'Escape' } );
 	expect( screen.queryByRole( 'dialog' ) ).not.toBeInTheDocument();
 } );
 
@@ -89,24 +116,14 @@ it( 'closes when EditorForm calls onCancel', async () => {
 	expect( screen.queryByRole( 'dialog' ) ).not.toBeInTheDocument();
 } );
 
-it( 'sets body overflow to hidden when open', async () => {
+it( 'closes when EditorForm calls onSuccess', async () => {
 	render( <EditorModal /> );
 	act( () => {
 		document.dispatchEvent( new CustomEvent( 'rs:open-editor' ) );
 	} );
 	await waitFor( () => {
-		expect( document.body.style.overflow ).toBe( 'hidden' );
+		expect( screen.getByRole( 'button', { name: /simulate success/i } ) ).toBeInTheDocument();
 	} );
-} );
-
-it( 'restores body overflow when closed', async () => {
-	render( <EditorModal /> );
-	act( () => {
-		document.dispatchEvent( new CustomEvent( 'rs:open-editor' ) );
-	} );
-	await waitFor( () => {
-		expect( screen.getByTestId( 'modal-overlay' ) ).toBeInTheDocument();
-	} );
-	fireEvent.click( screen.getByTestId( 'modal-overlay' ) );
-	expect( document.body.style.overflow ).toBe( '' );
+	fireEvent.click( screen.getByRole( 'button', { name: /simulate success/i } ) );
+	expect( screen.queryByRole( 'dialog' ) ).not.toBeInTheDocument();
 } );

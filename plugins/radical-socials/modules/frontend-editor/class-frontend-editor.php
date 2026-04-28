@@ -13,11 +13,11 @@ defined( 'ABSPATH' ) || exit;
 
 class Radical_Socials_Frontend_Editor {
 
-	public function __construct() {
-		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue' ] );
+	public static function init(): void {
+		add_action( 'wp_enqueue_scripts', [ self::class, 'enqueue' ] );
 	}
 
-	public function enqueue(): void {
+	public static function enqueue(): void {
 		if ( ! is_user_logged_in() ) {
 			return;
 		}
@@ -41,7 +41,7 @@ class Radical_Socials_Frontend_Editor {
 		wp_enqueue_style(
 			'radical-socials-frontend',
 			plugin_dir_url( __FILE__ ) . '../../build/frontend.css',
-			[ 'wp-block-editor', 'wp-block-library' ],
+			[ 'wp-block-library', 'wp-components' ],
 			$asset['version']
 		);
 
@@ -56,4 +56,4 @@ class Radical_Socials_Frontend_Editor {
 	}
 }
 
-new Radical_Socials_Frontend_Editor();
+Radical_Socials_Frontend_Editor::init();

@@ -4,7 +4,7 @@ const path = require( 'path' );
 module.exports = {
 	...defaultConfig,
 	entry: {
-		index:    path.resolve( __dirname, 'plugins/radical-socials/src/index.js' ),
+		...( typeof defaultConfig.entry === 'function' ? defaultConfig.entry() : defaultConfig.entry ),
 		frontend: path.resolve( __dirname, 'plugins/radical-socials/src/frontend.js' ),
 	},
 	output: {

@@ -18,20 +18,44 @@ const MEDIA_BLOCKS = [
 	{ label: 'Link',  name: 'core/embed' },
 ];
 
-function EditorAutoFocus() {
+function EditorFocusManager( { children } ) {
+	const containerRef    = useRef( null );
+	const hasAutoFocused  = useRef( false );
+
 	const firstClientId = useSelect(
 		( select ) => select( 'core/block-editor' ).getBlockOrder()[ 0 ],
 		[]
 	);
+	const selectedClientId = useSelect(
+		( select ) => select( 'core/block-editor' ).getSelectedBlockClientId(),
+		[]
+	);
 	const { selectBlock } = useDispatch( 'core/block-editor' );
-	const hasFocused = useRef( false );
+
+	function focusEditable() {
+		requestAnimationFrame( () => {
+			const el = containerRef.current?.querySelector( '[contenteditable="true"]' );
+			if ( el && el !== document.activeElement ) el.focus();
+		} );
+	}
+
+	// Auto-focus first block on mount.
 	useEffect( () => {
-		if ( firstClientId && ! hasFocused.current ) {
-			hasFocused.current = true;
+		if ( firstClientId && ! hasAutoFocused.current ) {
+			hasAutoFocused.current = true;
 			selectBlock( firstClientId );
+			focusEditable();
 		}
 	}, [ firstClientId, selectBlock ] );
-	return null;
+
+	function handleMouseDown() {
+		if ( ! selectedClientId && firstClientId ) {
+			selectBlock( firstClientId );
+		}
+		focusEditable();
+	}
+
+	return <div ref={ containerRef } onMouseDown={ handleMouseDown }>{ children }</div>;
 }
 
 function MediaBar() {
@@ -110,7 +134,7 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 			setBlocks( [ createBlock( 'core/paragraph', { placeholder: "What's on your mind?" } ) ] );
 			setHashtags( '' );
 			setLocation( '' );
-			onSuccess?.( post );
+			await onSuccess?.( post );
 		} catch ( err ) {
 			setError( err.message );
 		} finally {
@@ -131,14 +155,15 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 				settings={ editorSettings }
 				useSubRegistry={ true }
 			>
-				<BlockTools>
-					<WritingFlow>
-						<ObserveTyping>
-							<BlockList />
-						</ObserveTyping>
-					</WritingFlow>
-				</BlockTools>
-				<EditorAutoFocus />
+				<EditorFocusManager>
+					<BlockTools>
+						<WritingFlow>
+							<ObserveTyping>
+								<BlockList renderAppender={ false } />
+							</ObserveTyping>
+						</WritingFlow>
+					</BlockTools>
+				</EditorFocusManager>
 				<MediaBar />
 			</BlockEditorProvider>
 

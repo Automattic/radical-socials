@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from '@wordpress/element';
+import { Modal } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import refreshFeed from './refreshFeed';
 
 const SocialEditor = lazy( () => import( './SocialEditor' ) );
@@ -14,45 +16,20 @@ export default function EditorModal() {
 		return () => document.removeEventListener( 'rs:open-editor', openModal );
 	}, [ openModal ] );
 
-	useEffect( () => {
-		if ( ! open ) return;
-		function onKeyDown( e ) {
-			if ( e.key === 'Escape' ) closeModal();
-		}
-		document.addEventListener( 'keydown', onKeyDown );
-		return () => document.removeEventListener( 'keydown', onKeyDown );
-	}, [ open, closeModal ] );
-
-	useEffect( () => {
-		if ( ! open ) return;
-		document.body.style.overflow = 'hidden';
-		return () => {
-			document.body.style.overflow = '';
-		};
-	}, [ open ] );
-
 	if ( ! open ) return null;
 
 	return (
-		<div
-			className="rs-modal-overlay"
-			data-testid="modal-overlay"
-			onClick={ closeModal }
+		<Modal
+			title={ __( 'Create post', 'radical-socials' ) }
+			onRequestClose={ closeModal }
+			className="rs-modal-dialog"
 		>
-			<div
-				className="rs-modal-dialog"
-				role="dialog"
-				aria-modal="true"
-				aria-label="Create post"
-				onClick={ ( e ) => e.stopPropagation() }
-			>
-				<Suspense fallback={ <div className="rs-editor-loading" /> }>
-					<SocialEditor
-						onSuccess={ async () => { closeModal(); await refreshFeed(); } }
-						onCancel={ closeModal }
-					/>
-				</Suspense>
-			</div>
-		</div>
+			<Suspense fallback={ <div className="rs-editor-loading" /> }>
+				<SocialEditor
+					onSuccess={ () => { closeModal(); refreshFeed(); } }
+					onCancel={ closeModal }
+				/>
+			</Suspense>
+		</Modal>
 	);
 }

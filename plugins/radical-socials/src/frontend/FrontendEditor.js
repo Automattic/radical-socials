@@ -11,9 +11,9 @@ export default function FrontendEditor() {
 		setExpanded( false );
 	}
 
-	async function handleSuccess() {
+	function handleSuccess() {
 		collapse();
-		await refreshFeed();
+		refreshFeed();
 	}
 
 	return (

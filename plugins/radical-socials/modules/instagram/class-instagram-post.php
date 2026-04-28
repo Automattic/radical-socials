@@ -13,11 +13,11 @@ defined( 'ABSPATH' ) || exit;
 
 class Radical_Socials_Instagram_Post {
 
-	public function __construct() {
-		add_action( 'init', [ $this, 'register' ] );
+	public static function init(): void {
+		add_action( 'init', [ self::class, 'register' ] );
 	}
 
-	public function register(): void {
+	public static function register(): void {
 		register_post_type( 'instagram-post', [
 			'labels'       => [
 				'name'          => __( 'Instagram Posts', 'radical-socials' ),
@@ -44,10 +44,12 @@ class Radical_Socials_Instagram_Post {
 				'single'        => true,
 				'type'          => $type,
 				'default'       => '',
-				'auth_callback' => '__return_true',
+				'auth_callback' => function( $allowed, $meta_key, $post_id ) {
+					return current_user_can( 'edit_post', $post_id );
+				},
 			] );
 		}
 	}
 }
 
-new Radical_Socials_Instagram_Post();
+Radical_Socials_Instagram_Post::init();
