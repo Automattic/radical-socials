@@ -78,6 +78,31 @@
 	display:       block;
 }
 
+/* ── Icon wrapper + badge ──────────────────────────────────────── */
+.rs-bar-icon-wrap {
+	position:    relative;
+	display:     inline-flex;
+	flex-shrink: 0;
+}
+
+.rs-bar-badge {
+	position:    absolute;
+	top:         -4px;
+	right:       -5px;
+	min-width:   14px;
+	height:      14px;
+	padding:     0 3px;
+	background:  #d63638;
+	color:       #fff;
+	font-size:   9px;
+	font-weight: 600;
+	line-height: 14px;
+	text-align:  center;
+	border-radius: 7px;
+	box-sizing:  border-box;
+	pointer-events: none;
+}
+
 /* ── Desktop ───────────────────────────────────────────────────── */
 @media (min-width: 783px) {
 
@@ -109,7 +134,6 @@
 		height:      var(--rs-h);
 		line-height: 1;
 		white-space: nowrap;
-		overflow:    hidden;
 		box-sizing:  border-box;
 	}
 

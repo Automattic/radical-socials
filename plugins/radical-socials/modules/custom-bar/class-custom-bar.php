@@ -94,8 +94,9 @@ class Radical_Socials_Custom_Bar {
 			return;
 		}
 
-		$user   = wp_get_current_user();
-		$avatar = get_avatar( $user->ID, self::H, '', esc_attr__( 'Profile', 'radical-socials' ), [ 'class' => 'rs-bar-avatar' ] );
+		$user    = wp_get_current_user();
+		$avatar  = get_avatar( $user->ID, self::H, '', esc_attr__( 'Profile', 'radical-socials' ), [ 'class' => 'rs-bar-avatar' ] );
+		$pending = (int) wp_count_comments()->moderated;
 		?>
 		<nav id="rs-bar" aria-label="<?php esc_attr_e( 'Site navigation', 'radical-socials' ); ?>">
 			<ul>
@@ -118,13 +119,18 @@ class Radical_Socials_Custom_Bar {
 					</a>
 				</li>
 				<li>
-					<a href="#" class="rs-bar-link" aria-label="<?php esc_attr_e( 'Notifications', 'radical-socials' ); ?>">
-						<span class="dashicons dashicons-heart" aria-hidden="true"></span>
-						<span class="rs-bar-label"><?php esc_html_e( 'Notifications', 'radical-socials' ); ?></span>
+					<a href="<?php echo esc_url( admin_url( 'edit-comments.php?comment_status=moderated' ) ); ?>" class="rs-bar-link" aria-label="<?php echo $pending > 0 ? esc_attr( sprintf( __( 'Comments — %d pending', 'radical-socials' ), $pending ) ) : esc_attr__( 'Comments', 'radical-socials' ); ?>">
+						<span class="rs-bar-icon-wrap">
+							<span class="dashicons dashicons-admin-comments" aria-hidden="true"></span>
+							<?php if ( $pending > 0 ) : ?>
+								<span class="rs-bar-badge" aria-hidden="true"><?php echo $pending > 99 ? '99+' : $pending; ?></span>
+							<?php endif; ?>
+						</span>
+						<span class="rs-bar-label"><?php esc_html_e( 'Comments', 'radical-socials' ); ?></span>
 					</a>
 				</li>
 				<li>
-					<a href="#" class="rs-bar-link" aria-label="<?php esc_attr_e( 'Profile', 'radical-socials' ); ?>">
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=radical-socials-settings' ) ); ?>" class="rs-bar-link" aria-label="<?php esc_attr_e( 'Profile', 'radical-socials' ); ?>">
 						<?php echo $avatar; ?>
 						<span class="rs-bar-label"><?php esc_html_e( 'Profile', 'radical-socials' ); ?></span>
 					</a>
