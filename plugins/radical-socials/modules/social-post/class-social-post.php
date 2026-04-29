@@ -2,9 +2,9 @@
 /**
  * Social Post CPT
  *
- * Registers the `social-post` custom post type and its associated
- * meta fields. REST support is enabled so the front-end editor and
- * any future importers can communicate via the WP REST API.
+ * Registers the `social-post` custom post type and the `social-tag` taxonomy.
+ * REST support is enabled so the front-end editor and any future importers
+ * can communicate via the WP REST API.
  *
  * @package RadicalSocials
  */
@@ -29,21 +29,16 @@ class Radical_Socials_Social_Post {
 			'supports'     => [ 'title', 'editor', 'thumbnail', 'custom-fields' ],
 		] );
 
-		$metas = [
-			'_social_tags' => 'string', // space-separated hashtags
-		];
-
-		foreach ( $metas as $key => $type ) {
-			register_post_meta( 'social-post', $key, [
-				'show_in_rest'  => true,
-				'single'        => true,
-				'type'          => $type,
-				'default'       => '',
-				'auth_callback' => function( $allowed, $meta_key, $post_id ) {
-					return current_user_can( 'edit_post', $post_id );
-				},
-			] );
-		}
+		register_taxonomy( 'social-tag', 'social-post', [
+			'labels'       => [
+				'name'          => __( 'Social Tags', 'radical-socials' ),
+				'singular_name' => __( 'Social Tag', 'radical-socials' ),
+			],
+			'public'       => true,
+			'show_in_rest' => true,
+			'rest_base'    => 'social-tags',
+			'hierarchical' => false,
+		] );
 	}
 }
 

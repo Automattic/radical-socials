@@ -85,14 +85,11 @@ describe( 'REST submission', () => {
 		jest.restoreAllMocks();
 	} );
 
-	it( 'POSTs to /wp/v2/social-posts with serialized content and metadata', async () => {
+	it( 'POSTs to /wp/v2/social-posts with serialized content', async () => {
 		const post = { id: 42, content: { rendered: '<p>Hello world</p>' } };
 		fetch.mockResolvedValueOnce( { ok: true, json: async () => post } );
 
 		render( <SocialEditor onSuccess={ onSuccess } onCancel={ onCancel } /> );
-		fireEvent.change( screen.getByPlaceholderText( /#tags/i ), {
-			target: { value: 'cats dogs' },
-		} );
 		fireEvent.click( screen.getByRole( 'button', { name: /^post$/i } ) );
 
 		await screen.findByRole( 'button', { name: /^post$/i } );
@@ -108,12 +105,32 @@ describe( 'REST submission', () => {
 				body: JSON.stringify( {
 					status:  'publish',
 					content: '<!-- wp:paragraph --><p>Hello world</p><!-- /wp:paragraph -->',
-					meta: {
-						_social_tags: 'cats dogs',
-					},
 				} ),
 			} )
 		);
+	} );
+
+	it( 'resolves hashtags to term IDs and includes them in the post', async () => {
+		fetch
+			.mockResolvedValueOnce( { ok: true, json: async () => [] } )                          // GET social-tags?slug=cats → not found
+			.mockResolvedValueOnce( { ok: true, json: async () => ( { id: 1, slug: 'cats' } ) } ) // POST social-tags → created
+			.mockResolvedValueOnce( { ok: true, json: async () => [ { id: 2, slug: 'dogs' } ] } ) // GET social-tags?slug=dogs → found
+			.mockResolvedValueOnce( { ok: true, json: async () => ( { id: 99 } ) } );              // POST social-posts
+
+		render( <SocialEditor onSuccess={ onSuccess } onCancel={ onCancel } /> );
+		fireEvent.change( screen.getByPlaceholderText( /#tags/i ), {
+			target: { value: '#cats #dogs' },
+		} );
+		fireEvent.click( screen.getByRole( 'button', { name: /^post$/i } ) );
+
+		await screen.findByRole( 'button', { name: /^post$/i } );
+
+		const postCall = fetch.mock.calls.find(
+			( [ url ] ) => url.includes( 'social-posts' ) && ! url.includes( 'social-tags' )
+		);
+		expect( JSON.parse( postCall[ 1 ].body ) ).toMatchObject( {
+			'social-tags': [ 1, 2 ],
+		} );
 	} );
 
 	it( 'calls onSuccess with the returned post', async () => {
@@ -130,7 +147,9 @@ describe( 'REST submission', () => {
 
 	it( 'resets hashtags after a successful post', async () => {
 		const post = { id: 42, content: { rendered: '<p>Hello</p>' } };
-		fetch.mockResolvedValueOnce( { ok: true, json: async () => post } );
+		fetch
+			.mockResolvedValueOnce( { ok: true, json: async () => [ { id: 1 } ] } ) // GET social-tags?slug=cats
+			.mockResolvedValueOnce( { ok: true, json: async () => post } );           // POST social-posts
 
 		render( <SocialEditor onSuccess={ onSuccess } onCancel={ onCancel } /> );
 		fireEvent.change( screen.getByPlaceholderText( /#tags/i ), {

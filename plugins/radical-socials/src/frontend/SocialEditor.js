@@ -100,6 +100,40 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 
 	const editorSettings = useMemo( () => getEditorSettings( mediaUpload ), [ mediaUpload ] );
 
+	const resolveTagIds = useCallback( async ( raw ) => {
+		const names = raw
+			.split( /[\s,]+/ )
+			.map( ( t ) => t.replace( /^#/, '' ).trim() )
+			.filter( Boolean );
+
+		const ids = [];
+		for ( const name of names ) {
+			const slug   = name.toLowerCase();
+			const search = await fetch(
+				`${ window.radicalSocials.restUrl }wp/v2/social-tags?slug=${ encodeURIComponent( slug ) }`,
+				{ headers: { 'X-WP-Nonce': window.radicalSocials.nonce } }
+			);
+			if ( ! search.ok ) throw new Error( 'Tag lookup failed.' );
+			const found = await search.json();
+			if ( found.length ) {
+				ids.push( found[ 0 ].id );
+				continue;
+			}
+
+			const create = await fetch(
+				`${ window.radicalSocials.restUrl }wp/v2/social-tags`,
+				{
+					method:  'POST',
+					headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': window.radicalSocials.nonce },
+					body:    JSON.stringify( { name, slug } ),
+				}
+			);
+			if ( ! create.ok ) throw new Error( 'Tag creation failed.' );
+			ids.push( ( await create.json() ).id );
+		}
+		return ids;
+	}, [] );
+
 	const handleSubmit = useCallback( async ( e ) => {
 		e.preventDefault();
 		setIsSubmitting( true );
@@ -108,6 +142,7 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 			const content       = serialize( blocks );
 			const firstImage    = blocks.find( ( b ) => b.name === 'core/image' );
 			const featuredMedia = firstImage?.attributes?.id;
+			const tagIds        = await resolveTagIds( hashtags );
 
 			const response = await fetch(
 				`${ window.radicalSocials.restUrl }wp/v2/social-posts`,
@@ -120,10 +155,8 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 					body: JSON.stringify( {
 						status:  'publish',
 						content,
-						...( featuredMedia && { featured_media: featuredMedia } ),
-						meta: {
-							_social_tags: hashtags,
-						},
+						...( featuredMedia          && { featured_media: featuredMedia } ),
+						...( tagIds.length          && { 'social-tags': tagIds } ),
 					} ),
 				}
 			);
@@ -137,7 +170,7 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 		} finally {
 			setIsSubmitting( false );
 		}
-	}, [ blocks, hashtags, onSuccess ] );
+	}, [ blocks, hashtags, resolveTagIds, onSuccess ] );
 
 	const isEmpty = blocks.every(
 		( b ) => b.name === 'core/paragraph' && ! b.attributes?.content
