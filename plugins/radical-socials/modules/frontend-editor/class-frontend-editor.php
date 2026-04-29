@@ -14,7 +14,22 @@ defined( 'ABSPATH' ) || exit;
 class Radical_Socials_Frontend_Editor {
 
 	public static function init(): void {
+		add_action( 'init',               [ self::class, 'register_block' ] );
 		add_action( 'wp_enqueue_scripts', [ self::class, 'enqueue' ] );
+	}
+
+	public static function register_block(): void {
+		register_block_type(
+			__DIR__ . '/block.json',
+			[ 'render_callback' => [ self::class, 'render' ] ]
+		);
+	}
+
+	public static function render(): string {
+		if ( ! is_user_logged_in() ) {
+			return '';
+		}
+		return '<div id="radical-socials-editor"></div>';
 	}
 
 	public static function enqueue(): void {
