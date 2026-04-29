@@ -24,6 +24,28 @@ class Radical_Socials_Settings_Page {
 		wp_enqueue_media();
 		wp_enqueue_script( 'site-icon' );
 		wp_enqueue_style( 'site-icon' );
+
+		wp_enqueue_script(
+			'rs-following-settings',
+			plugin_dir_url( __FILE__ ) . 'assets/following.js',
+			[],
+			filemtime( __DIR__ . '/assets/following.js' ) ?: '1',
+			true
+		);
+		wp_localize_script( 'rs-following-settings', 'rsFollowing', [
+			'apiUrl' => rest_url( 'radical-socials/v1/following' ),
+			'nonce'  => wp_create_nonce( 'wp_rest' ),
+			'i18n'   => [
+				'loading'     => __( 'Loading…', 'radical-socials' ),
+				'loadError'   => __( 'Could not load following list.', 'radical-socials' ),
+				'empty'       => __( 'Not following anything yet. Add feeds or accounts above.', 'radical-socials' ),
+				'remove'      => __( 'Remove', 'radical-socials' ),
+				'deleteError' => __( 'Could not remove item. Please try again.', 'radical-socials' ),
+				'colSite'     => __( 'Site', 'radical-socials' ),
+				'colType'     => __( 'Type', 'radical-socials' ),
+				'addSummary'  => __( 'Done — %added% added, %skipped% already existed, %failed% failed.', 'radical-socials' ),
+			],
+		] );
 	}
 
 	public static function render(): void {
@@ -32,6 +54,18 @@ class Radical_Socials_Settings_Page {
 		}
 
 		$updated = false;
+
+		// Handle WP.com disconnect action (GET, nonce-protected).
+		if (
+			isset( $_GET['rs_action'] ) &&
+			'wpcom_disconnect' === $_GET['rs_action'] &&
+			isset( $_GET['_wpnonce'] ) &&
+			wp_verify_nonce( wp_unslash( $_GET['_wpnonce'] ), 'rs_wpcom_disconnect' )
+		) {
+			Radical_Socials_WPCOM_OAuth::disconnect();
+			wp_safe_redirect( admin_url( 'admin.php?page=radical-socials-settings&rs_wpcom=disconnected' ) );
+			exit;
+		}
 
 		if (
 			isset( $_POST['rs_settings_nonce'] ) &&
@@ -72,6 +106,24 @@ class Radical_Socials_Settings_Page {
 			<?php if ( $updated ) : ?>
 				<div class="notice notice-success is-dismissible">
 					<p><?php esc_html_e( 'Settings saved.', 'radical-socials' ); ?></p>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( isset( $_GET['rs_oauth'] ) && 'connected' === $_GET['rs_oauth'] ) : ?>
+				<div class="notice notice-success is-dismissible">
+					<p><?php esc_html_e( 'WP.com account connected. Your following feed will populate shortly.', 'radical-socials' ); ?></p>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( isset( $_GET['rs_wpcom'] ) && 'disconnected' === $_GET['rs_wpcom'] ) : ?>
+				<div class="notice notice-success is-dismissible">
+					<p><?php esc_html_e( 'WP.com account disconnected.', 'radical-socials' ); ?></p>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( isset( $_GET['rs_oauth_error'] ) ) : ?>
+				<div class="notice notice-error is-dismissible">
+					<p><?php esc_html_e( 'Could not connect WP.com account. Please try again.', 'radical-socials' ); ?></p>
 				</div>
 			<?php endif; ?>
 
@@ -156,8 +208,62 @@ class Radical_Socials_Settings_Page {
 					</tr>
 					<?php endif; ?>
 				</table>
+
 				<?php submit_button(); ?>
 			</form>
+
+			<hr>
+
+			<h2><?php esc_html_e( 'Following Feed', 'radical-socials' ); ?></h2>
+			<?php
+			$following_page = get_page_by_path( 'following', OBJECT, 'page' );
+			$following_url  = $following_page ? get_permalink( $following_page->ID ) : home_url( '/following/' );
+			?>
+			<p class="description"><?php printf(
+				/* translators: %s: link to the /following page */
+				esc_html__( 'Configure what appears at %s. Each source type stacks on top of the last — connect more to see more.', 'radical-socials' ),
+				'<a href="' . esc_url( $following_url ) . '" target="_blank" rel="noopener">' . esc_html( $following_url ) . '</a>'
+			); ?></p>
+
+			<?php if ( class_exists( 'Radical_Socials_WPCOM_OAuth' ) && Radical_Socials_WPCOM_OAuth::is_configured() ) : ?>
+			<p style="margin-top:12px">
+				<?php if ( Radical_Socials_WPCOM_OAuth::is_connected() ) : ?>
+					<?php esc_html_e( 'WP.com account connected.', 'radical-socials' ); ?>
+					<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=radical-socials-settings&rs_action=wpcom_disconnect' ), 'rs_wpcom_disconnect' ) ); ?>" class="button button-small button-secondary" style="margin-left:8px"><?php esc_html_e( 'Disconnect', 'radical-socials' ); ?></a>
+				<?php else : ?>
+					<a href="<?php echo esc_url( Radical_Socials_WPCOM_OAuth::connect_url() ); ?>" class="button button-primary"><?php esc_html_e( 'Connect WP.com Account', 'radical-socials' ); ?></a>
+					<span class="description" style="margin-left:8px"><?php esc_html_e( 'Unlocks WP.com sites, Bluesky accounts, and the full WP.com Reader.', 'radical-socials' ); ?></span>
+				<?php endif; ?>
+			</p>
+			<?php endif; ?>
+
+			<div style="margin-top:16px">
+				<label for="rs-add-input"><strong><?php esc_html_e( 'Add feeds or accounts', 'radical-socials' ); ?></strong></label>
+				<p class="description" style="margin-bottom:8px">
+					<?php esc_html_e( 'One per line. RSS/Atom URLs or ActivityPub handles (e.g. @someone@mastodon.social).', 'radical-socials' ); ?><br>
+					<?php esc_html_e( 'ActivityPub supports: Mastodon, Pixelfed, Misskey, Pleroma, Peertube, Lemmy, Friendica, Hubzilla, and any ActivityPub-compatible account.', 'radical-socials' ); ?>
+				</p>
+				<textarea id="rs-add-input" rows="5" class="large-text" placeholder="https://example.com/feed&#10;@someone@mastodon.social"></textarea>
+				<p>
+					<button id="rs-add-btn" type="button" class="button button-primary"><?php esc_html_e( 'Add', 'radical-socials' ); ?></button>
+				</p>
+				<div id="rs-add-progress" hidden style="margin-top:8px">
+					<progress id="rs-add-progress-bar" value="0" max="100" style="width:100%;max-width:400px;display:block"></progress>
+					<span id="rs-add-progress-text"></span>
+				</div>
+			</div>
+
+			<div id="rs-following-table-wrap" style="margin-top:24px"></div>
+
+			<style>
+			.rs-following-table { margin-top: 8px; }
+			.rs-type-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+			.rs-type-rss         { background: #f0f6fc; color: #0073aa; }
+			.rs-type-activitypub { background: #f3f0ff; color: #6b21a8; }
+			.rs-type-wpcom       { background: #f0fff4; color: #166534; }
+			.rs-error { color: #dc3232; }
+			</style>
+
 		</div>
 		<?php
 	}

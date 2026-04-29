@@ -20,6 +20,7 @@ require_once __DIR__ . '/modules/custom-bar/class-custom-bar.php';
 require_once __DIR__ . '/modules/settings/class-settings-page.php';
 require_once __DIR__ . '/modules/social-post/class-social-post.php';
 require_once __DIR__ . '/modules/frontend-editor/class-frontend-editor.php';
+require_once __DIR__ . '/modules/following/loader.php';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -39,3 +40,23 @@ function radical_socials_add_menu_page(): void {
 	);
 }
 add_action( 'admin_menu', 'radical_socials_add_menu_page' );
+
+/**
+ * On activation: configure ActivityPub for blog-actor mode so there is nothing
+ * for the user to set up in the ActivityPub plugin settings.
+ */
+function radical_socials_deactivate(): void {
+	Radical_Socials_Following::deactivate();
+}
+register_deactivation_hook( __FILE__, 'radical_socials_deactivate' );
+
+function radical_socials_activate(): void {
+	if ( ! defined( 'ACTIVITYPUB_BLOG_MODE' ) ) {
+		return;
+	}
+	// Use the single blog-wide actor. Identity (name, logo) syncs from WP options automatically.
+	if ( ! get_option( 'activitypub_actor_mode' ) ) {
+		update_option( 'activitypub_actor_mode', ACTIVITYPUB_BLOG_MODE );
+	}
+}
+register_activation_hook( __FILE__, 'radical_socials_activate' );
