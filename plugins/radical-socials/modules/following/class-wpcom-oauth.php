@@ -114,7 +114,7 @@ class Radical_Socials_WPCOM_OAuth {
 		update_option( self::TOKEN_OPTION, sanitize_text_field( $body['access_token'] ), false );
 
 		// Kick off an immediate fetch now that we have a token.
-		wp_schedule_single_event( time(), Radical_Socials_Following::CRON_HOOK );
+		wp_schedule_single_event( time(), Radical_Socials_Following::FETCH_HOOK );
 		spawn_cron();
 
 		wp_safe_redirect( self::settings_url( 'rs_oauth=connected' ) );

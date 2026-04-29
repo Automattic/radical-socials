@@ -123,8 +123,7 @@ class Radical_Socials_WebSub_Subscriber {
 	 * Hub POSTs new feed content. Parse and ingest immediately.
 	 */
 	public static function handle_notification( WP_REST_Request $request ): WP_REST_Response {
-		$body         = $request->get_body();
-		$content_type = $request->get_content_type()['value'] ?? '';
+		$body = $request->get_body();
 
 		// Use SimplePie to parse the pushed Atom/RSS fragment.
 		if ( ! function_exists( 'fetch_feed' ) ) {
@@ -150,15 +149,21 @@ class Radical_Socials_WebSub_Subscriber {
 				continue;
 			}
 
+			$raw_content = (string) ( $item->get_content() ?: $item->get_description() );
+
 			$thumbnail = '';
 			$enclosure = $item->get_enclosure();
 			if ( $enclosure && str_starts_with( (string) $enclosure->get_type(), 'image/' ) ) {
 				$thumbnail = esc_url_raw( (string) $enclosure->get_link() );
 			}
+			if ( ! $thumbnail && preg_match( '/<img[^>]+src=["\']([^"\']+)["\']/', $raw_content, $m ) ) {
+				$thumbnail = esc_url_raw( $m[1] );
+			}
 
 			Radical_Socials_Feed_Fetcher::upsert_item( [
 				'title'         => wp_strip_all_tags( (string) $item->get_title() ),
 				'url'           => $url,
+				'content'       => $raw_content,
 				'excerpt'       => wp_trim_words( wp_strip_all_tags( (string) $item->get_description() ), 30 ),
 				'date'          => $item->get_date( 'c' ) ?: current_time( 'c' ),
 				'source_name'   => $channel_title ?: parse_url( $channel_url, PHP_URL_HOST ),
