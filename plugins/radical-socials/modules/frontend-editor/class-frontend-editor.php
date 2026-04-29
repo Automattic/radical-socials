@@ -2,9 +2,10 @@
 /**
  * Frontend Editor
  *
- * Enqueues the React-based inline post composer for logged-in users on the
- * front end. Also outputs a `radicalSocials` JS object with the REST nonce
- * and root URL so the editor can make authenticated API calls.
+ * Enqueues the React-based inline post composer for users who can publish
+ * social posts on the front end. Also outputs a `radicalSocials` JS object
+ * with the REST nonce and root URL so the editor can make authenticated API
+ * calls.
  *
  * @package RadicalSocials
  */
@@ -26,14 +27,14 @@ class Radical_Socials_Frontend_Editor {
 	}
 
 	public static function render(): string {
-		if ( ! is_user_logged_in() ) {
+		if ( ! Radical_Socials_Social_Post::current_user_can_publish() ) {
 			return '';
 		}
 		return '<div id="radical-socials-editor"></div>';
 	}
 
 	public static function enqueue(): void {
-		if ( ! is_user_logged_in() ) {
+		if ( ! Radical_Socials_Social_Post::current_user_can_publish() ) {
 			return;
 		}
 
