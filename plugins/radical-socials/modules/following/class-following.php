@@ -30,6 +30,7 @@ class Radical_Socials_Following {
 		add_action( 'init',             [ __CLASS__, 'register_taxonomy' ] );
 		add_action( 'init',             [ __CLASS__, 'ensure_page'       ] );
 		add_action( 'init',             [ __CLASS__, 'schedule_recurring' ] );
+		add_action( 'init',             [ __CLASS__, 'register_blocks'   ] );
 
 		// Recurring background fetch.
 		add_action( self::FETCH_HOOK, [ 'Radical_Socials_Feed_Fetcher', 'run' ] );
@@ -43,6 +44,10 @@ class Radical_Socials_Following {
 		// Infinite scroll on the /following page.
 		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'enqueue_infinite_scroll' ] );
 		add_filter( 'render_block',       [ __CLASS__, 'wrap_following_query' ], 10, 2 );
+	}
+
+	public static function register_blocks(): void {
+		register_block_type( __DIR__ . '/blocks/favorite-feeds' );
 	}
 
 	public static function schedule_recurring(): void {

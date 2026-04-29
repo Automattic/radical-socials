@@ -230,11 +230,32 @@ class Radical_Socials_Following_REST {
 
 		switch ( $type ) {
 			case 'rss':
-				$subs = (array) get_option( 'rs_rss_subscriptions', [] );
-				$subs = array_values( array_filter( $subs, fn( $s ) => md5( $s['url'] ) !== $id ) );
+				$subs        = (array) get_option( 'rs_rss_subscriptions', [] );
+				$deleted_sub = null;
+				$subs        = array_values(
+					array_filter( $subs, function ( $s ) use ( $id, &$deleted_sub ) {
+						if ( md5( $s['url'] ) === $id ) {
+							$deleted_sub = $s;
+							return false;
+						}
+						return true;
+					} )
+				);
 				update_option( 'rs_rss_subscriptions', $subs, false );
 				if ( $url ) {
 					Radical_Socials_WebSub_Subscriber::unsubscribe( $url );
+				}
+				if ( $deleted_sub ) {
+					self::delete_feed_items_for_source( $deleted_sub );
+				}
+				// Remove from favorites.
+				if ( $deleted_sub ) {
+					$fav_key = 'rss:' . md5( $deleted_sub['url'] );
+					$favs    = array_values( array_filter(
+						(array) get_option( self::FAVORITES_OPTION, [] ),
+						fn( $f ) => $f !== $fav_key
+					) );
+					update_option( self::FAVORITES_OPTION, $favs, false );
 				}
 				break;
 
@@ -242,14 +263,64 @@ class Radical_Socials_Following_REST {
 				if ( function_exists( 'Activitypub\unfollow' ) && $url ) {
 					\Activitypub\unfollow( $url, 0 );
 				}
+				// Remove from favorites.
+				$fav_key = 'activitypub:' . $id;
+				$favs    = array_values( array_filter(
+					(array) get_option( self::FAVORITES_OPTION, [] ),
+					fn( $f ) => $f !== $fav_key
+				) );
+				update_option( self::FAVORITES_OPTION, $favs, false );
 				break;
 
 			case 'wpcom':
 				Radical_Socials_WPCOM_Reader::unfollow_site( $id );
+				$fav_key = 'wpcom:' . $id;
+				$favs    = array_values( array_filter(
+					(array) get_option( self::FAVORITES_OPTION, [] ),
+					fn( $f ) => $f !== $fav_key
+				) );
+				update_option( self::FAVORITES_OPTION, $favs, false );
 				break;
 		}
 
 		return new WP_REST_Response( [ 'deleted' => true ], 200 );
+	}
+
+	/**
+	 * Delete all rs_feed_item posts belonging to a removed RSS subscription.
+	 * Matches by _rs_item_source_url meta (homepage URL) when available,
+	 * otherwise falls back to the rs_source taxonomy term (feed title).
+	 */
+	private static function delete_feed_items_for_source( array $sub ): void {
+		$args = [
+			'post_type'      => 'rs_feed_item',
+			'post_status'    => 'any',
+			'fields'         => 'ids',
+			'posts_per_page' => 9999,
+		];
+
+		if ( ! empty( $sub['source_url'] ) ) {
+			$args['meta_query'] = [
+				[
+					'key'   => '_rs_item_source_url',
+					'value' => $sub['source_url'],
+				],
+			];
+		} elseif ( ! empty( $sub['title'] ) ) {
+			$args['tax_query'] = [
+				[
+					'taxonomy' => 'rs_source',
+					'field'    => 'name',
+					'terms'    => $sub['title'],
+				],
+			];
+		} else {
+			return;
+		}
+
+		foreach ( get_posts( $args ) as $post_id ) {
+			wp_delete_post( (int) $post_id, true );
+		}
 	}
 }
 

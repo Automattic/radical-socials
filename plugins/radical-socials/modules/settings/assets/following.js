@@ -143,6 +143,14 @@
 	// ── Delete ─────────────────────────────────────────────────────────────
 
 	async function deleteItem( item, tr ) {
+		const name    = item.title || item.url;
+		const message = rsFollowing.i18n.deleteConfirm
+			.replace( '%name%', name )
+			.replace( '%url%', item.url );
+		if ( ! window.confirm( message ) ) {
+			return;
+		}
+
 		tr.style.opacity = '0.4';
 		try {
 			await apiFetch( 'DELETE', api, { type: item.type, id: item.id, url: item.url } );
