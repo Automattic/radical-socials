@@ -3,6 +3,7 @@
 	'use strict';
 
 	const api      = rsFollowing.apiUrl;   // .../wp-json/radical-socials/v1/following
+	const favApi   = api + '/favorite';
 	const nonce    = rsFollowing.nonce;
 	const BATCH    = 5;
 
@@ -14,9 +15,9 @@
 	const progText = document.getElementById( 'rs-add-progress-text' );
 
 	const TYPE_LABELS = {
-		rss:          'RSS',
-		activitypub:  'ActivityPub',
-		wpcom:        'WP.com',
+		rss:         'RSS',
+		activitypub: 'ActivityPub',
+		wpcom:       'WP.com',
 	};
 
 	// ── Load & render table ────────────────────────────────────────────────
@@ -27,7 +28,7 @@
 			const res   = await apiFetch( 'GET', api );
 			const items = await res.json();
 			renderTable( items );
-		} catch ( e ) {
+		} catch {
 			wrap.innerHTML = '<p class="rs-error">' + rsFollowing.i18n.loadError + '</p>';
 		}
 	}
@@ -43,7 +44,8 @@
 		table.innerHTML = `
 			<thead>
 				<tr>
-					<th>${ rsFollowing.i18n.colSite }</th>
+					<th>${ rsFollowing.i18n.colFav }</th>
+					<th>${ rsFollowing.i18n.colName }</th>
 					<th>${ rsFollowing.i18n.colType }</th>
 					<th></th>
 				</tr>
@@ -57,37 +59,85 @@
 	}
 
 	function buildRow( item ) {
-		const tr   = document.createElement( 'tr' );
+		const tr        = document.createElement( 'tr' );
 		tr.dataset.id   = item.id;
 		tr.dataset.type = item.type;
 		tr.dataset.url  = item.url;
 
-		const tdSite = document.createElement( 'td' );
-		const link   = document.createElement( 'a' );
-		link.href        = item.url;
-		link.textContent = item.title || item.url;
-		link.target      = '_blank';
-		link.rel         = 'noopener';
-		tdSite.appendChild( link );
+		// ★ Star cell
+		const tdStar  = document.createElement( 'td' );
+		const starBtn = document.createElement( 'button' );
+		starBtn.type      = 'button';
+		starBtn.className = 'button-link rs-star-btn' + ( item.starred ? ' rs-starred' : '' );
+		starBtn.setAttribute( 'aria-label', item.starred ? rsFollowing.i18n.unstarLabel : rsFollowing.i18n.starLabel );
+		starBtn.setAttribute( 'aria-pressed', item.starred ? 'true' : 'false' );
+		starBtn.textContent = item.starred ? '★' : '☆';
+		starBtn.addEventListener( 'click', () => toggleStar( item, starBtn ) );
+		tdStar.appendChild( starBtn );
 
-		const tdType  = document.createElement( 'td' );
-		const badge   = document.createElement( 'span' );
-		badge.className = 'rs-type-badge rs-type-' + item.type;
+		// Name cell — title links to homepage, feed URL shown below
+		const tdName = document.createElement( 'td' );
+		if ( item.title ) {
+			const nameLink       = document.createElement( 'a' );
+			nameLink.href        = item.source_url || item.url;
+			nameLink.textContent = item.title;
+			nameLink.target      = '_blank';
+			nameLink.rel         = 'noopener';
+			tdName.appendChild( nameLink );
+			tdName.appendChild( document.createElement( 'br' ) );
+		}
+		const feedLink       = document.createElement( 'a' );
+		feedLink.href        = item.url;
+		feedLink.textContent = item.url;
+		feedLink.target      = '_blank';
+		feedLink.rel         = 'noopener';
+		feedLink.style.cssText = 'font-size:0.85em;opacity:0.7';
+		tdName.appendChild( feedLink );
+
+		// Type cell
+		const tdType = document.createElement( 'td' );
+		const badge  = document.createElement( 'span' );
+		badge.className   = 'rs-type-badge rs-type-' + item.type;
 		badge.textContent = TYPE_LABELS[ item.type ] || item.type;
 		tdType.appendChild( badge );
 
+		// Remove cell
 		const tdDel = document.createElement( 'td' );
-		const btn   = document.createElement( 'button' );
-		btn.type      = 'button';
-		btn.className = 'button button-small rs-delete-btn';
-		btn.textContent = rsFollowing.i18n.remove;
-		btn.addEventListener( 'click', () => deleteItem( item, tr ) );
-		tdDel.appendChild( btn );
+		const delBtn = document.createElement( 'button' );
+		delBtn.type      = 'button';
+		delBtn.className = 'button button-small rs-delete-btn';
+		delBtn.textContent = rsFollowing.i18n.remove;
+		delBtn.addEventListener( 'click', () => deleteItem( item, tr ) );
+		tdDel.appendChild( delBtn );
 
-		tr.appendChild( tdSite );
+		tr.appendChild( tdStar );
+		tr.appendChild( tdName );
 		tr.appendChild( tdType );
 		tr.appendChild( tdDel );
 		return tr;
+	}
+
+	// ── Star / favourite ───────────────────────────────────────────────────
+
+	async function toggleStar( item, btn ) {
+		const nowStarred = btn.getAttribute( 'aria-pressed' ) !== 'true';
+
+		// Optimistic update.
+		btn.textContent = nowStarred ? '★' : '☆';
+		btn.setAttribute( 'aria-pressed', nowStarred ? 'true' : 'false' );
+		btn.setAttribute( 'aria-label', nowStarred ? rsFollowing.i18n.unstarLabel : rsFollowing.i18n.starLabel );
+		btn.classList.toggle( 'rs-starred', nowStarred );
+
+		try {
+			await apiFetch( 'POST', favApi, { type: item.type, id: item.id, starred: nowStarred } );
+			item.starred = nowStarred;
+		} catch {
+			// Revert on failure.
+			btn.textContent = nowStarred ? '☆' : '★';
+			btn.setAttribute( 'aria-pressed', nowStarred ? 'false' : 'true' );
+			btn.setAttribute( 'aria-label', nowStarred ? rsFollowing.i18n.starLabel : rsFollowing.i18n.unstarLabel );
+			btn.classList.toggle( 'rs-starred', ! nowStarred );
+		}
 	}
 
 	// ── Delete ─────────────────────────────────────────────────────────────
@@ -100,7 +150,7 @@
 			if ( ! wrap.querySelector( 'tbody tr' ) ) {
 				wrap.innerHTML = '<p>' + rsFollowing.i18n.empty + '</p>';
 			}
-		} catch ( e ) {
+		} catch {
 			tr.style.opacity = '';
 			alert( rsFollowing.i18n.deleteError );
 		}
@@ -116,11 +166,11 @@
 
 		if ( ! lines.length ) return;
 
-		const total   = lines.length;
-		let   done    = 0;
-		let   added   = 0;
-		let   skipped = 0;
-		let   failed  = 0;
+		const total = lines.length;
+		let done    = 0;
+		let added   = 0;
+		let skipped = 0;
+		let failed  = 0;
 
 		setProgress( 0, total );
 		progress.hidden = false;
@@ -133,7 +183,7 @@
 					const res = await apiFetch( 'POST', api, { input } );
 					if ( res.status === 201 )      { added++; }
 					else if ( res.status === 409 ) { skipped++; }
-					else                            { failed++; }
+					else                           { failed++; }
 				} catch {
 					failed++;
 				}
@@ -156,8 +206,8 @@
 	} );
 
 	function setProgress( done, total ) {
-		progBar.value   = done;
-		progBar.max     = total;
+		progBar.value        = done;
+		progBar.max          = total;
 		progText.textContent = done + ' / ' + total;
 	}
 

@@ -36,11 +36,35 @@ class Radical_Socials_Feed_Fetcher {
 	}
 
 	private static function fetch_all_rss(): array {
-		$urls  = Radical_Socials_RSS_Fetcher::get_feed_urls();
-		$items = [];
-		foreach ( $urls as $url ) {
-			$items = array_merge( $items, Radical_Socials_RSS_Fetcher::fetch( $url, 20 ) );
+		$subs    = (array) get_option( 'rs_rss_subscriptions', [] );
+		$items   = [];
+		$updated = false;
+
+		foreach ( $subs as &$sub ) {
+			if ( ! wp_http_validate_url( $sub['url'] ) ) {
+				continue;
+			}
+			$feed_items = Radical_Socials_RSS_Fetcher::fetch( $sub['url'], 20 );
+			$items      = array_merge( $items, $feed_items );
+
+			// Backfill empty title/source_url from the fetched channel data.
+			if ( ! empty( $feed_items[0]['source_name'] ) ) {
+				if ( empty( $sub['title'] ) ) {
+					$sub['title'] = $feed_items[0]['source_name'];
+					$updated      = true;
+				}
+				if ( empty( $sub['source_url'] ) && ! empty( $feed_items[0]['source_url'] ) ) {
+					$sub['source_url'] = $feed_items[0]['source_url'];
+					$updated           = true;
+				}
+			}
 		}
+		unset( $sub );
+
+		if ( $updated ) {
+			update_option( 'rs_rss_subscriptions', $subs, false );
+		}
+
 		return $items;
 	}
 

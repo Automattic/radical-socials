@@ -41,8 +41,11 @@ class Radical_Socials_Settings_Page {
 				'empty'       => __( 'Not following anything yet. Add feeds or accounts above.', 'radical-socials' ),
 				'remove'      => __( 'Remove', 'radical-socials' ),
 				'deleteError' => __( 'Could not remove item. Please try again.', 'radical-socials' ),
-				'colSite'     => __( 'Site', 'radical-socials' ),
+				'colFav'      => __( 'Fav', 'radical-socials' ),
+				'colName'     => __( 'Name', 'radical-socials' ),
 				'colType'     => __( 'Type', 'radical-socials' ),
+				'starLabel'   => __( 'Star this feed', 'radical-socials' ),
+				'unstarLabel' => __( 'Unstar this feed', 'radical-socials' ),
 				'addSummary'  => __( 'Done — %added% added, %skipped% already existed, %failed% failed.', 'radical-socials' ),
 			],
 		] );

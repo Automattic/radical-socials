@@ -15,8 +15,9 @@ defined( 'ABSPATH' ) || exit;
 
 class Radical_Socials_Following_REST {
 
-	const REST_NAMESPACE = 'radical-socials/v1';
-	const ROUTE          = '/following';
+	const REST_NAMESPACE    = 'radical-socials/v1';
+	const ROUTE             = '/following';
+	const FAVORITES_OPTION  = 'rs_following_favorites';
 
 	public static function init(): void {
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
@@ -24,6 +25,17 @@ class Radical_Socials_Following_REST {
 
 	public static function register_routes(): void {
 		$auth = fn() => current_user_can( 'manage_options' );
+
+		register_rest_route( self::REST_NAMESPACE, self::ROUTE . '/favorite', [
+			'methods'             => 'POST',
+			'callback'            => [ __CLASS__, 'set_favorite' ],
+			'permission_callback' => $auth,
+			'args'                => [
+				'type'    => [ 'required' => true, 'type' => 'string', 'enum' => [ 'rss', 'activitypub', 'wpcom' ] ],
+				'id'      => [ 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ],
+				'starred' => [ 'required' => true, 'type' => 'boolean' ],
+			],
+		] );
 
 		register_rest_route( self::REST_NAMESPACE, self::ROUTE, [
 			[
@@ -55,12 +67,34 @@ class Radical_Socials_Following_REST {
 	// ── GET ───────────────────────────────────────────────────────────────────
 
 	public static function list_following(): WP_REST_Response {
+		$favs  = (array) get_option( self::FAVORITES_OPTION, [] );
 		$items = array_merge(
 			self::list_rss(),
 			self::list_activitypub(),
 			self::list_wpcom(),
 		);
+		foreach ( $items as &$item ) {
+			$item['starred'] = in_array( $item['type'] . ':' . $item['id'], $favs, true );
+		}
+		unset( $item );
 		return new WP_REST_Response( $items, 200 );
+	}
+
+	public static function set_favorite( WP_REST_Request $request ): WP_REST_Response {
+		$key     = $request->get_param( 'type' ) . ':' . $request->get_param( 'id' );
+		$starred = (bool) $request->get_param( 'starred' );
+		$favs    = (array) get_option( self::FAVORITES_OPTION, [] );
+
+		if ( $starred ) {
+			if ( ! in_array( $key, $favs, true ) ) {
+				$favs[] = $key;
+			}
+		} else {
+			$favs = array_values( array_filter( $favs, fn( $f ) => $f !== $key ) );
+		}
+
+		update_option( self::FAVORITES_OPTION, $favs, false );
+		return new WP_REST_Response( [ 'starred' => $starred ], 200 );
 	}
 
 	private static function list_rss(): array {
@@ -68,10 +102,11 @@ class Radical_Socials_Following_REST {
 		$items = [];
 		foreach ( $subs as $sub ) {
 			$items[] = [
-				'id'    => md5( $sub['url'] ),
-				'type'  => 'rss',
-				'url'   => $sub['url'],
-				'title' => $sub['title'] ?: $sub['url'],
+				'id'         => md5( $sub['url'] ),
+				'type'       => 'rss',
+				'url'        => $sub['url'],
+				'title'      => $sub['title'] ?: '',
+				'source_url' => $sub['source_url'] ?? '',
 			];
 		}
 		return $items;
@@ -138,17 +173,19 @@ class Radical_Socials_Following_REST {
 		$resolved = Radical_Socials_RSS_Fetcher::resolve_url( $url );
 
 		// Fetch the feed now to get its title and seed initial items.
-		$title = $resolved;
-		$items = Radical_Socials_RSS_Fetcher::fetch( $resolved, 20 );
+		$title      = $resolved;
+		$source_url = '';
+		$items      = Radical_Socials_RSS_Fetcher::fetch( $resolved, 20 );
 		if ( ! empty( $items ) ) {
-			$title = $items[0]['source_name'] ?: $resolved;
+			$title      = $items[0]['source_name'] ?: $resolved;
+			$source_url = $items[0]['source_url'] ?? '';
 			foreach ( $items as $item ) {
 				Radical_Socials_Feed_Fetcher::upsert_item( $item );
 			}
 			Radical_Socials_Feed_Fetcher::enforce_cap();
 		}
 
-		$subs[] = [ 'url' => $resolved, 'title' => $title ];
+		$subs[] = [ 'url' => $resolved, 'title' => $title, 'source_url' => $source_url ];
 		update_option( 'rs_rss_subscriptions', $subs, false );
 
 		// Try WebSub — fire-and-forget, failure is non-fatal.
