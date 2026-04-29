@@ -18,6 +18,8 @@ defined( 'ABSPATH' ) || exit;
 
 require_once __DIR__ . '/modules/custom-bar/class-custom-bar.php';
 require_once __DIR__ . '/modules/settings/class-settings-page.php';
+require_once __DIR__ . '/modules/social-post/class-social-post.php';
+require_once __DIR__ . '/modules/frontend-editor/class-frontend-editor.php';
 
 // ─────────────────────────────────────────────────────────────────────────────
 

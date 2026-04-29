@@ -94,9 +94,10 @@ class Radical_Socials_Custom_Bar {
 			return;
 		}
 
-		$user    = wp_get_current_user();
-		$avatar  = get_avatar( $user->ID, self::H, '', esc_attr__( 'Profile', 'radical-socials' ), [ 'class' => 'rs-bar-avatar' ] );
-		$pending = (int) wp_count_comments()->moderated;
+		$user             = wp_get_current_user();
+		$avatar           = get_avatar( $user->ID, self::H, '', esc_attr__( 'Profile', 'radical-socials' ), [ 'class' => 'rs-bar-avatar' ] );
+		$pending          = (int) wp_count_comments()->moderated;
+		$can_publish_post = Radical_Socials_Social_Post::current_user_can_publish();
 		?>
 		<nav id="rs-bar" aria-label="<?php esc_attr_e( 'Site navigation', 'radical-socials' ); ?>">
 			<ul>
@@ -106,12 +107,14 @@ class Radical_Socials_Custom_Bar {
 						<span class="rs-bar-label"><?php esc_html_e( 'Home', 'radical-socials' ); ?></span>
 					</a>
 				</li>
-				<li>
-					<a href="#" class="rs-bar-link" aria-label="<?php esc_attr_e( 'Create', 'radical-socials' ); ?>">
-						<span class="dashicons dashicons-plus-alt2" aria-hidden="true"></span>
-						<span class="rs-bar-label"><?php esc_html_e( 'Create', 'radical-socials' ); ?></span>
-					</a>
-				</li>
+				<?php if ( $can_publish_post ) : ?>
+					<li>
+						<a href="#" class="rs-bar-link" data-rs-action="open-editor" aria-label="<?php esc_attr_e( 'Create', 'radical-socials' ); ?>">
+							<span class="dashicons dashicons-plus-alt2" aria-hidden="true"></span>
+							<span class="rs-bar-label"><?php esc_html_e( 'Create', 'radical-socials' ); ?></span>
+						</a>
+					</li>
+				<?php endif; ?>
 				<li>
 					<a href="#" class="rs-bar-link" aria-label="<?php esc_attr_e( 'Explore', 'radical-socials' ); ?>">
 						<span class="dashicons dashicons-search" aria-hidden="true"></span>
