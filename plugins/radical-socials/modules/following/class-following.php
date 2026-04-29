@@ -48,6 +48,15 @@ class Radical_Socials_Following {
 
 	public static function register_blocks(): void {
 		register_block_type( __DIR__ . '/blocks/favorite-feeds' );
+		register_block_type( __DIR__ . '/blocks/following-link' );
+		add_filter( 'hooked_block_types', [ __CLASS__, 'hook_following_link' ], 10, 3 );
+	}
+
+	public static function hook_following_link( array $hooked_blocks, string $position, ?string $anchor_block ): array {
+		if ( 'last_child' === $position && 'core/navigation' === $anchor_block ) {
+			$hooked_blocks[] = 'radical-socials/following-link';
+		}
+		return $hooked_blocks;
 	}
 
 	public static function schedule_recurring(): void {
