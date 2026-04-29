@@ -78,8 +78,7 @@ function MediaBar() {
 
 export default function SocialEditor( { onSuccess, onCancel } ) {
 	const [ blocks, setBlocks ] = useState( () => [ createBlock( 'core/paragraph', { placeholder: "What's on your mind?" } ) ] );
-	const [ hashtags, setHashtags ]       = useState( '' );
-	const [ location, setLocation ]       = useState( '' );
+	const [ hashtags, setHashtags ]         = useState( '' );
 	const [ isSubmitting, setIsSubmitting ] = useState( false );
 	const [ error, setError ]             = useState( null );
 
@@ -123,8 +122,7 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 						content,
 						...( featuredMedia && { featured_media: featuredMedia } ),
 						meta: {
-							_social_tags:     hashtags,
-							_social_location: location,
+							_social_tags: hashtags,
 						},
 					} ),
 				}
@@ -133,14 +131,13 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 			const post = await response.json();
 			setBlocks( [ createBlock( 'core/paragraph', { placeholder: "What's on your mind?" } ) ] );
 			setHashtags( '' );
-			setLocation( '' );
 			await onSuccess?.( post );
 		} catch ( err ) {
 			setError( err.message );
 		} finally {
 			setIsSubmitting( false );
 		}
-	}, [ blocks, hashtags, location, onSuccess ] );
+	}, [ blocks, hashtags, onSuccess ] );
 
 	const isEmpty = blocks.every(
 		( b ) => b.name === 'core/paragraph' && ! b.attributes?.content
@@ -173,12 +170,6 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 					placeholder="#tags"
 					value={ hashtags }
 					onChange={ ( e ) => setHashtags( e.target.value ) }
-				/>
-				<input
-					type="text"
-					placeholder="Location"
-					value={ location }
-					onChange={ ( e ) => setLocation( e.target.value ) }
 				/>
 			</div>
 

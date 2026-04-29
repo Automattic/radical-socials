@@ -30,8 +30,7 @@ class Radical_Socials_Social_Post {
 		] );
 
 		$metas = [
-			'_social_tags'     => 'string', // space-separated hashtags
-			'_social_location' => 'string',
+			'_social_tags' => 'string', // space-separated hashtags
 		];
 
 		foreach ( $metas as $key => $type ) {

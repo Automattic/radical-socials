@@ -12,6 +12,22 @@ jest.mock( '@wordpress/block-editor', () => ( {
 	ObserveTyping: ( { children } ) => <>{ children }</>,
 } ) );
 
+jest.mock( '@wordpress/data', () => ( {
+	useSelect: jest.fn( ( mapSelect ) => mapSelect( ( storeName ) => {
+		if ( storeName === 'core/block-editor' ) {
+			return {
+				getBlockOrder:            () => [ 'test-client-id' ],
+				getSelectedBlockClientId: () => null,
+			};
+		}
+		return {};
+	} ) ),
+	useDispatch: jest.fn( () => ( {
+		selectBlock:  jest.fn(),
+		insertBlocks: jest.fn(),
+	} ) ),
+} ) );
+
 jest.mock( '@wordpress/blocks', () => ( {
 	createBlock: ( name ) => ( {
 		clientId:    'test-id',
@@ -45,10 +61,9 @@ it( 'renders the block editor', () => {
 	expect( screen.getByTestId( 'block-editor' ) ).toBeInTheDocument();
 } );
 
-it( 'renders hashtags and location inputs', () => {
+it( 'renders hashtags input', () => {
 	render( <SocialEditor onSuccess={ onSuccess } onCancel={ onCancel } /> );
-	expect( screen.getByPlaceholderText( /#tags/i    ) ).toBeInTheDocument();
-	expect( screen.getByPlaceholderText( /location/i ) ).toBeInTheDocument();
+	expect( screen.getByPlaceholderText( /#tags/i ) ).toBeInTheDocument();
 } );
 
 it( 'renders a Post button', () => {
@@ -75,11 +90,8 @@ describe( 'REST submission', () => {
 		fetch.mockResolvedValueOnce( { ok: true, json: async () => post } );
 
 		render( <SocialEditor onSuccess={ onSuccess } onCancel={ onCancel } /> );
-		fireEvent.change( screen.getByPlaceholderText( /#tags/i    ), {
+		fireEvent.change( screen.getByPlaceholderText( /#tags/i ), {
 			target: { value: 'cats dogs' },
-		} );
-		fireEvent.change( screen.getByPlaceholderText( /location/i ), {
-			target: { value: 'London' },
 		} );
 		fireEvent.click( screen.getByRole( 'button', { name: /^post$/i } ) );
 
@@ -97,8 +109,7 @@ describe( 'REST submission', () => {
 					status:  'publish',
 					content: '<!-- wp:paragraph --><p>Hello world</p><!-- /wp:paragraph -->',
 					meta: {
-						_social_tags:     'cats dogs',
-						_social_location: 'London',
+						_social_tags: 'cats dogs',
 					},
 				} ),
 			} )
@@ -117,23 +128,19 @@ describe( 'REST submission', () => {
 		expect( onSuccess ).toHaveBeenCalledWith( post );
 	} );
 
-	it( 'resets hashtags and location after a successful post', async () => {
+	it( 'resets hashtags after a successful post', async () => {
 		const post = { id: 42, content: { rendered: '<p>Hello</p>' } };
 		fetch.mockResolvedValueOnce( { ok: true, json: async () => post } );
 
 		render( <SocialEditor onSuccess={ onSuccess } onCancel={ onCancel } /> );
-		fireEvent.change( screen.getByPlaceholderText( /#tags/i    ), {
+		fireEvent.change( screen.getByPlaceholderText( /#tags/i ), {
 			target: { value: 'cats' },
-		} );
-		fireEvent.change( screen.getByPlaceholderText( /location/i ), {
-			target: { value: 'London' },
 		} );
 		fireEvent.click( screen.getByRole( 'button', { name: /^post$/i } ) );
 
 		await screen.findByRole( 'button', { name: /^post$/i } );
 
-		expect( screen.getByPlaceholderText( /#tags/i    ).value ).toBe( '' );
-		expect( screen.getByPlaceholderText( /location/i ).value ).toBe( '' );
+		expect( screen.getByPlaceholderText( /#tags/i ).value ).toBe( '' );
 	} );
 
 	it( 'shows an error message when the request fails', async () => {
