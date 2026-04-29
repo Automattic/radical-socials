@@ -111,7 +111,7 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 			const featuredMedia = firstImage?.attributes?.id;
 
 			const response = await fetch(
-				`${ window.radicalSocials.restUrl }wp/v2/instagram-posts`,
+				`${ window.radicalSocials.restUrl }wp/v2/social-posts`,
 				{
 					method:  'POST',
 					headers: {
@@ -123,8 +123,8 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 						content,
 						...( featuredMedia && { featured_media: featuredMedia } ),
 						meta: {
-							_instagram_tags:     hashtags,
-							_instagram_location: location,
+							_social_tags:     hashtags,
+							_social_location: location,
 						},
 					} ),
 				}

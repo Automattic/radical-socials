@@ -70,7 +70,7 @@ describe( 'REST submission', () => {
 		jest.restoreAllMocks();
 	} );
 
-	it( 'POSTs to /wp/v2/instagram-posts with serialized content and metadata', async () => {
+	it( 'POSTs to /wp/v2/social-posts with serialized content and metadata', async () => {
 		const post = { id: 42, content: { rendered: '<p>Hello world</p>' } };
 		fetch.mockResolvedValueOnce( { ok: true, json: async () => post } );
 
@@ -86,7 +86,7 @@ describe( 'REST submission', () => {
 		await screen.findByRole( 'button', { name: /^post$/i } );
 
 		expect( fetch ).toHaveBeenCalledWith(
-			'http://localhost/wp-json/wp/v2/instagram-posts',
+			'http://localhost/wp-json/wp/v2/social-posts',
 			expect.objectContaining( {
 				method:  'POST',
 				headers: expect.objectContaining( {
@@ -97,8 +97,8 @@ describe( 'REST submission', () => {
 					status:  'publish',
 					content: '<!-- wp:paragraph --><p>Hello world</p><!-- /wp:paragraph -->',
 					meta: {
-						_instagram_tags:     'cats dogs',
-						_instagram_location: 'London',
+						_social_tags:     'cats dogs',
+						_social_location: 'London',
 					},
 				} ),
 			} )
