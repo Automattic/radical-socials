@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from '@wordpress/element';
+import { Icon, image, video, audio, link } from '@wordpress/icons';
 import { useSelect, useDispatch } from '@wordpress/data';
 import {
 	BlockEditorProvider,
@@ -13,10 +14,10 @@ import { registerEditorBlocks, getEditorSettings } from './editor-settings';
 registerEditorBlocks();
 
 const MEDIA_BLOCKS = [
-	{ label: 'Photo', name: 'core/image' },
-	{ label: 'Video', name: 'core/video' },
-	{ label: 'Audio', name: 'core/audio' },
-	{ label: 'Link',  name: 'core/embed' },
+	{ label: 'Photo', name: 'core/image', color: '#F25C05', icon: image },
+	{ label: 'Video', name: 'core/video', color: '#E0407B', icon: video },
+	{ label: 'Audio', name: 'core/audio', color: '#825AD1', icon: audio },
+	{ label: 'Link',  name: 'core/embed', color: '#0085FF', icon: link  },
 ];
 
 function EditorFocusManager( { children } ) {
@@ -56,21 +57,23 @@ function EditorFocusManager( { children } ) {
 		focusEditable();
 	}
 
-	return <div ref={ containerRef } onMouseDown={ handleMouseDown }>{ children }</div>;
+	return <div ref={ containerRef } className="rs-editor-writing-area" onMouseDown={ handleMouseDown }>{ children }</div>;
 }
 
 function MediaBar() {
 	const { insertBlocks } = useDispatch( 'core/block-editor' );
 	return (
 		<div className="rs-media-bar">
-			{ MEDIA_BLOCKS.map( ( { label, name } ) => (
+			{ MEDIA_BLOCKS.map( ( { label, name, color, icon } ) => (
 				<button
 					key={ name }
 					type="button"
 					className="rs-media-btn"
+					style={ { '--rs-media-color': color } }
 					onClick={ () => insertBlocks( createBlock( name ) ) }
 				>
-					{ label }
+					<span className="rs-media-btn__icon"><Icon icon={ icon } size={ 24 } /></span>
+					<span className="rs-media-btn__label">{ label }</span>
 				</button>
 			) ) }
 		</div>
