@@ -84,22 +84,28 @@ class Radical_Socials_Following {
 	}
 
 	public static function register_taxonomy(): void {
-		register_taxonomy(
-			'rs_source',
-			'rs_feed_item',
-			[
-				'public'             => false,
-				'publicly_queryable' => false,
-				'show_ui'            => false,
-				'show_in_rest'       => true,
-				'rewrite'            => false,
-				'hierarchical'       => false,
-				'labels'             => [
-					'name'          => __( 'Feed Sources', 'radical-socials' ),
-					'singular_name' => __( 'Feed Source', 'radical-socials' ),
-				],
-			]
-		);
+		$shared = [
+			'public'             => false,
+			'publicly_queryable' => true,
+			'show_ui'            => false,
+			'show_in_rest'       => true,
+			'rewrite'            => false,
+			'hierarchical'       => false,
+		];
+
+		register_taxonomy( 'rs_source', 'rs_feed_item', array_merge( $shared, [
+			'labels' => [
+				'name'          => __( 'Feed Sources', 'radical-socials' ),
+				'singular_name' => __( 'Feed Source', 'radical-socials' ),
+			],
+		] ) );
+
+		register_taxonomy( 'rs_feed_type', 'rs_feed_item', array_merge( $shared, [
+			'labels' => [
+				'name'          => __( 'Feed Types', 'radical-socials' ),
+				'singular_name' => __( 'Feed Type', 'radical-socials' ),
+			],
+		] ) );
 	}
 
 	/**

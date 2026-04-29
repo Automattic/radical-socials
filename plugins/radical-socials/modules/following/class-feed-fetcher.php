@@ -91,10 +91,13 @@ class Radical_Socials_Feed_Fetcher {
 		}
 
 		if ( $post_id && ! is_wp_error( $post_id ) ) {
-			// Assign the rs_source taxonomy term (source domain / handle).
+			// Assign source and type taxonomy terms.
 			$source_name = $item['source_name'] ?: parse_url( $item['source_url'] ?? '', PHP_URL_HOST );
 			if ( $source_name ) {
 				wp_set_post_terms( $post_id, [ $source_name ], 'rs_source' );
+			}
+			if ( ! empty( $item['feed_type'] ) ) {
+				wp_set_post_terms( $post_id, [ $item['feed_type'] ], 'rs_feed_type' );
 			}
 
 			// Store thumbnail URL as featured image if we have one and no image yet.
