@@ -108,6 +108,7 @@ class Radical_Socials_Following_REST {
 	public static function add_following( WP_REST_Request $request ): WP_REST_Response {
 		$input = trim( $request->get_param( 'input' ) );
 
+		// @handle@instance or @handle format.
 		if ( str_starts_with( $input, '@' ) ) {
 			return self::add_activitypub( $input );
 		}
@@ -115,6 +116,11 @@ class Radical_Socials_Following_REST {
 		$url = esc_url_raw( $input );
 		if ( ! wp_http_validate_url( $url ) ) {
 			return new WP_REST_Response( [ 'error' => 'invalid_url', 'input' => $input ], 400 );
+		}
+
+		// Mastodon-style profile URL: https://instance.social/@handle
+		if ( preg_match( '~^https?://([^/]+)/@([^/@][^/]*)/?$~', $url, $m ) ) {
+			return self::add_activitypub( '@' . $m[2] . '@' . $m[1] );
 		}
 
 		return self::add_rss( $url );
