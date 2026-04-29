@@ -19,6 +19,7 @@ export function getEditorSettings( mediaUpload ) {
 			'core/paragraph',
 			'core/image',
 			'core/video',
+			'core/audio',
 			'core/embed',
 		],
 		mediaUpload,

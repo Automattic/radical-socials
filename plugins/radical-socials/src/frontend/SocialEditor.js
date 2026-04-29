@@ -15,6 +15,7 @@ registerEditorBlocks();
 const MEDIA_BLOCKS = [
 	{ label: 'Photo', name: 'core/image' },
 	{ label: 'Video', name: 'core/video' },
+	{ label: 'Audio', name: 'core/audio' },
 	{ label: 'Link',  name: 'core/embed' },
 ];
 
