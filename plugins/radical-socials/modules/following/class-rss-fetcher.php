@@ -22,7 +22,23 @@ class Radical_Socials_RSS_Fetcher {
 			require_once ABSPATH . WPINC . '/feed.php';
 		}
 
+		// WordPress caches feed results for 12 h by default; match our hourly cron instead.
+		$ttl = fn() => HOUR_IN_SECONDS;
+		add_filter( 'wp_feed_cache_transient_lifetime', $ttl );
 		$feed = fetch_feed( $feed_url );
+
+		// If the stored URL is dead, try to discover the current feed from the site homepage.
+		if ( is_wp_error( $feed ) ) {
+			$discovered = self::discover_feed_url( $feed_url );
+			if ( $discovered && $discovered !== $feed_url ) {
+				self::save_url_update( $feed_url, $discovered );
+				$feed_url = $discovered;
+				$feed     = fetch_feed( $feed_url );
+			}
+		}
+
+		remove_filter( 'wp_feed_cache_transient_lifetime', $ttl );
+
 		if ( is_wp_error( $feed ) ) {
 			return [];
 		}
@@ -71,6 +87,96 @@ class Radical_Socials_RSS_Fetcher {
 		}
 
 		return $normalized;
+	}
+
+	/**
+	 * Resolve a potentially dead feed URL to its current location.
+	 * Returns the original URL unchanged if no better URL is found.
+	 * Called by add_rss() so the canonical URL is stored from the start.
+	 */
+	public static function resolve_url( string $url ): string {
+		$discovered = self::discover_feed_url( $url );
+		return ( $discovered && $discovered !== $url ) ? $discovered : $url;
+	}
+
+	/**
+	 * Walk all stored RSS subscriptions, check each URL, and auto-discover
+	 * replacements for any that return errors. Returns the number updated.
+	 */
+	public static function migrate_dead_urls(): int {
+		$subs    = (array) get_option( 'rs_rss_subscriptions', [] );
+		$updated = 0;
+		foreach ( $subs as &$sub ) {
+			$r    = wp_remote_head( $sub['url'], [ 'timeout' => 5, 'redirection' => 5 ] );
+			$code = is_wp_error( $r ) ? 0 : (int) wp_remote_retrieve_response_code( $r );
+			if ( $code === 0 || $code >= 400 ) {
+				$new = self::discover_feed_url( $sub['url'] );
+				if ( $new && $new !== $sub['url'] ) {
+					$sub['url'] = $new;
+					++$updated;
+				}
+			}
+		}
+		unset( $sub );
+		if ( $updated ) {
+			update_option( 'rs_rss_subscriptions', $subs, false );
+		}
+		return $updated;
+	}
+
+	/**
+	 * Try to find the current feed URL for a site whose stored URL is dead.
+	 * Checks the HTTP→HTTPS upgrade first, then parses the site homepage for
+	 * an RSS/Atom <link> tag.
+	 */
+	private static function discover_feed_url( string $old_url ): string {
+		// 1. Try upgrading http → https.
+		if ( str_starts_with( $old_url, 'http://' ) ) {
+			$https = 'https://' . substr( $old_url, 7 );
+			$r     = wp_remote_head( $https, [ 'timeout' => 5, 'redirection' => 5 ] );
+			if ( ! is_wp_error( $r ) && wp_remote_retrieve_response_code( $r ) < 400 ) {
+				return $https;
+			}
+		}
+
+		// 2. Fetch the site homepage and look for <link rel="alternate" type="application/rss+xml">.
+		$parsed = wp_parse_url( $old_url );
+		if ( empty( $parsed['host'] ) ) {
+			return '';
+		}
+		$home = ( $parsed['scheme'] ?? 'https' ) . '://' . $parsed['host'] . '/';
+		$r    = wp_remote_get( $home, [
+			'timeout'     => 8,
+			'redirection' => 5,
+			'user-agent'  => 'Mozilla/5.0 (compatible; RadicalSocials/1.0; +https://github.com/Automattic/radical-socials)',
+		] );
+		if ( is_wp_error( $r ) || wp_remote_retrieve_response_code( $r ) >= 400 ) {
+			return '';
+		}
+		$body = wp_remote_retrieve_body( $r );
+		if ( preg_match( '/<link[^>]+type=["\']application\/(?:rss|atom)\+xml["\'][^>]+href=["\']([^"\']+)["\']/', $body, $m )
+			|| preg_match( '/<link[^>]+href=["\']([^"\']+)["\'][^>]+type=["\']application\/(?:rss|atom)\+xml["\']/', $body, $m )
+		) {
+			return esc_url_raw( html_entity_decode( $m[1] ) );
+		}
+
+		return '';
+	}
+
+	/**
+	 * Update an existing subscription's URL in place.
+	 * Used by fetch() when it discovers a better URL during a cron run.
+	 */
+	private static function save_url_update( string $old_url, string $new_url ): void {
+		$subs = (array) get_option( 'rs_rss_subscriptions', [] );
+		foreach ( $subs as &$sub ) {
+			if ( $sub['url'] === $old_url ) {
+				$sub['url'] = $new_url;
+				break;
+			}
+		}
+		unset( $sub );
+		update_option( 'rs_rss_subscriptions', $subs, false );
 	}
 
 	private static function extract_first_image( string $html ): string {

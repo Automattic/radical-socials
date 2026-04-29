@@ -93,7 +93,7 @@ class Radical_Socials_WPCOM_Reader {
 		}
 
 		$response = wp_remote_post(
-			"https://public-api.wordpress.com/rest/v1.1/sites/{$blog_id}/follows/mine/delete",
+			'https://public-api.wordpress.com/rest/v1.1/sites/' . absint( $blog_id ) . '/follows/mine/delete',
 			[
 				'headers' => [ 'Authorization' => 'Bearer ' . $token ],
 				'timeout' => 15,

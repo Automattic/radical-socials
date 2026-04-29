@@ -18,12 +18,9 @@ defined( 'ABSPATH' ) || exit;
 
 class Radical_Socials_WebSub_Subscriber {
 
-	const REST_NAMESPACE  = 'radical-socials/v1';
-	const CALLBACK_ROUTE  = '/websub/callback';
-	const BATCH_ROUTE     = '/websub/subscribe-batch';
-	const SUBS_OPTION     = 'rs_websub_subscriptions'; // array of feed_url => hub_url
-	const PENDING_OPTION  = 'rs_websub_pending';       // array of feed_urls awaiting subscription
-	const BATCH_SIZE      = 10;
+	const REST_NAMESPACE = 'radical-socials/v1';
+	const CALLBACK_ROUTE = '/websub/callback';
+	const SUBS_OPTION    = 'rs_websub_subscriptions'; // array of feed_url => [ hub, secret ]
 
 	public static function init(): void {
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
@@ -48,51 +45,6 @@ class Radical_Socials_WebSub_Subscriber {
 				],
 			]
 		);
-
-		// Browser-driven batch subscription endpoint.
-		register_rest_route(
-			self::REST_NAMESPACE,
-			self::BATCH_ROUTE,
-			[
-				'methods'             => 'POST',
-				'callback'            => [ __CLASS__, 'handle_subscribe_batch' ],
-				'permission_callback' => fn() => current_user_can( 'manage_options' ),
-				'args'                => [
-					'urls' => [
-						'required' => true,
-						'type'     => 'array',
-						'items'    => [ 'type' => 'string', 'format' => 'uri' ],
-					],
-				],
-			]
-		);
-	}
-
-	/**
-	 * Process a batch of subscription requests from the browser.
-	 * Returns per-URL results so the progress bar can advance accurately.
-	 */
-	public static function handle_subscribe_batch( WP_REST_Request $request ): WP_REST_Response {
-		$urls    = (array) $request->get_param( 'urls' );
-		$results = [];
-
-		foreach ( $urls as $url ) {
-			$url = esc_url_raw( $url );
-			if ( ! $url ) {
-				continue;
-			}
-			self::subscribe( $url );
-			$results[] = $url;
-		}
-
-		$pending = (array) get_option( self::PENDING_OPTION, [] );
-		$pending = array_values( array_diff( $pending, $results ) );
-		update_option( self::PENDING_OPTION, $pending, false );
-
-		return new WP_REST_Response( [
-			'processed' => $results,
-			'remaining' => count( $pending ),
-		], 200 );
 	}
 
 	/**
@@ -120,10 +72,29 @@ class Radical_Socials_WebSub_Subscriber {
 	}
 
 	/**
-	 * Hub POSTs new feed content. Parse and ingest immediately.
+	 * Hub POSTs new feed content. Verify HMAC signature, then parse and ingest.
 	 */
 	public static function handle_notification( WP_REST_Request $request ): WP_REST_Response {
-		$body = $request->get_body();
+		$topic = $request->get_param( 'hub_topic' );
+		$body  = $request->get_body();
+
+		// Verify HMAC-SHA256 signature when we have a shared secret.
+		$subs = self::get_subscriptions();
+		if ( $topic && isset( $subs[ $topic ]['secret'] ) ) {
+			$secret    = $subs[ $topic ]['secret'];
+			$signature = $request->get_header( 'x_hub_signature' );
+
+			if ( ! $signature ) {
+				return new WP_REST_Response( 'missing_signature', 200 ); // 200 so hub stops retrying
+			}
+
+			[ $algo, $provided_hash ] = explode( '=', $signature, 2 ) + [ '', '' ];
+			$expected_hash = hash_hmac( 'sha256', $body, $secret );
+
+			if ( 'sha256' !== $algo || ! hash_equals( $expected_hash, $provided_hash ) ) {
+				return new WP_REST_Response( 'invalid_signature', 200 );
+			}
+		}
 
 		// Use SimplePie to parse the pushed Atom/RSS fragment.
 		if ( ! function_exists( 'fetch_feed' ) ) {
@@ -180,25 +151,6 @@ class Radical_Socials_WebSub_Subscriber {
 	}
 
 	/**
-	 * When the RSS feed URL list changes, subscribe to hubs for new feeds
-	 * and unsubscribe from removed ones.
-	 *
-	 * @param mixed $old_value
-	 * @param mixed $new_value
-	 */
-	public static function on_feeds_updated( $old_value, $new_value ): void {
-		$old_urls = self::parse_urls( (string) $old_value );
-		$new_urls = self::parse_urls( (string) $new_value );
-
-		foreach ( array_diff( $new_urls, $old_urls ) as $url ) {
-			self::subscribe( $url );
-		}
-		foreach ( array_diff( $old_urls, $new_urls ) as $url ) {
-			self::unsubscribe( $url );
-		}
-	}
-
-	/**
 	 * Discover hub URL for a feed and POST a subscribe request.
 	 */
 	public static function subscribe( string $feed_url ): void {
@@ -207,6 +159,7 @@ class Radical_Socials_WebSub_Subscriber {
 			return; // no hub; on-demand fetch will handle this feed
 		}
 
+		$secret   = wp_generate_password( 32, false );
 		$callback = rest_url( self::REST_NAMESPACE . self::CALLBACK_ROUTE );
 
 		wp_remote_post(
@@ -216,14 +169,15 @@ class Radical_Socials_WebSub_Subscriber {
 					'hub.callback'      => add_query_arg( 'hub_topic', rawurlencode( $feed_url ), $callback ),
 					'hub.mode'          => 'subscribe',
 					'hub.topic'         => $feed_url,
+					'hub.secret'        => $secret,
 					'hub.lease_seconds' => 864000, // 10 days; hub may override
 				],
 				'timeout' => 10,
 			]
 		);
 
-		$subs               = self::get_subscriptions();
-		$subs[ $feed_url ]  = $hub_url;
+		$subs             = self::get_subscriptions();
+		$subs[ $feed_url ] = [ 'hub' => $hub_url, 'secret' => $secret ];
 		update_option( self::SUBS_OPTION, $subs, false );
 	}
 
@@ -236,7 +190,8 @@ class Radical_Socials_WebSub_Subscriber {
 			return;
 		}
 
-		$hub_url  = $subs[ $feed_url ];
+		$entry    = $subs[ $feed_url ];
+		$hub_url  = is_array( $entry ) ? $entry['hub'] : $entry; // back-compat with old string format
 		$callback = rest_url( self::REST_NAMESPACE . self::CALLBACK_ROUTE );
 
 		wp_remote_post(
@@ -287,17 +242,9 @@ class Radical_Socials_WebSub_Subscriber {
 		return '';
 	}
 
-	/** @return array<string, string> feed_url => hub_url */
+	/** @return array<string, array{hub:string,secret:string}|string> */
 	private static function get_subscriptions(): array {
 		return (array) get_option( self::SUBS_OPTION, [] );
-	}
-
-	/** @return string[] */
-	private static function parse_urls( string $raw ): array {
-		return array_values( array_filter(
-			array_map( 'trim', explode( "\n", $raw ) ),
-			'wp_http_validate_url'
-		) );
 	}
 }
 

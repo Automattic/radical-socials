@@ -41,10 +41,6 @@ function radical_socials_add_menu_page(): void {
 }
 add_action( 'admin_menu', 'radical_socials_add_menu_page' );
 
-/**
- * On activation: configure ActivityPub for blog-actor mode so there is nothing
- * for the user to set up in the ActivityPub plugin settings.
- */
 function radical_socials_deactivate(): void {
 	Radical_Socials_Following::deactivate();
 }

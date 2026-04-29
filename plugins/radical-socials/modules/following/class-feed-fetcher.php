@@ -73,7 +73,7 @@ class Radical_Socials_Feed_Fetcher {
 			'post_title'   => $item['title'] ?: __( '(untitled)', 'radical-socials' ),
 			'post_content' => wp_kses( $item['content'] ?? $item['excerpt'] ?? '', self::kses_allowlist() ),
 			'post_excerpt' => wp_strip_all_tags( $item['excerpt'] ?? '' ),
-			'post_date'    => get_date_from_gmt( date( 'Y-m-d H:i:s', strtotime( $item['date'] ?? 'now' ) ) ),
+			'post_date'    => get_date_from_gmt( gmdate( 'Y-m-d H:i:s', strtotime( $item['date'] ?? 'now' ) ) ),
 			'meta_input'   => [
 				'_rs_item_url'          => $item['url'] ?? '',
 				'_rs_item_source_url'   => $item['source_url'] ?? '',
@@ -140,12 +140,13 @@ class Radical_Socials_Feed_Fetcher {
 	 * Delete the oldest items that exceed the MAX_ITEMS cap.
 	 */
 	public static function enforce_cap(): void {
+		// posts_per_page => -1 ignores 'offset' in WordPress; use a large finite number.
 		$excess = get_posts(
 			[
 				'post_type'      => 'rs_feed_item',
 				'post_status'    => 'any',
 				'fields'         => 'ids',
-				'posts_per_page' => -1,
+				'posts_per_page' => 9999,
 				'orderby'        => 'date',
 				'order'          => 'DESC',
 				'offset'         => Radical_Socials_Following::MAX_ITEMS,

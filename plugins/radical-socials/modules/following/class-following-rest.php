@@ -134,27 +134,30 @@ class Radical_Socials_Following_REST {
 			return new WP_REST_Response( [ 'error' => 'already_exists', 'input' => $url ], 409 );
 		}
 
+		// Resolve to canonical URL before storing (handles moved/http→https feeds).
+		$resolved = Radical_Socials_RSS_Fetcher::resolve_url( $url );
+
 		// Fetch the feed now to get its title and seed initial items.
-		$title = $url;
-		$items = Radical_Socials_RSS_Fetcher::fetch( $url, 20 );
+		$title = $resolved;
+		$items = Radical_Socials_RSS_Fetcher::fetch( $resolved, 20 );
 		if ( ! empty( $items ) ) {
-			$title = $items[0]['source_name'] ?: $url;
+			$title = $items[0]['source_name'] ?: $resolved;
 			foreach ( $items as $item ) {
 				Radical_Socials_Feed_Fetcher::upsert_item( $item );
 			}
 			Radical_Socials_Feed_Fetcher::enforce_cap();
 		}
 
-		$subs[] = [ 'url' => $url, 'title' => $title ];
+		$subs[] = [ 'url' => $resolved, 'title' => $title ];
 		update_option( 'rs_rss_subscriptions', $subs, false );
 
 		// Try WebSub — fire-and-forget, failure is non-fatal.
 		Radical_Socials_WebSub_Subscriber::subscribe( $url );
 
 		return new WP_REST_Response( [
-			'id'    => md5( $url ),
+			'id'    => md5( $resolved ),
 			'type'  => 'rss',
-			'url'   => $url,
+			'url'   => $resolved,
 			'title' => $title,
 		], 201 );
 	}

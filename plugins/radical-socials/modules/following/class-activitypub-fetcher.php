@@ -93,14 +93,18 @@ class Radical_Socials_ActivityPub_Fetcher {
 			$actor_name = $actor_path . '@' . $actor_name;
 		}
 
+		$image = $object['image'] ?? '';
+		$thumbnail = is_array( $image ) ? esc_url_raw( $image['url'] ?? '' ) : esc_url_raw( (string) $image );
+
 		return [
 			'title'         => wp_strip_all_tags( $name ?: $actor_name . ' posted' ),
 			'url'           => $object_url,
+			'content'       => wp_kses_post( $content ),
 			'excerpt'       => wp_trim_words( wp_strip_all_tags( $content ), 30 ),
 			'date'          => get_the_date( 'c', $post_id ),
 			'source_name'   => $actor_name,
 			'source_url'    => esc_url_raw( (string) $actor_url ),
-			'thumbnail_url' => esc_url_raw( $object['image']['url'] ?? $object['image'] ?? '' ),
+			'thumbnail_url' => $thumbnail,
 			'guid'          => md5( $object_url ),
 			'feed_type'     => 'activitypub',
 		];
