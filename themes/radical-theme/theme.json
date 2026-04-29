@@ -197,8 +197,14 @@
 			"name": "header"
 		},
 		{
-			"area": "footer",
-			"name": "footer"
+			"area": "uncategorized",
+			"name": "sidebar-left",
+			"title": "Sidebar Left"
+		},
+		{
+			"area": "uncategorized",
+			"name": "sidebar-right",
+			"title": "Sidebar Right"
 		}
 	]
 }
