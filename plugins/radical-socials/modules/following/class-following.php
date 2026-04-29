@@ -39,6 +39,10 @@ class Radical_Socials_Following {
 
 		// Make all permalink references point to the original article URL.
 		add_filter( 'post_type_link', [ __CLASS__, 'external_permalink' ], 10, 2 );
+
+		// Infinite scroll on the /following page.
+		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'enqueue_infinite_scroll' ] );
+		add_filter( 'render_block',       [ __CLASS__, 'wrap_following_query' ], 10, 2 );
 	}
 
 	public static function schedule_recurring(): void {
@@ -123,6 +127,52 @@ class Radical_Socials_Following {
 			'post_title'  => __( 'Following', 'radical-socials' ),
 			'post_content' => '',
 		] );
+	}
+
+	public static function enqueue_infinite_scroll(): void {
+		if ( ! is_page( 'following' ) ) {
+			return;
+		}
+		wp_enqueue_script_module(
+			'radical-socials/following',
+			plugin_dir_url( dirname( dirname( __DIR__ ) ) . '/radical-socials.php' ) . 'modules/following/assets/infinite-scroll.js',
+			[ '@wordpress/interactivity' ],
+			filemtime( __DIR__ . '/assets/infinite-scroll.js' ) ?: '1'
+		);
+	}
+
+	/**
+	 * Wraps the /following query block in an Interactivity API region so the
+	 * infinite-scroll store can read total pages and append new items.
+	 */
+	public static function wrap_following_query( string $html, array $block ): string {
+		if ( ! is_page( 'following' ) ) {
+			return $html;
+		}
+		if ( 'core/query' !== $block['blockName'] ) {
+			return $html;
+		}
+		if ( ! str_contains( $block['attrs']['className'] ?? '', 'rs-following-feed' ) ) {
+			return $html;
+		}
+
+		$per_page  = (int) ( $block['attrs']['query']['perPage'] ?? 20 );
+		$query_id  = (int) ( $block['attrs']['queryId'] ?? 0 );
+		$total     = (int) ( wp_count_posts( 'rs_feed_item' )->publish ?? 0 );
+		$max_pages = $total > 0 ? (int) ceil( $total / $per_page ) : 1;
+
+		$context  = wp_json_encode( [
+			'page'     => 1,
+			'maxPages' => $max_pages,
+			'queryId'  => $query_id,
+			'loading'  => false,
+		] );
+		$sentinel = '<div class="rs-following-sentinel" data-wp-init="callbacks.observeSentinel" aria-hidden="true"></div>';
+
+		return '<div data-wp-interactive="radical-socials/following" data-wp-context=\'' . esc_attr( $context ) . '\'>'
+			. $html
+			. $sentinel
+			. '</div>';
 	}
 
 	/**
