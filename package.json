@@ -16,6 +16,9 @@
     "playground:start": "wp-playground-cli server --mount=./plugins/radical-socials:/wordpress/wp-content/plugins/radical-socials --mount=./themes/radical-theme:/wordpress/wp-content/themes/radical-theme --port=8890 --blueprint=./playground-blueprint.json",
     "test": "wp-scripts test-unit-js"
   },
+  "dependencies": {
+    "@wordpress/icons": "^10.24.0"
+  },
   "devDependencies": {
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
