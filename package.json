@@ -20,11 +20,13 @@
     "@wordpress/icons": "^10.24.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@wordpress/env": "^10.14.0",
     "@wordpress/scripts": "^30.8.0",
-    "@wp-playground/cli": "^3.1.21"
+    "@wp-playground/cli": "^3.1.21",
+    "typescript": "^6.0.0"
   }
 }
