@@ -2,8 +2,8 @@
 /**
  * Following
  *
- * Registers the rs_feed_item shadow CPT and rs_source taxonomy, the /following
- * rewrite rule, and the hooks that keep the feed populated.
+ * Registers the rs_feed_item CPT (archive at /following/) and rs_source
+ * taxonomy, and the hooks that keep the feed populated.
  *
  * Feed updates arrive via three paths:
  *  1. ActivityPub inbox  — true push: hook fires when the ActivityPub plugin
@@ -26,11 +26,10 @@ class Radical_Socials_Following {
 	const FETCH_HOOK = 'rs_fetch_following';
 
 	public static function init(): void {
-		add_action( 'init',             [ __CLASS__, 'register_cpt'      ] );
-		add_action( 'init',             [ __CLASS__, 'register_taxonomy' ] );
-		add_action( 'init',             [ __CLASS__, 'ensure_page'       ] );
-		add_action( 'init',             [ __CLASS__, 'schedule_recurring' ] );
-		add_action( 'init',             [ __CLASS__, 'register_blocks'   ] );
+		add_action( 'init',             [ __CLASS__, 'register_cpt'        ] );
+		add_action( 'init',             [ __CLASS__, 'register_taxonomy'   ] );
+		add_action( 'init',             [ __CLASS__, 'schedule_recurring'  ] );
+		add_action( 'init',             [ __CLASS__, 'register_blocks'     ] );
 
 		// Recurring background fetch.
 		add_action( self::FETCH_HOOK, [ 'Radical_Socials_Feed_Fetcher', 'run' ] );
@@ -41,15 +40,17 @@ class Radical_Socials_Following {
 		// Make all permalink references point to the original article URL.
 		add_filter( 'post_type_link', [ __CLASS__, 'external_permalink' ], 10, 2 );
 
-		// Infinite scroll on the /following page.
+		// Infinite scroll on feed archive pages.
 		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'enqueue_infinite_scroll' ] );
-		add_action( 'template_redirect',  [ __CLASS__, 'maybe_add_block_filter' ] );
+		add_action( 'template_redirect',  [ __CLASS__, 'maybe_add_block_filter'  ] );
 
 		// Visit-triggered background refresh: kick off a fetch on any frontend or
 		// admin page load when the feed hasn't been updated in the last 15 minutes.
 		add_action( 'template_redirect', [ __CLASS__, 'maybe_refresh_feed' ] );
 		add_action( 'admin_init',        [ __CLASS__, 'maybe_refresh_feed' ] );
 	}
+
+	// ── Blocks ────────────────────────────────────────────────────────────────
 
 	public static function register_blocks(): void {
 		register_block_type( __DIR__ . '/blocks/favorite-feeds' );
@@ -58,7 +59,7 @@ class Radical_Socials_Following {
 		register_block_type( __DIR__ . '/blocks/like-button' );
 		add_filter( 'hooked_block_types', [ __CLASS__, 'hook_following_link' ], 10, 3 );
 		add_filter( 'hooked_block_types', [ __CLASS__, 'hook_favorites_link' ], 10, 3 );
-		add_filter( 'hooked_block_types', [ __CLASS__, 'hook_like_button'     ], 10, 3 );
+		add_filter( 'hooked_block_types', [ __CLASS__, 'hook_like_button'    ], 10, 3 );
 	}
 
 	public static function hook_following_link( array $hooked_blocks, string $position, ?string $anchor_block ): array {
@@ -82,6 +83,8 @@ class Radical_Socials_Following {
 		return $hooked_blocks;
 	}
 
+	// ── Cron ──────────────────────────────────────────────────────────────────
+
 	public static function schedule_recurring(): void {
 		if ( ! wp_next_scheduled( self::FETCH_HOOK ) ) {
 			wp_schedule_event( time(), 'hourly', self::FETCH_HOOK );
@@ -91,6 +94,8 @@ class Radical_Socials_Following {
 	public static function deactivate(): void {
 		wp_clear_scheduled_hook( self::FETCH_HOOK );
 	}
+
+	// ── CPT & taxonomy ────────────────────────────────────────────────────────
 
 	public static function external_permalink( string $url, WP_Post $post ): string {
 		if ( 'rs_feed_item' !== $post->post_type ) {
@@ -110,14 +115,14 @@ class Radical_Socials_Following {
 				'show_in_menu'        => false,
 				'show_in_rest'        => true,
 				'query_var'           => false,
-				'rewrite'             => false,
+				'rewrite'             => [ 'slug' => 'following', 'with_front' => false ],
 				'capability_type'     => 'post',
-				'has_archive'         => false,
+				'has_archive'         => true,
 				'hierarchical'        => false,
 				'exclude_from_search' => true,
 				'supports'            => [ 'title', 'editor', 'excerpt', 'thumbnail', 'custom-fields' ],
 				'labels'              => [
-					'name'          => __( 'Feed Items', 'radical-socials' ),
+					'name'          => __( 'Following', 'radical-socials' ),
 					'singular_name' => __( 'Feed Item', 'radical-socials' ),
 				],
 			]
@@ -156,30 +161,12 @@ class Radical_Socials_Following {
 		] ) );
 	}
 
-	/**
-	 * Create the /following page if it doesn't exist. Idempotent — safe to call on every init.
-	 * FSE automatically uses page-following.html for a page with slug 'following'.
-	 */
-	public static function ensure_page(): void {
-		if ( get_page_by_path( 'following', OBJECT, 'page' ) ) {
-			return;
-		}
-		wp_insert_post( [
-			'post_type'   => 'page',
-			'post_status' => 'publish',
-			'post_name'   => 'following',
-			'post_title'  => __( 'Following', 'radical-socials' ),
-			'post_content' => '',
-		] );
-	}
+	// ── Feed refresh ──────────────────────────────────────────────────────────
 
 	/**
 	 * Schedule a background feed fetch on any page load when the feed is stale
 	 * (older than 15 minutes). Uses a 10-minute transient lock to prevent
 	 * concurrent page loads from stacking up multiple fetches.
-	 *
-	 * Relies entirely on wp-cron (spawn_cron) — never runs synchronously so
-	 * page loads are never delayed by feed fetching.
 	 */
 	public static function maybe_refresh_feed(): void {
 		if ( wp_doing_ajax() || wp_doing_cron() ) {
@@ -206,8 +193,10 @@ class Radical_Socials_Following {
 		return wp_hash( 'rs_feed_refresh_' . wp_salt() );
 	}
 
+	// ── Frontend ──────────────────────────────────────────────────────────────
+
 	public static function enqueue_infinite_scroll(): void {
-		if ( ! is_page( 'following' ) ) {
+		if ( ! is_post_type_archive( [ 'rs_feed_item', 'rs_favorite' ] ) ) {
 			return;
 		}
 		$plugin_url = plugin_dir_url( dirname( dirname( __DIR__ ) ) . '/radical-socials.php' );
@@ -225,16 +214,16 @@ class Radical_Socials_Following {
 		);
 	}
 
-	/**
-	 * Wraps the /following query block in an Interactivity API region so the
-	 * infinite-scroll store can read total pages and append new items.
-	 */
 	public static function maybe_add_block_filter(): void {
-		if ( is_page( 'following' ) ) {
+		if ( is_post_type_archive( [ 'rs_feed_item', 'rs_favorite' ] ) ) {
 			add_filter( 'render_block', [ __CLASS__, 'wrap_following_query' ], 10, 2 );
 		}
 	}
 
+	/**
+	 * Wraps the feed query block in an Interactivity API region so the
+	 * infinite-scroll store can read total pages and append new items.
+	 */
 	public static function wrap_following_query( string $html, array $block ): string {
 		if ( 'core/query' !== $block['blockName'] ) {
 			return $html;
@@ -243,12 +232,13 @@ class Radical_Socials_Following {
 			return $html;
 		}
 
+		$post_type = is_post_type_archive( 'rs_favorite' ) ? 'rs_favorite' : 'rs_feed_item';
 		$per_page  = (int) ( $block['attrs']['query']['perPage'] ?? 20 );
 		$query_id  = (int) ( $block['attrs']['queryId'] ?? 0 );
-		$total     = (int) ( wp_count_posts( 'rs_feed_item' )->publish ?? 0 );
+		$total     = (int) ( wp_count_posts( $post_type )->publish ?? 0 );
 		$max_pages = $total > 0 ? (int) ceil( $total / $per_page ) : 1;
 
-		$context  = wp_json_encode( [
+		$context = wp_json_encode( [
 			'page'     => 1,
 			'maxPages' => $max_pages,
 			'queryId'  => $query_id,
@@ -256,16 +246,18 @@ class Radical_Socials_Following {
 		] );
 		$sentinel = '<div class="rs-following-sentinel" data-wp-init="callbacks.observeSentinel" aria-hidden="true"></div>';
 
-		// Pass refresh endpoint + auth to the Interactivity store.
+		// Refresh is only relevant on the following feed, not favorites.
+		$is_following = is_post_type_archive( 'rs_feed_item' );
+
 		wp_interactivity_state( 'radical-socials/following', [
 			'refreshUrl'  => rest_url( 'radical-socials/v1/following/refresh' ),
 			'nonce'       => is_user_logged_in() ? wp_create_nonce( 'wp_rest' ) : '',
-			'canRefresh'  => is_user_logged_in(),
+			'canRefresh'  => is_user_logged_in() && $is_following,
 			'refreshing'  => false,
 			'pulling'     => false,
 		] );
 
-		$pull_indicator = is_user_logged_in()
+		$pull_indicator = ( is_user_logged_in() && $is_following )
 			? '<div class="rs-refresh-bar" data-wp-class--rs-pull-refreshing="state.refreshing">'
 				. '<button class="rs-refresh-btn" data-wp-on--click="actions.refresh" data-wp-bind--disabled="state.refreshing">'
 					. '<span class="rs-pull-arrow" aria-hidden="true">↻</span>'
@@ -276,17 +268,18 @@ class Radical_Socials_Following {
 			: '';
 
 		return '<div data-wp-interactive="radical-socials/following" data-wp-context=\'' . esc_attr( $context ) . '\''
-			. ( is_user_logged_in() ? ' data-wp-init="callbacks.initPullToRefresh"' : '' ) . '>'
+			. ( ( is_user_logged_in() && $is_following ) ? ' data-wp-init="callbacks.initPullToRefresh"' : '' ) . '>'
 			. $pull_indicator
 			. $html
 			. $sentinel
 			. '</div>';
 	}
 
+	// ── ActivityPub push ──────────────────────────────────────────────────────
+
 	/**
-	 * ActivityPub push handler — called synchronously by WordPress when the
-	 * ActivityPub plugin saves a new incoming activity post. Ingests it into
-	 * the rs_feed_item CPT immediately so it appears in the feed at once.
+	 * Called synchronously when the ActivityPub plugin saves a new inbox
+	 * activity. Ingests it into the rs_feed_item CPT immediately.
 	 */
 	public static function on_activitypub_activity( int $post_id, WP_Post $post ): void {
 		// Only process Create activities (new content, not likes/announces).

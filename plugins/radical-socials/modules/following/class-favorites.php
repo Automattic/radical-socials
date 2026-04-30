@@ -16,9 +16,8 @@ class Radical_Socials_Favorites {
 	const CPT = 'rs_favorite';
 
 	public static function init(): void {
-		add_action( 'init', [ __CLASS__, 'register_cpt'        ] );
-		add_action( 'init', [ __CLASS__, 'extend_taxonomies'   ], 11 ); // after Following registers them
-		add_action( 'init', [ __CLASS__, 'ensure_page'         ] );
+		add_action( 'init', [ __CLASS__, 'register_cpt'      ] );
+		add_action( 'init', [ __CLASS__, 'extend_taxonomies' ], 11 ); // after Following registers them
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_filter( 'post_type_link', [ __CLASS__, 'external_permalink' ], 10, 2 );
 	}
@@ -33,9 +32,9 @@ class Radical_Socials_Favorites {
 				'show_in_menu'        => false,
 				'show_in_rest'        => true,
 				'query_var'           => false,
-				'rewrite'             => false,
+				'rewrite'             => [ 'slug' => 'favorites', 'with_front' => false ],
 				'capability_type'     => 'post',
-				'has_archive'         => false,
+				'has_archive'         => true,
 				'hierarchical'        => false,
 				'exclude_from_search' => true,
 				'supports'            => [ 'title', 'editor', 'excerpt', 'thumbnail', 'custom-fields' ],
