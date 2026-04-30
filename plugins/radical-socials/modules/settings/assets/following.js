@@ -294,6 +294,93 @@
 		} );
 	}
 
+	// ── Import from account ───────────────────────────────────────────────────
+
+	const importAccountInput = document.getElementById( 'rs-import-account-input' );
+	const importAccountBtn   = document.getElementById( 'rs-import-account-btn' );
+	const importAccountProg  = document.getElementById( 'rs-import-account-progress' );
+	const importAccountBar   = document.getElementById( 'rs-import-account-bar' );
+	const importAccountText  = document.getElementById( 'rs-import-account-text' );
+
+	importAccountBtn.addEventListener( 'click', async () => {
+		const handle = importAccountInput.value.trim();
+		if ( ! handle ) return;
+
+		importAccountBtn.disabled  = true;
+		importAccountProg.hidden   = false;
+		importAccountBar.value     = 0;
+		importAccountBar.max       = 1;
+		importAccountText.textContent = rsFollowing.i18n.importAccountFetching;
+
+		// Step 1: fetch the following list.
+		let actors;
+		try {
+			const res  = await fetch( rsFollowing.importFromAccountUrl, {
+				method:  'POST',
+				headers: { 'X-WP-Nonce': nonce, 'Content-Type': 'application/json' },
+				body:    JSON.stringify( { handle } ),
+			} );
+			const data = await res.json();
+			if ( ! res.ok ) {
+				const msg = {
+					following_list_private: rsFollowing.i18n.importAccountPrivate,
+					account_not_found:      rsFollowing.i18n.importAccountNotFound,
+				}[ data.error ] || rsFollowing.i18n.importAccountError;
+				importAccountText.textContent = msg;
+				importAccountBtn.disabled = false;
+				return;
+			}
+			actors = data.actors || [];
+		} catch {
+			importAccountText.textContent = rsFollowing.i18n.importAccountError;
+			importAccountBtn.disabled = false;
+			return;
+		}
+
+		if ( ! actors.length ) {
+			importAccountText.textContent = rsFollowing.i18n.importAccountDone
+				.replace( '%added%', 0 ).replace( '%skipped%', 0 ).replace( '%failed%', 0 );
+			importAccountBtn.disabled = false;
+			return;
+		}
+
+		// Step 2: add each actor using the existing endpoint with type=activitypub.
+		let done = 0, added = 0, skipped = 0, failed = 0;
+		importAccountBar.max = actors.length;
+
+		for ( let i = 0; i < actors.length; i += BATCH ) {
+			const batch = actors.slice( i, i + BATCH );
+			await Promise.all( batch.map( async actorUrl => {
+				try {
+					const res = await fetch( rsFollowing.apiUrl, {
+						method:  'POST',
+						headers: { 'X-WP-Nonce': nonce, 'Content-Type': 'application/json' },
+						body:    JSON.stringify( { input: actorUrl, type: 'activitypub' } ),
+					} );
+					if ( res.status === 201 )      added++;
+					else if ( res.status === 409 ) skipped++;
+					else                           failed++;
+				} catch {
+					failed++;
+				}
+				done++;
+				importAccountBar.value        = done;
+				importAccountText.textContent = rsFollowing.i18n.importAccountAdding
+					.replace( '%done%', done ).replace( '%total%', actors.length );
+			} ) );
+		}
+
+		importAccountText.textContent = rsFollowing.i18n.importAccountDone
+			.replace( '%added%',   added )
+			.replace( '%skipped%', skipped )
+			.replace( '%failed%',  failed );
+		importAccountBtn.disabled = false;
+
+		if ( added > 0 ) {
+			await loadTable();
+		}
+	} );
+
 	// ── OPML import ───────────────────────────────────────────────────────────
 
 	const opmlFile      = document.getElementById( 'rs-opml-file' );

@@ -44,8 +44,9 @@ class Radical_Socials_Settings_Page {
 			);
 			$nonce = wp_create_nonce( 'wp_rest' );
 			wp_localize_script( 'rs-following-settings', 'rsFollowing', [
-				'apiUrl'        => rest_url( 'radical-socials/v1/following' ),
-				'opmlParseUrl'  => rest_url( 'radical-socials/v1/following/opml/parse' ),
+				'apiUrl'              => rest_url( 'radical-socials/v1/following' ),
+				'importFromAccountUrl' => rest_url( 'radical-socials/v1/following/import-from-account' ),
+				'opmlParseUrl'        => rest_url( 'radical-socials/v1/following/opml/parse' ),
 				'opmlEntryUrl'  => rest_url( 'radical-socials/v1/following/opml/entry' ),
 				'opmlExportUrl' => add_query_arg( '_wpnonce', $nonce, rest_url( 'radical-socials/v1/following/opml/export' ) ),
 				'nonce'         => $nonce,
@@ -73,6 +74,13 @@ class Radical_Socials_Settings_Page {
 						'activitypub_already_following' => __( 'Already following', 'radical-socials' ),
 						'already_exists'                => __( 'Already following', 'radical-socials' ),
 					],
+					'importAccountBtn'     => __( 'Import follows', 'radical-socials' ),
+					'importAccountFetching' => __( 'Fetching following list…', 'radical-socials' ),
+					'importAccountAdding'   => __( 'Adding %done% / %total%…', 'radical-socials' ),
+					'importAccountDone'     => __( 'Done — %added% added, %skipped% already existed, %failed% failed.', 'radical-socials' ),
+					'importAccountPrivate'  => __( 'This account\'s following list is private. Enable "Show following and followers publicly" in your Mastodon privacy settings and try again.', 'radical-socials' ),
+					'importAccountNotFound' => __( 'Account not found. Check the handle and try again.', 'radical-socials' ),
+					'importAccountError'    => __( 'Could not fetch following list. Try again.', 'radical-socials' ),
 					'importBtn'     => __( 'Import OPML', 'radical-socials' ),
 					'importing'     => __( 'Importing…', 'radical-socials' ),
 					'importResult'  => __( 'Done — %added% added, %updated% updated, %skipped% unchanged, %failed% failed.', 'radical-socials' ),
@@ -335,6 +343,22 @@ class Radical_Socials_Settings_Page {
 							<span id="rs-add-progress-text"></span>
 						</div>
 						<div id="rs-add-failures" hidden style="margin-top:8px"></div>
+					</div>
+
+					<div style="margin-top:24px">
+						<strong><?php esc_html_e( 'Import follows from an account', 'radical-socials' ); ?></strong>
+						<p class="description" style="margin:4px 0 8px">
+							<?php esc_html_e( 'Enter your Mastodon (or any ActivityPub) handle and we\'ll add everyone you follow as feeds.', 'radical-socials' ); ?><br>
+							<?php esc_html_e( 'Note: your following list must be set to public in your account\'s privacy settings.', 'radical-socials' ); ?>
+						</p>
+						<input type="text" id="rs-import-account-input" class="regular-text" placeholder="@you@mastodon.social">
+						<button id="rs-import-account-btn" type="button" class="button button-secondary">
+							<?php esc_html_e( 'Import follows', 'radical-socials' ); ?>
+						</button>
+						<div id="rs-import-account-progress" hidden style="margin-top:8px">
+							<progress id="rs-import-account-bar" value="0" max="100" style="width:100%;max-width:100%;display:block"></progress>
+							<span id="rs-import-account-text"></span>
+						</div>
 					</div>
 
 					<div style="margin-top:24px">

@@ -67,6 +67,15 @@ class Radical_Socials_Following_REST {
 			'permission_callback' => $auth,
 		] );
 
+		register_rest_route( self::REST_NAMESPACE, self::ROUTE . '/import-from-account', [
+			'methods'             => 'POST',
+			'callback'            => [ __CLASS__, 'handle_import_from_account' ],
+			'permission_callback' => $auth,
+			'args'                => [
+				'handle' => [ 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ],
+			],
+		] );
+
 		register_rest_route( self::REST_NAMESPACE, self::ROUTE, [
 			[
 				'methods'             => 'GET',
@@ -79,6 +88,7 @@ class Radical_Socials_Following_REST {
 				'permission_callback' => $auth,
 				'args'                => [
 					'input' => [ 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ],
+					'type'  => [ 'required' => false, 'type' => 'string', 'enum' => [ 'activitypub', 'rss', '' ], 'default' => '' ],
 				],
 			],
 			[
@@ -188,6 +198,109 @@ class Radical_Socials_Following_REST {
 		exit;
 	}
 
+	// ── Import from account ───────────────────────────────────────────────────
+
+	/**
+	 * Fetch the ActivityPub following list for a given handle and return the
+	 * actor URLs so the client can add them via the normal batch-add flow.
+	 */
+	public static function handle_import_from_account( WP_REST_Request $request ): WP_REST_Response {
+		$handle = trim( $request->get_param( 'handle' ) );
+
+		// Resolve handle or URL to an actor URL.
+		if ( filter_var( $handle, FILTER_VALIDATE_URL ) ) {
+			$actor_url = $handle;
+		} elseif ( function_exists( 'Activitypub\Webfinger::resolve' ) || class_exists( 'Activitypub\Webfinger' ) ) {
+			$actor_url = \Activitypub\Webfinger::resolve( $handle );
+			if ( is_wp_error( $actor_url ) ) {
+				return new WP_REST_Response( [ 'error' => 'account_not_found', 'message' => $actor_url->get_error_message() ], 404 );
+			}
+		} else {
+			return new WP_REST_Response( [ 'error' => 'activitypub_unavailable' ], 503 );
+		}
+
+		$actor = self::fetch_ap_json( $actor_url );
+		if ( ! $actor ) {
+			return new WP_REST_Response( [ 'error' => 'account_not_found' ], 404 );
+		}
+
+		$following_url = $actor['following'] ?? null;
+		if ( ! $following_url ) {
+			return new WP_REST_Response( [ 'error' => 'no_following_url' ], 422 );
+		}
+
+		$actors = self::fetch_ap_collection( $following_url, 5 );
+
+		if ( $actors === null ) {
+			return new WP_REST_Response( [ 'error' => 'following_list_private' ], 403 );
+		}
+
+		// Each item is either a URL string or an actor object — normalise to URL strings.
+		$actor_urls = array_values( array_filter( array_map(
+			fn( $item ) => is_array( $item ) ? ( $item['id'] ?? null ) : ( is_string( $item ) ? $item : null ),
+			$actors
+		) ) );
+
+		return new WP_REST_Response( [ 'actors' => $actor_urls, 'total' => count( $actor_urls ) ], 200 );
+	}
+
+	private static function fetch_ap_json( string $url ): ?array {
+		$response = wp_remote_get( $url, [
+			'timeout' => 10,
+			'headers' => [ 'Accept' => 'application/activity+json, application/ld+json; profile="https://www.w3.org/ns/activitystreams"' ],
+		] );
+		if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) {
+			return null;
+		}
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+		return is_array( $data ) ? $data : null;
+	}
+
+	/**
+	 * Fetch items from an ActivityPub ordered collection, following `next` links
+	 * up to $max_pages pages. Returns null if the collection is private (has
+	 * totalItems but no readable items).
+	 *
+	 * @return array<int,mixed>|null
+	 */
+	private static function fetch_ap_collection( string $url, int $max_pages = 5 ): ?array {
+		$collection = self::fetch_ap_json( $url );
+		if ( ! $collection ) {
+			return null;
+		}
+
+		// Some instances return items directly on the collection object.
+		if ( ! empty( $collection['orderedItems'] ) ) {
+			return $collection['orderedItems'];
+		}
+
+		// Private following lists: totalItems present but no first/items.
+		if ( isset( $collection['totalItems'] ) && empty( $collection['first'] ) ) {
+			return null;
+		}
+
+		$first = $collection['first'] ?? null;
+		if ( ! $first ) {
+			return [];
+		}
+
+		$next  = is_array( $first ) ? ( $first['id'] ?? null ) : $first;
+		$items = [];
+		$page  = 0;
+
+		while ( $next && $page < $max_pages ) {
+			$pg = self::fetch_ap_json( $next );
+			if ( ! $pg ) {
+				break;
+			}
+			$items = array_merge( $items, $pg['orderedItems'] ?? [] );
+			$next  = $pg['next'] ?? null;
+			$page++;
+		}
+
+		return $items;
+	}
+
 	// ── GET ───────────────────────────────────────────────────────────────────
 
 	public static function list_following(): WP_REST_Response {
@@ -268,6 +381,11 @@ class Radical_Socials_Following_REST {
 
 	public static function add_following( WP_REST_Request $request ): WP_REST_Response {
 		$input = trim( $request->get_param( 'input' ) );
+
+		// Explicit type override — used by the import-from-account flow.
+		if ( 'activitypub' === $request->get_param( 'type' ) ) {
+			return self::add_activitypub( $input );
+		}
 
 		// @handle@instance or @handle format.
 		if ( str_starts_with( $input, '@' ) ) {
