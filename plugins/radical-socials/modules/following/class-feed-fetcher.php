@@ -19,6 +19,7 @@ class Radical_Socials_Feed_Fetcher {
 			Radical_Socials_WPCOM_Reader::fetch( 40 ),
 			self::fetch_all_rss(),
 			Radical_Socials_ActivityPub_Fetcher::fetch( 40 ),
+			Radical_Socials_ActivityPub_Fetcher::fetch_outboxes( 10 ),
 		);
 
 		self::upsert_batch( $items );

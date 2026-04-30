@@ -333,7 +333,8 @@ class Radical_Socials_Following_REST {
 			return new WP_REST_Response( [ 'error' => 'activitypub_unavailable', 'input' => $handle ], 503 );
 		}
 
-		$result = \Activitypub\follow( $handle, get_current_user_id() );
+		$uid    = get_current_user_id();
+		$result = \Activitypub\follow( $handle, $uid );
 
 		if ( is_wp_error( $result ) ) {
 			return new WP_REST_Response( [
@@ -341,6 +342,9 @@ class Radical_Socials_Following_REST {
 				'input' => $handle,
 			], 'activitypub_already_following' === $result->get_error_code() ? 409 : 400 );
 		}
+
+		// Remember which WP user owns ActivityPub follows so the outbox poller can find them.
+		update_option( 'rs_ap_follow_user_id', $uid, false );
 
 		return new WP_REST_Response( [
 			'id'    => (string) $result,
