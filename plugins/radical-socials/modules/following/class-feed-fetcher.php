@@ -249,7 +249,13 @@ class Radical_Socials_Feed_Fetcher {
 			return;
 		}
 
-		$follows = \Activitypub\Collection\Following::get_many( 0 );
+		$uid     = (int) get_option( 'rs_ap_follow_user_id', 0 );
+		if ( ! $uid ) {
+			$admins = get_users( [ 'role' => 'administrator', 'number' => 1, 'fields' => 'ID' ] );
+			$uid    = $admins ? (int) $admins[0] : 0;
+		}
+
+		$follows = $uid ? \Activitypub\Collection\Following::query_all( $uid )['following'] : [];
 		// WP_Post objects — guid holds the actor URL.
 		$known = array_column( (array) $follows, 'guid' );
 

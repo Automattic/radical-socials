@@ -132,8 +132,20 @@ class Radical_Socials_ActivityPub_Fetcher {
 			return [];
 		}
 
-		$actors = \Activitypub\Collection\Following::query_all( $user_id )['following'];
-		$items  = [];
+		$all_actors = \Activitypub\Collection\Following::query_all( $user_id )['following'];
+		$total      = count( $all_actors );
+		$items      = [];
+
+		if ( ! $total ) {
+			return [];
+		}
+
+		// Poll up to 10 actors per run, rotating through all of them so every
+		// actor gets polled eventually without making the run too slow.
+		$offset = (int) get_option( 'rs_ap_outbox_offset', 0 );
+		$offset = $offset % $total;
+		$actors = array_slice( $all_actors, $offset, 10 );
+		update_option( 'rs_ap_outbox_offset', ( $offset + count( $actors ) ) % $total, false );
 
 		foreach ( $actors as $post ) {
 			$actor_url  = $post->guid;
