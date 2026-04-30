@@ -47,6 +47,7 @@
 					<th>${ rsFollowing.i18n.colFav }</th>
 					<th>${ rsFollowing.i18n.colName }</th>
 					<th>${ rsFollowing.i18n.colType }</th>
+					<th>${ rsFollowing.i18n.colCategories }</th>
 					<th></th>
 				</tr>
 			</thead>
@@ -101,6 +102,18 @@
 		badge.textContent = TYPE_LABELS[ item.type ] || item.type;
 		tdType.appendChild( badge );
 
+		// Categories cell
+		const tdCats = document.createElement( 'td' );
+		const cats   = item.categories || [];
+		if ( cats.length ) {
+			cats.forEach( cat => {
+				const tag = document.createElement( 'span' );
+				tag.className   = 'rs-category-tag';
+				tag.textContent = cat;
+				tdCats.appendChild( tag );
+			} );
+		}
+
 		// Remove cell
 		const tdDel = document.createElement( 'td' );
 		const delBtn = document.createElement( 'button' );
@@ -113,6 +126,7 @@
 		tr.appendChild( tdStar );
 		tr.appendChild( tdName );
 		tr.appendChild( tdType );
+		tr.appendChild( tdCats );
 		tr.appendChild( tdDel );
 		return tr;
 	}
@@ -234,6 +248,61 @@
 			return res;
 		} );
 	}
+
+	// ── OPML import ───────────────────────────────────────────────────────────
+
+	const opmlFile      = document.getElementById( 'rs-opml-file' );
+	const opmlImportBtn = document.getElementById( 'rs-opml-import-btn' );
+	const opmlResult    = document.getElementById( 'rs-opml-import-result' );
+
+	opmlImportBtn.addEventListener( 'click', async () => {
+		if ( ! opmlFile.files.length ) {
+			opmlResult.textContent = rsFollowing.i18n.importNoFile;
+			opmlResult.className   = 'rs-error';
+			return;
+		}
+
+		opmlImportBtn.disabled    = true;
+		opmlImportBtn.textContent = rsFollowing.i18n.importing;
+		opmlResult.textContent    = '';
+		opmlResult.className      = '';
+
+		const body = new FormData();
+		body.append( 'file', opmlFile.files[ 0 ] );
+
+		try {
+			const res  = await fetch( rsFollowing.opmlImportUrl, {
+				method:  'POST',
+				headers: { 'X-WP-Nonce': nonce },
+				body,
+			} );
+			const data = await res.json();
+
+			if ( res.ok ) {
+				opmlResult.textContent = rsFollowing.i18n.importResult
+					.replace( '%added%',   data.added )
+					.replace( '%updated%', data.updated )
+					.replace( '%skipped%', data.skipped );
+				opmlFile.value = '';
+				if ( data.added || data.updated ) {
+					await loadTable();
+				}
+			} else {
+				opmlResult.textContent = data.message || rsFollowing.i18n.importError;
+				opmlResult.className   = 'rs-error';
+			}
+		} catch {
+			opmlResult.textContent = rsFollowing.i18n.importError;
+			opmlResult.className   = 'rs-error';
+		}
+
+		opmlImportBtn.disabled    = false;
+		opmlImportBtn.textContent = rsFollowing.i18n.importBtn;
+	} );
+
+	// ── OPML export ───────────────────────────────────────────────────────────
+
+	document.getElementById( 'rs-opml-export-link' ).href = rsFollowing.opmlExportUrl;
 
 	// ── Boot ───────────────────────────────────────────────────────────────
 

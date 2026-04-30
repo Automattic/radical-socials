@@ -39,7 +39,16 @@ class Radical_Socials_Feed_Fetcher {
 				continue;
 			}
 			$feed_items = Radical_Socials_RSS_Fetcher::fetch( $sub['url'], 20 );
-			$items      = array_merge( $items, $feed_items );
+
+			// Inject subscription categories so upsert() can tag the items.
+			if ( ! empty( $sub['categories'] ) ) {
+				foreach ( $feed_items as &$fi ) {
+					$fi['feed_categories'] = $sub['categories'];
+				}
+				unset( $fi );
+			}
+
+			$items = array_merge( $items, $feed_items );
 
 			// Backfill empty title/source_url from the fetched channel data.
 			if ( ! empty( $feed_items[0]['source_name'] ) ) {
@@ -142,6 +151,9 @@ class Radical_Socials_Feed_Fetcher {
 			}
 			if ( ! empty( $item['feed_type'] ) ) {
 				wp_set_post_terms( $post_id, [ $item['feed_type'] ], 'rs_feed_type' );
+			}
+			if ( ! empty( $item['feed_categories'] ) ) {
+				wp_set_post_terms( $post_id, (array) $item['feed_categories'], 'rs_feed_category' );
 			}
 
 			// Store thumbnail URL as featured image if we have one and no image yet.

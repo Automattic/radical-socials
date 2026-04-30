@@ -129,6 +129,13 @@ class Radical_Socials_Following {
 				'singular_name' => __( 'Feed Type', 'radical-socials' ),
 			],
 		] ) );
+
+		register_taxonomy( 'rs_feed_category', 'rs_feed_item', array_merge( $shared, [
+			'labels' => [
+				'name'          => __( 'Feed Categories', 'radical-socials' ),
+				'singular_name' => __( 'Feed Category', 'radical-socials' ),
+			],
+		] ) );
 	}
 
 	/**

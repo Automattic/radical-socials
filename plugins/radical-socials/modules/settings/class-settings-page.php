@@ -32,22 +32,31 @@ class Radical_Socials_Settings_Page {
 			filemtime( __DIR__ . '/assets/following.js' ) ?: '1',
 			true
 		);
+		$nonce = wp_create_nonce( 'wp_rest' );
 		wp_localize_script( 'rs-following-settings', 'rsFollowing', [
-			'apiUrl' => rest_url( 'radical-socials/v1/following' ),
-			'nonce'  => wp_create_nonce( 'wp_rest' ),
-			'i18n'   => [
-				'loading'     => __( 'Loading…', 'radical-socials' ),
-				'loadError'   => __( 'Could not load following list.', 'radical-socials' ),
-				'empty'       => __( 'Not following anything yet. Add feeds or accounts above.', 'radical-socials' ),
-				'remove'         => __( 'Remove', 'radical-socials' ),
-				'deleteConfirm'  => __( "Remove \"%name%\" (%url%)?\n\nThis will also delete all saved posts from this feed.", 'radical-socials' ),
-				'deleteError'    => __( 'Could not remove item. Please try again.', 'radical-socials' ),
-				'colFav'      => __( 'Fav', 'radical-socials' ),
-				'colName'     => __( 'Name', 'radical-socials' ),
-				'colType'     => __( 'Type', 'radical-socials' ),
-				'starLabel'   => __( 'Star this feed', 'radical-socials' ),
-				'unstarLabel' => __( 'Unstar this feed', 'radical-socials' ),
-				'addSummary'  => __( 'Done — %added% added, %skipped% already existed, %failed% failed.', 'radical-socials' ),
+			'apiUrl'        => rest_url( 'radical-socials/v1/following' ),
+			'opmlImportUrl' => rest_url( 'radical-socials/v1/following/opml/import' ),
+			'opmlExportUrl' => add_query_arg( '_wpnonce', $nonce, rest_url( 'radical-socials/v1/following/opml/export' ) ),
+			'nonce'         => $nonce,
+			'i18n'          => [
+				'loading'       => __( 'Loading…', 'radical-socials' ),
+				'loadError'     => __( 'Could not load following list.', 'radical-socials' ),
+				'empty'         => __( 'Not following anything yet. Add feeds or accounts above.', 'radical-socials' ),
+				'remove'        => __( 'Remove', 'radical-socials' ),
+				'deleteConfirm' => __( "Remove \"%name%\" (%url%)?\n\nThis will also delete all saved posts from this feed.", 'radical-socials' ),
+				'deleteError'   => __( 'Could not remove item. Please try again.', 'radical-socials' ),
+				'colFav'        => __( 'Fav', 'radical-socials' ),
+				'colName'       => __( 'Name', 'radical-socials' ),
+				'colType'       => __( 'Type', 'radical-socials' ),
+				'colCategories' => __( 'Categories', 'radical-socials' ),
+				'starLabel'     => __( 'Star this feed', 'radical-socials' ),
+				'unstarLabel'   => __( 'Unstar this feed', 'radical-socials' ),
+				'addSummary'    => __( 'Done — %added% added, %skipped% already existed, %failed% failed.', 'radical-socials' ),
+				'importBtn'     => __( 'Import OPML', 'radical-socials' ),
+				'importing'     => __( 'Importing…', 'radical-socials' ),
+				'importResult'  => __( 'Done — %added% added, %updated% updated, %skipped% unchanged.', 'radical-socials' ),
+				'importError'   => __( 'Import failed. Make sure the file is a valid OPML document.', 'radical-socials' ),
+				'importNoFile'  => __( 'Please choose an OPML file first.', 'radical-socials' ),
 			],
 		] );
 	}
@@ -261,12 +270,43 @@ class Radical_Socials_Settings_Page {
 
 			<style>
 			.rs-following-table { margin-top: 8px; }
+			.rs-following-table tbody tr:nth-child(even) td { background: #f6f7f7; }
 			.rs-type-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
 			.rs-type-rss         { background: #f0f6fc; color: #0073aa; }
 			.rs-type-activitypub { background: #f3f0ff; color: #6b21a8; }
 			.rs-type-wpcom       { background: #f0fff4; color: #166534; }
+			.rs-category-tag { display: inline-block; margin: 1px 3px 1px 0; padding: 1px 7px; border-radius: 3px; font-size: 11px; background: #fef9e7; color: #7c5e00; border: 1px solid #f0d060; }
 			.rs-error { color: #dc3232; }
 			</style>
+
+			<hr style="margin-top:32px">
+
+			<h2><?php esc_html_e( 'Import / Export', 'radical-socials' ); ?></h2>
+			<p class="description"><?php esc_html_e( 'OPML is a standard format for sharing lists of RSS subscriptions, supported by most feed readers.', 'radical-socials' ); ?></p>
+
+			<div style="margin-top:20px;display:flex;gap:40px;flex-wrap:wrap;align-items:flex-start">
+				<div>
+					<h3 style="margin-top:0"><?php esc_html_e( 'Import OPML', 'radical-socials' ); ?></h3>
+					<p class="description" style="margin-bottom:10px">
+						<?php esc_html_e( 'Adds new feeds and backfills titles, URLs, and categories for any feeds already in your list that are missing that information.', 'radical-socials' ); ?>
+					</p>
+					<input type="file" id="rs-opml-file" accept=".opml,.xml" style="margin-bottom:8px;display:block">
+					<button id="rs-opml-import-btn" type="button" class="button button-secondary">
+						<?php esc_html_e( 'Import OPML', 'radical-socials' ); ?>
+					</button>
+					<span id="rs-opml-import-result" style="margin-left:10px"></span>
+				</div>
+
+				<div>
+					<h3 style="margin-top:0"><?php esc_html_e( 'Export OPML', 'radical-socials' ); ?></h3>
+					<p class="description" style="margin-bottom:10px">
+						<?php esc_html_e( 'Downloads all your RSS subscriptions as an OPML file, including titles, feed URLs, site URLs, and any categories.', 'radical-socials' ); ?>
+					</p>
+					<a id="rs-opml-export-link" class="button button-secondary" download>
+						<?php esc_html_e( 'Export OPML', 'radical-socials' ); ?>
+					</a>
+				</div>
+			</div>
 
 		</div>
 		<?php

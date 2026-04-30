@@ -43,6 +43,18 @@ class Radical_Socials_Following_REST {
 			],
 		] );
 
+		register_rest_route( self::REST_NAMESPACE, self::ROUTE . '/opml/import', [
+			'methods'             => 'POST',
+			'callback'            => [ __CLASS__, 'handle_opml_import' ],
+			'permission_callback' => $auth,
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, self::ROUTE . '/opml/export', [
+			'methods'             => 'GET',
+			'callback'            => [ __CLASS__, 'handle_opml_export' ],
+			'permission_callback' => $auth,
+		] );
+
 		register_rest_route( self::REST_NAMESPACE, self::ROUTE, [
 			[
 				'methods'             => 'GET',
@@ -99,6 +111,47 @@ class Radical_Socials_Following_REST {
 		return new WP_REST_Response( [ 'ok' => true ], 202 );
 	}
 
+	// ── OPML import / export ─────────────────────────────────────────────────
+
+	public static function handle_opml_import( WP_REST_Request $request ): WP_REST_Response {
+		$files = $request->get_file_params();
+
+		if ( empty( $files['file']['tmp_name'] ) ) {
+			return new WP_REST_Response( [ 'error' => 'no_file' ], 400 );
+		}
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		$xml = file_get_contents( $files['file']['tmp_name'] );
+		if ( ! $xml ) {
+			return new WP_REST_Response( [ 'error' => 'empty_file' ], 400 );
+		}
+
+		$feeds = Radical_Socials_OPML::parse( $xml );
+		if ( empty( $feeds ) ) {
+			return new WP_REST_Response( [ 'error' => 'no_feeds_found' ], 422 );
+		}
+
+		$result = Radical_Socials_OPML::import( $feeds );
+
+		return new WP_REST_Response( $result, 200 );
+	}
+
+	public static function handle_opml_export(): void {
+		$xml      = Radical_Socials_OPML::export();
+		$filename = sanitize_file_name( get_bloginfo( 'name' ) . '-subscriptions.opml' );
+
+		while ( ob_get_level() ) {
+			ob_end_clean();
+		}
+
+		header( 'Content-Type: application/xml; charset=UTF-8' );
+		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+		header( 'Content-Length: ' . strlen( $xml ) );
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo $xml;
+		exit;
+	}
+
 	// ── GET ───────────────────────────────────────────────────────────────────
 
 	public static function list_following(): WP_REST_Response {
@@ -142,6 +195,7 @@ class Radical_Socials_Following_REST {
 				'url'        => $sub['url'],
 				'title'      => $sub['title'] ?: '',
 				'source_url' => $sub['source_url'] ?? '',
+				'categories' => $sub['categories'] ?? [],
 			];
 		}
 		return $items;
