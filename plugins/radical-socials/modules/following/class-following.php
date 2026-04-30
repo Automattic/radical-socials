@@ -168,13 +168,15 @@ class Radical_Socials_Following {
 		if ( time() - $last < $stale_after ) {
 			return;
 		}
-		if ( ! add_transient( 'rs_feed_refresh_lock', 1, 10 * MINUTE_IN_SECONDS ) ) {
+		if ( get_transient( 'rs_feed_refresh_lock' ) ) {
 			return;
 		}
+		set_transient( 'rs_feed_refresh_lock', 1, 10 * MINUTE_IN_SECONDS );
 
 		// Schedule a single cron event and fire it via spawn_cron() (non-blocking
 		// loopback HTTP to wp-cron.php). Falls back to a shutdown function for
 		// environments where loopback is unavailable (e.g. Docker dev).
+		wp_clear_scheduled_hook( self::FETCH_HOOK );
 		wp_schedule_single_event( time() - 1, self::FETCH_HOOK );
 
 		if ( spawn_cron() !== false ) {
