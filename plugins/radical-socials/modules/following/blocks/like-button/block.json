@@ -14,6 +14,9 @@
 	"style": "file:./assets/style.css",
 	"supports": {
 		"html": false,
-		"reusable": false
+		"reusable": false,
+		"interactivity": {
+			"clientNavigation": true
+		}
 	}
 }

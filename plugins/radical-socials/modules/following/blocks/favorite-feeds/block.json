@@ -10,6 +10,9 @@
 	"style": "wp-block-categories",
 	"supports": {
 		"html": false,
+		"interactivity": {
+			"clientNavigation": true
+		},
 		"layout": {},
 		"color": {
 			"gradients": true,

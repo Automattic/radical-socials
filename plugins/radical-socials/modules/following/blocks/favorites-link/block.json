@@ -14,6 +14,9 @@
 	"supports": {
 		"html": false,
 		"reusable": false,
+		"interactivity": {
+			"clientNavigation": true
+		},
 		"typography": {
 			"fontSize": true
 		}
