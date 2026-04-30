@@ -1,0 +1,27 @@
+.rs-like-button-wrap {
+	display: inline-flex;
+}
+
+.rs-like-btn {
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 4px 6px;
+	border-radius: 4px;
+	font-size: 1.25em;
+	line-height: 1;
+	color: #aaa;
+	transition: color 0.15s ease, transform 0.1s ease;
+}
+
+.rs-like-btn:hover {
+	color: #e44;
+}
+
+.rs-like-btn.rs-liked {
+	color: #e44;
+}
+
+.rs-like-btn:active {
+	transform: scale(1.3);
+}

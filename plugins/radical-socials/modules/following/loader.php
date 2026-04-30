@@ -8,6 +8,7 @@
 defined( 'ABSPATH' ) || exit;
 
 require_once __DIR__ . '/class-opml.php';
+require_once __DIR__ . '/class-favorites.php';
 require_once __DIR__ . '/class-wpcom-oauth.php';
 require_once __DIR__ . '/class-wpcom-reader.php';
 require_once __DIR__ . '/class-rss-fetcher.php';

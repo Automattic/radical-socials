@@ -54,12 +54,30 @@ class Radical_Socials_Following {
 	public static function register_blocks(): void {
 		register_block_type( __DIR__ . '/blocks/favorite-feeds' );
 		register_block_type( __DIR__ . '/blocks/following-link' );
+		register_block_type( __DIR__ . '/blocks/favorites-link' );
+		register_block_type( __DIR__ . '/blocks/like-button' );
 		add_filter( 'hooked_block_types', [ __CLASS__, 'hook_following_link' ], 10, 3 );
+		add_filter( 'hooked_block_types', [ __CLASS__, 'hook_favorites_link' ], 10, 3 );
+		add_filter( 'hooked_block_types', [ __CLASS__, 'hook_like_button'     ], 10, 3 );
 	}
 
 	public static function hook_following_link( array $hooked_blocks, string $position, ?string $anchor_block ): array {
 		if ( 'last_child' === $position && 'core/navigation' === $anchor_block ) {
 			$hooked_blocks[] = 'radical-socials/following-link';
+		}
+		return $hooked_blocks;
+	}
+
+	public static function hook_favorites_link( array $hooked_blocks, string $position, ?string $anchor_block ): array {
+		if ( 'last_child' === $position && 'core/navigation' === $anchor_block ) {
+			$hooked_blocks[] = 'radical-socials/favorites-link';
+		}
+		return $hooked_blocks;
+	}
+
+	public static function hook_like_button( array $hooked_blocks, string $position, ?string $anchor_block ): array {
+		if ( 'last_child' === $position && 'core/post-template' === $anchor_block ) {
+			$hooked_blocks[] = 'radical-socials/like-button';
 		}
 		return $hooked_blocks;
 	}
