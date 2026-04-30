@@ -60,12 +60,10 @@ class Radical_Socials_WebSub_Subscriber {
 			return new WP_REST_Response( 'missing_challenge', 400 );
 		}
 
-		if ( 'subscribe' === $mode ) {
-			$subs = self::get_subscriptions();
-			// Only confirm if we actually requested this subscription.
-			if ( ! isset( $subs[ $topic ] ) ) {
-				return new WP_REST_Response( 'unknown_topic', 404 );
-			}
+		$subs = self::get_subscriptions();
+		// Only confirm intents we actually requested.
+		if ( ! isset( $subs[ $topic ] ) ) {
+			return new WP_REST_Response( 'unknown_topic', 404 );
 		}
 
 		return new WP_REST_Response( $challenge, 200 );
@@ -78,14 +76,24 @@ class Radical_Socials_WebSub_Subscriber {
 		$topic = $request->get_param( 'hub_topic' );
 		$body  = $request->get_body();
 
-		// Verify HMAC-SHA256 signature when we have a shared secret.
+		if ( strlen( $body ) > 2 * MB_IN_BYTES ) {
+			return new WP_REST_Response( 'payload_too_large', 200 ); // 200 so hub stops retrying
+		}
+
 		$subs = self::get_subscriptions();
-		if ( $topic && isset( $subs[ $topic ]['secret'] ) ) {
+
+		// Reject notifications for unknown or missing topics.
+		if ( ! $topic || ! isset( $subs[ $topic ] ) ) {
+			return new WP_REST_Response( 'unknown_topic', 200 );
+		}
+
+		// Verify HMAC-SHA256 signature when we have a shared secret.
+		if ( isset( $subs[ $topic ]['secret'] ) ) {
 			$secret    = $subs[ $topic ]['secret'];
 			$signature = $request->get_header( 'x_hub_signature' );
 
 			if ( ! $signature ) {
-				return new WP_REST_Response( 'missing_signature', 200 ); // 200 so hub stops retrying
+				return new WP_REST_Response( 'missing_signature', 200 );
 			}
 
 			[ $algo, $provided_hash ] = explode( '=', $signature, 2 ) + [ '', '' ];
@@ -172,7 +180,8 @@ class Radical_Socials_WebSub_Subscriber {
 					'hub.secret'        => $secret,
 					'hub.lease_seconds' => 864000, // 10 days; hub may override
 				],
-				'timeout' => 10,
+				'timeout'             => 10,
+				'reject_unsafe_urls'  => true,
 			]
 		);
 
@@ -202,7 +211,8 @@ class Radical_Socials_WebSub_Subscriber {
 					'hub.mode'     => 'unsubscribe',
 					'hub.topic'    => $feed_url,
 				],
-				'timeout' => 10,
+				'timeout'            => 10,
+				'reject_unsafe_urls' => true,
 			]
 		);
 
@@ -215,7 +225,7 @@ class Radical_Socials_WebSub_Subscriber {
 	 */
 	private static function discover_hub( string $feed_url ): string {
 		// First check HTTP Link headers (faster).
-		$response = wp_remote_head( $feed_url, [ 'timeout' => 8 ] );
+		$response = wp_safe_remote_head( $feed_url, [ 'timeout' => 8 ] );
 		if ( ! is_wp_error( $response ) ) {
 			$link_header = wp_remote_retrieve_header( $response, 'link' );
 			if ( $link_header ) {
@@ -228,7 +238,7 @@ class Radical_Socials_WebSub_Subscriber {
 		}
 
 		// Fall back to parsing the feed body for <atom:link rel="hub">.
-		$response = wp_remote_get( $feed_url, [ 'timeout' => 10 ] );
+		$response = wp_safe_remote_get( $feed_url, [ 'timeout' => 10 ] );
 		if ( is_wp_error( $response ) ) {
 			return '';
 		}

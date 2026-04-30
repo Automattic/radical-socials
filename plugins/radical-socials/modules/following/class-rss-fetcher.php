@@ -107,7 +107,7 @@ class Radical_Socials_RSS_Fetcher {
 		$subs    = (array) get_option( 'rs_rss_subscriptions', [] );
 		$updated = 0;
 		foreach ( $subs as &$sub ) {
-			$r    = wp_remote_head( $sub['url'], [ 'timeout' => 5, 'redirection' => 5 ] );
+			$r    = wp_safe_remote_head( $sub['url'], [ 'timeout' => 5, 'redirection' => 5 ] );
 			$code = is_wp_error( $r ) ? 0 : (int) wp_remote_retrieve_response_code( $r );
 			if ( $code === 0 || $code >= 400 ) {
 				$new = self::discover_feed_url( $sub['url'] );
@@ -133,7 +133,7 @@ class Radical_Socials_RSS_Fetcher {
 		// 1. Try upgrading http → https.
 		if ( str_starts_with( $old_url, 'http://' ) ) {
 			$https = 'https://' . substr( $old_url, 7 );
-			$r     = wp_remote_head( $https, [ 'timeout' => 5, 'redirection' => 5 ] );
+			$r     = wp_safe_remote_head( $https, [ 'timeout' => 5, 'redirection' => 5 ] );
 			if ( ! is_wp_error( $r ) && wp_remote_retrieve_response_code( $r ) < 400 ) {
 				return $https;
 			}
@@ -145,7 +145,7 @@ class Radical_Socials_RSS_Fetcher {
 			return '';
 		}
 		$home = ( $parsed['scheme'] ?? 'https' ) . '://' . $parsed['host'] . '/';
-		$r    = wp_remote_get( $home, [
+		$r    = wp_safe_remote_get( $home, [
 			'timeout'     => 8,
 			'redirection' => 5,
 			'user-agent'  => 'Mozilla/5.0 (compatible; RadicalSocials/1.0; +https://github.com/Automattic/radical-socials)',

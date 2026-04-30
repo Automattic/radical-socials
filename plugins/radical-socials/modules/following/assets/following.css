@@ -1,0 +1,52 @@
+.rs-refresh-bar {
+	display: flex;
+	justify-content: center;
+	padding: 8px 0 4px;
+}
+
+.rs-refresh-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 14px;
+	border: 1px solid currentColor;
+	border-radius: 999px;
+	background: transparent;
+	color: currentColor;
+	font: inherit;
+	font-size: 0.85em;
+	opacity: 0.6;
+	cursor: pointer;
+	transition: opacity 0.15s;
+}
+
+.rs-refresh-btn:hover {
+	opacity: 1;
+}
+
+.rs-refresh-btn:disabled {
+	cursor: default;
+	opacity: 0.4;
+}
+
+.rs-refresh-btn .rs-pull-spinner {
+	display: none;
+	width: 14px;
+	height: 14px;
+	border: 2px solid currentColor;
+	border-top-color: transparent;
+	border-radius: 50%;
+	animation: rs-spin 0.7s linear infinite;
+}
+
+.rs-refresh-bar.rs-pull-refreshing .rs-pull-arrow {
+	display: none;
+}
+
+.rs-refresh-bar.rs-pull-refreshing .rs-pull-spinner {
+	display: block;
+}
+
+@keyframes rs-spin {
+	to { transform: rotate(360deg); }
+}

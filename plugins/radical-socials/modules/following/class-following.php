@@ -43,7 +43,12 @@ class Radical_Socials_Following {
 
 		// Infinite scroll on the /following page.
 		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'enqueue_infinite_scroll' ] );
-		add_filter( 'render_block',       [ __CLASS__, 'wrap_following_query' ], 10, 2 );
+		add_action( 'template_redirect',  [ __CLASS__, 'maybe_add_block_filter' ] );
+
+		// Visit-triggered background refresh: kick off a fetch on any frontend or
+		// admin page load when the feed hasn't been updated in the last 15 minutes.
+		add_action( 'template_redirect', [ __CLASS__, 'maybe_refresh_feed' ] );
+		add_action( 'admin_init',        [ __CLASS__, 'maybe_refresh_feed' ] );
 	}
 
 	public static function register_blocks(): void {
@@ -143,15 +148,70 @@ class Radical_Socials_Following {
 		] );
 	}
 
+	/**
+	 * Fire a non-blocking background fetch on any frontend or admin page load
+	 * when the feed hasn't been refreshed in the last 15 minutes.
+	 *
+	 * Uses a 10-minute transient lock so concurrent page loads don't trigger
+	 * multiple simultaneous fetches. The visitor never waits — spawn_cron()
+	 * fires a non-blocking wp-cron.php request; Docker/loopback-restricted
+	 * environments fall back to a shutdown function instead.
+	 */
+	public static function maybe_refresh_feed(): void {
+		if ( wp_doing_ajax() || wp_doing_cron() ) {
+			return;
+		}
+
+		$last        = (int) get_option( 'rs_last_feed_fetch', 0 );
+		$stale_after = 15 * MINUTE_IN_SECONDS;
+
+		if ( time() - $last < $stale_after ) {
+			return;
+		}
+		if ( ! add_transient( 'rs_feed_refresh_lock', 1, 10 * MINUTE_IN_SECONDS ) ) {
+			return;
+		}
+
+		// Schedule a single cron event and fire it via spawn_cron() (non-blocking
+		// loopback HTTP to wp-cron.php). Falls back to a shutdown function for
+		// environments where loopback is unavailable (e.g. Docker dev).
+		wp_schedule_single_event( time() - 1, self::FETCH_HOOK );
+
+		if ( spawn_cron() !== false ) {
+			return;
+		}
+
+		// Loopback unavailable — run after the response is sent.
+		ignore_user_abort( true );
+		register_shutdown_function( static function () {
+			if ( function_exists( 'fastcgi_finish_request' ) ) {
+				fastcgi_finish_request();
+			}
+			set_time_limit( 0 );
+			Radical_Socials_Feed_Fetcher::run();
+		} );
+	}
+
+	public static function refresh_secret(): string {
+		return wp_hash( 'rs_feed_refresh_' . wp_salt() );
+	}
+
 	public static function enqueue_infinite_scroll(): void {
 		if ( ! is_page( 'following' ) ) {
 			return;
 		}
+		$plugin_url = plugin_dir_url( dirname( dirname( __DIR__ ) ) . '/radical-socials.php' );
 		wp_enqueue_script_module(
 			'radical-socials/following',
-			plugin_dir_url( dirname( dirname( __DIR__ ) ) . '/radical-socials.php' ) . 'modules/following/assets/infinite-scroll.js',
+			$plugin_url . 'modules/following/assets/infinite-scroll.js',
 			[ '@wordpress/interactivity' ],
 			filemtime( __DIR__ . '/assets/infinite-scroll.js' ) ?: '1'
+		);
+		wp_enqueue_style(
+			'radical-socials/following',
+			$plugin_url . 'modules/following/assets/following.css',
+			[],
+			filemtime( __DIR__ . '/assets/following.css' ) ?: '1'
 		);
 	}
 
@@ -159,10 +219,13 @@ class Radical_Socials_Following {
 	 * Wraps the /following query block in an Interactivity API region so the
 	 * infinite-scroll store can read total pages and append new items.
 	 */
-	public static function wrap_following_query( string $html, array $block ): string {
-		if ( ! is_page( 'following' ) ) {
-			return $html;
+	public static function maybe_add_block_filter(): void {
+		if ( is_page( 'following' ) ) {
+			add_filter( 'render_block', [ __CLASS__, 'wrap_following_query' ], 10, 2 );
 		}
+	}
+
+	public static function wrap_following_query( string $html, array $block ): string {
 		if ( 'core/query' !== $block['blockName'] ) {
 			return $html;
 		}
@@ -183,7 +246,28 @@ class Radical_Socials_Following {
 		] );
 		$sentinel = '<div class="rs-following-sentinel" data-wp-init="callbacks.observeSentinel" aria-hidden="true"></div>';
 
-		return '<div data-wp-interactive="radical-socials/following" data-wp-context=\'' . esc_attr( $context ) . '\'>'
+		// Pass refresh endpoint + auth to the Interactivity store.
+		wp_interactivity_state( 'radical-socials/following', [
+			'refreshUrl'  => rest_url( 'radical-socials/v1/following/refresh' ),
+			'nonce'       => is_user_logged_in() ? wp_create_nonce( 'wp_rest' ) : '',
+			'canRefresh'  => is_user_logged_in(),
+			'refreshing'  => false,
+			'pulling'     => false,
+		] );
+
+		$pull_indicator = is_user_logged_in()
+			? '<div class="rs-refresh-bar" data-wp-class--rs-pull-refreshing="state.refreshing">'
+				. '<button class="rs-refresh-btn" data-wp-on--click="actions.refresh" data-wp-bind--disabled="state.refreshing">'
+					. '<span class="rs-pull-arrow" aria-hidden="true">↻</span>'
+					. '<span class="rs-pull-spinner" aria-hidden="true"></span>'
+					. '<span class="rs-refresh-label">' . esc_html__( 'Refresh feed', 'radical-socials' ) . '</span>'
+				. '</button>'
+			. '</div>'
+			: '';
+
+		return '<div data-wp-interactive="radical-socials/following" data-wp-context=\'' . esc_attr( $context ) . '\''
+			. ( is_user_logged_in() ? ' data-wp-init="callbacks.initPullToRefresh"' : '' ) . '>'
+			. $pull_indicator
 			. $html
 			. $sentinel
 			. '</div>';

@@ -26,6 +26,12 @@ class Radical_Socials_Following_REST {
 	public static function register_routes(): void {
 		$auth = fn() => current_user_can( 'manage_options' );
 
+		register_rest_route( self::REST_NAMESPACE, self::ROUTE . '/refresh', [
+			'methods'             => 'POST',
+			'callback'            => [ __CLASS__, 'handle_refresh' ],
+			'permission_callback' => [ __CLASS__, 'verify_refresh_secret' ],
+		] );
+
 		register_rest_route( self::REST_NAMESPACE, self::ROUTE . '/favorite', [
 			'methods'             => 'POST',
 			'callback'            => [ __CLASS__, 'set_favorite' ],
@@ -62,6 +68,42 @@ class Radical_Socials_Following_REST {
 				],
 			],
 		] );
+	}
+
+	// ── Background refresh ────────────────────────────────────────────────────
+
+	public static function verify_refresh_secret( WP_REST_Request $request ): bool {
+		// Logged-in users (site owner viewing their own feed) may trigger a refresh.
+		if ( is_user_logged_in() ) {
+			return true;
+		}
+		// Server-to-server background call authenticated by shared secret.
+		$provided = $request->get_header( 'x_rs_refresh_secret' );
+		return $provided && hash_equals( Radical_Socials_Following::refresh_secret(), $provided );
+	}
+
+	public static function handle_refresh(): WP_REST_Response {
+		// Try spawn_cron() first — works on any host that allows loopback HTTP
+		// requests (the default on standard hosting).
+		wp_schedule_single_event( time() - 1, 'rs_fetch_following' );
+
+		if ( spawn_cron() !== false ) {
+			return new WP_REST_Response( [ 'ok' => true ], 202 );
+		}
+
+		// Fallback for environments where loopback HTTP is unavailable (e.g. Docker).
+		// Register the fetch to run after the response is sent so the caller
+		// never waits for all the feeds to be polled.
+		ignore_user_abort( true );
+		register_shutdown_function( static function () {
+			if ( function_exists( 'fastcgi_finish_request' ) ) {
+				fastcgi_finish_request();
+			}
+			set_time_limit( 0 );
+			Radical_Socials_Feed_Fetcher::run();
+		} );
+
+		return new WP_REST_Response( [ 'ok' => true ], 202 );
 	}
 
 	// ── GET ───────────────────────────────────────────────────────────────────

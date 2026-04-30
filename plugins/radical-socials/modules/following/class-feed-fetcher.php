@@ -21,15 +21,9 @@ class Radical_Socials_Feed_Fetcher {
 			Radical_Socials_ActivityPub_Fetcher::fetch( 40 ),
 		);
 
-		if ( empty( $items ) ) {
-			update_option( 'rs_last_feed_fetch', time(), false );
-			return;
-		}
+		self::upsert_batch( $items );
 
-		foreach ( $items as $item ) {
-			self::upsert( $item );
-		}
-
+		self::prune_orphaned_items();
 		self::enforce_cap();
 
 		update_option( 'rs_last_feed_fetch', time(), false );
@@ -76,19 +70,45 @@ class Radical_Socials_Feed_Fetcher {
 		self::upsert( $item );
 	}
 
-	private static function upsert( array $item ): void {
+	/**
+	 * Upsert many items with a single existence-check query instead of one per item.
+	 */
+	private static function upsert_batch( array $items ): void {
+		if ( empty( $items ) ) {
+			return;
+		}
+
+		// Build guid → item map (last writer wins for duplicates in the batch).
+		$by_guid = [];
+		foreach ( $items as $item ) {
+			$guid            = $item['guid'] ?? md5( $item['url'] ?? uniqid() );
+			$by_guid[ $guid ] = $item;
+		}
+
+		// Single query to find all existing post IDs by slug.
+		global $wpdb;
+		$guids        = array_keys( $by_guid );
+		$placeholders = implode( ',', array_fill( 0, count( $guids ), '%s' ) );
+		$rows         = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT ID, post_name FROM {$wpdb->posts} WHERE post_type = 'rs_feed_item' AND post_name IN ($placeholders)", // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+				...$guids
+			)
+		);
+		$existing_map = array_column( $rows, 'ID', 'post_name' );
+
+		foreach ( $by_guid as $guid => $item ) {
+			self::upsert( $item, $existing_map[ $guid ] ?? null );
+		}
+	}
+
+	private static function upsert( array $item, ?int $existing_id = null ): void {
 		$guid = $item['guid'] ?? md5( $item['url'] ?? uniqid() );
 
-		// Check for an existing post with the same slug.
-		$existing = get_posts(
-			[
-				'post_type'   => 'rs_feed_item',
-				'post_status' => 'any',
-				'name'        => $guid,
-				'fields'      => 'ids',
-				'numberposts' => 1,
-			]
-		);
+		if ( null === $existing_id ) {
+			$rows        = get_posts( [ 'post_type' => 'rs_feed_item', 'post_status' => 'any', 'name' => $guid, 'fields' => 'ids', 'numberposts' => 1 ] );
+			$existing_id = $rows[0] ?? null;
+		}
 
 		$post_data = [
 			'post_type'    => 'rs_feed_item',
@@ -106,10 +126,10 @@ class Radical_Socials_Feed_Fetcher {
 			],
 		];
 
-		if ( $existing ) {
-			$post_data['ID'] = $existing[0];
+		if ( $existing_id ) {
+			$post_data['ID'] = $existing_id;
 			wp_update_post( $post_data );
-			$post_id = $existing[0];
+			$post_id = $existing_id;
 		} else {
 			$post_id = wp_insert_post( $post_data );
 		}
@@ -133,8 +153,12 @@ class Radical_Socials_Feed_Fetcher {
 	}
 
 	private static function kses_allowlist(): array {
-		$common = [ 'class' => true, 'id' => true, 'style' => true, 'dir' => true, 'lang' => true ];
-		return [
+		static $list = null;
+		if ( null !== $list ) {
+			return $list;
+		}
+		$common = [ 'class' => true, 'id' => true, 'dir' => true, 'lang' => true ];
+		$list = [
 			'p'          => $common, 'br' => [], 'hr' => $common,
 			'span'       => $common, 'div' => $common,
 			'h1' => $common, 'h2' => $common, 'h3' => $common,
@@ -158,6 +182,97 @@ class Radical_Socials_Feed_Fetcher {
 			'audio'  => array_merge( $common, [ 'src' => true ] ),
 			'source' => [ 'src' => true, 'type' => true, 'srcset' => true, 'media' => true ],
 		];
+		return $list;
+	}
+
+	/**
+	 * Delete rs_feed_item posts whose source feed is no longer in the
+	 * current subscription lists (RSS and ActivityPub).
+	 * WP.com is skipped — pruning it would require an extra API call.
+	 */
+	private static function prune_orphaned_items(): void {
+		self::prune_orphaned_rss();
+		self::prune_orphaned_activitypub();
+	}
+
+	private static function prune_orphaned_rss(): void {
+		$subs  = (array) get_option( 'rs_rss_subscriptions', [] );
+		$known = array_values( array_filter( array_column( $subs, 'source_url' ) ) );
+
+		if ( empty( $subs ) ) {
+			// No subscriptions at all — every RSS item is an orphan.
+			foreach ( self::get_item_ids_by_type( 'rss' ) as $id ) {
+				wp_delete_post( (int) $id, true );
+			}
+			return;
+		}
+
+		if ( empty( $known ) ) {
+			// Subscriptions exist but none have a source_url yet (e.g. first fetch
+			// hasn't completed) — skip to avoid false positives.
+			return;
+		}
+
+		$orphans = get_posts( [
+			'post_type'      => 'rs_feed_item',
+			'post_status'    => 'any',
+			'fields'         => 'ids',
+			'posts_per_page' => 9999,
+			'meta_query'     => [
+				'relation' => 'AND',
+				[ 'key' => '_rs_item_feed_type', 'value' => 'rss' ],
+				[ 'key' => '_rs_item_source_url', 'value' => $known, 'compare' => 'NOT IN' ],
+				[ 'key' => '_rs_item_source_url', 'value' => '', 'compare' => '!=' ],
+			],
+		] );
+
+		foreach ( $orphans as $id ) {
+			wp_delete_post( (int) $id, true );
+		}
+	}
+
+	private static function prune_orphaned_activitypub(): void {
+		if ( ! class_exists( 'Activitypub\Collection\Following' ) ) {
+			return;
+		}
+
+		$follows = \Activitypub\Collection\Following::get_many( 0 );
+		// WP_Post objects — guid holds the actor URL.
+		$known = array_column( (array) $follows, 'guid' );
+
+		if ( empty( $known ) ) {
+			foreach ( self::get_item_ids_by_type( 'activitypub' ) as $id ) {
+				wp_delete_post( (int) $id, true );
+			}
+			return;
+		}
+
+		$orphans = get_posts( [
+			'post_type'      => 'rs_feed_item',
+			'post_status'    => 'any',
+			'fields'         => 'ids',
+			'posts_per_page' => 9999,
+			'meta_query'     => [
+				'relation' => 'AND',
+				[ 'key' => '_rs_item_feed_type', 'value' => 'activitypub' ],
+				[ 'key' => '_rs_item_source_url', 'value' => $known, 'compare' => 'NOT IN' ],
+				[ 'key' => '_rs_item_source_url', 'value' => '', 'compare' => '!=' ],
+			],
+		] );
+
+		foreach ( $orphans as $id ) {
+			wp_delete_post( (int) $id, true );
+		}
+	}
+
+	private static function get_item_ids_by_type( string $type ): array {
+		return get_posts( [
+			'post_type'      => 'rs_feed_item',
+			'post_status'    => 'any',
+			'fields'         => 'ids',
+			'posts_per_page' => 9999,
+			'meta_query'     => [ [ 'key' => '_rs_item_feed_type', 'value' => $type ] ],
+		] );
 	}
 
 	/**
