@@ -193,9 +193,9 @@ class Radical_Socials_Following_REST {
 	public static function list_following(): WP_REST_Response {
 		$favs  = (array) get_option( self::FAVORITES_OPTION, [] );
 		$items = array_merge(
-			self::list_rss(),
-			self::list_activitypub(),
-			self::list_wpcom(),
+			array_reverse( self::list_rss() ),
+			array_reverse( self::list_activitypub() ),
+			array_reverse( self::list_wpcom() ),
 		);
 		foreach ( $items as &$item ) {
 			$item['starred'] = in_array( $item['type'] . ':' . $item['id'], $favs, true );
