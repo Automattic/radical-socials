@@ -43,10 +43,22 @@ class Radical_Socials_Following_REST {
 			],
 		] );
 
-		register_rest_route( self::REST_NAMESPACE, self::ROUTE . '/opml/import', [
+		register_rest_route( self::REST_NAMESPACE, self::ROUTE . '/opml/parse', [
 			'methods'             => 'POST',
-			'callback'            => [ __CLASS__, 'handle_opml_import' ],
+			'callback'            => [ __CLASS__, 'handle_opml_parse' ],
 			'permission_callback' => $auth,
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, self::ROUTE . '/opml/entry', [
+			'methods'             => 'POST',
+			'callback'            => [ __CLASS__, 'handle_opml_entry' ],
+			'permission_callback' => $auth,
+			'args'                => [
+				'url'        => [ 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ],
+				'title'      => [ 'type' => 'string', 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ],
+				'source_url' => [ 'type' => 'string', 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ],
+				'categories' => [ 'type' => 'array',  'default' => [], 'items' => [ 'type' => 'string' ] ],
+			],
 		] );
 
 		register_rest_route( self::REST_NAMESPACE, self::ROUTE . '/opml/export', [
@@ -113,7 +125,12 @@ class Radical_Socials_Following_REST {
 
 	// ── OPML import / export ─────────────────────────────────────────────────
 
-	public static function handle_opml_import( WP_REST_Request $request ): WP_REST_Response {
+	/**
+	 * Parse an uploaded OPML file and return the feed list as JSON without
+	 * writing anything to the database. The client processes entries individually
+	 * via handle_opml_entry() so it can show per-feed progress.
+	 */
+	public static function handle_opml_parse( WP_REST_Request $request ): WP_REST_Response {
 		$files = $request->get_file_params();
 
 		if ( empty( $files['file']['tmp_name'] ) ) {
@@ -131,9 +148,28 @@ class Radical_Socials_Following_REST {
 			return new WP_REST_Response( [ 'error' => 'no_feeds_found' ], 422 );
 		}
 
-		$result = Radical_Socials_OPML::import( $feeds );
+		return new WP_REST_Response( [ 'feeds' => $feeds ], 200 );
+	}
 
-		return new WP_REST_Response( $result, 200 );
+	/**
+	 * Upsert a single feed entry from an OPML import.
+	 * Returns 201 (added), 200 (updated), or 304 (no change).
+	 */
+	public static function handle_opml_entry( WP_REST_Request $request ): WP_REST_Response {
+		$result = Radical_Socials_OPML::import( [ [
+			'url'        => $request->get_param( 'url' ),
+			'title'      => $request->get_param( 'title' ),
+			'source_url' => $request->get_param( 'source_url' ),
+			'categories' => (array) $request->get_param( 'categories' ),
+		] ] );
+
+		if ( $result['added'] > 0 ) {
+			return new WP_REST_Response( $result, 201 );
+		}
+		if ( $result['updated'] > 0 ) {
+			return new WP_REST_Response( $result, 200 );
+		}
+		return new WP_REST_Response( $result, 409 );
 	}
 
 	public static function handle_opml_export(): void {

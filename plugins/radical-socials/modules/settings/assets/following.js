@@ -7,12 +7,13 @@
 	const nonce    = rsFollowing.nonce;
 	const BATCH    = 5;
 
-	const wrap     = document.getElementById( 'rs-following-table-wrap' );
-	const addInput = document.getElementById( 'rs-add-input' );
-	const addBtn   = document.getElementById( 'rs-add-btn' );
-	const progress = document.getElementById( 'rs-add-progress' );
-	const progBar  = document.getElementById( 'rs-add-progress-bar' );
-	const progText = document.getElementById( 'rs-add-progress-text' );
+	const wrap        = document.getElementById( 'rs-following-table-wrap' );
+	const feedHeading = document.getElementById( 'rs-feeds-heading' );
+	const addInput    = document.getElementById( 'rs-add-input' );
+	const addBtn      = document.getElementById( 'rs-add-btn' );
+	const progress    = document.getElementById( 'rs-add-progress' );
+	const progBar     = document.getElementById( 'rs-add-progress-bar' );
+	const progText    = document.getElementById( 'rs-add-progress-text' );
 
 	const TYPE_LABELS = {
 		rss:         'RSS',
@@ -34,6 +35,10 @@
 	}
 
 	function renderTable( items ) {
+		if ( feedHeading ) {
+			feedHeading.textContent = rsFollowing.i18n.feedsHeading.replace( '%count%', items.length );
+		}
+
 		if ( ! items.length ) {
 			wrap.innerHTML = '<p>' + rsFollowing.i18n.empty + '</p>';
 			return;
@@ -253,51 +258,81 @@
 
 	const opmlFile      = document.getElementById( 'rs-opml-file' );
 	const opmlImportBtn = document.getElementById( 'rs-opml-import-btn' );
-	const opmlResult    = document.getElementById( 'rs-opml-import-result' );
 
 	opmlImportBtn.addEventListener( 'click', async () => {
 		if ( ! opmlFile.files.length ) {
-			opmlResult.textContent = rsFollowing.i18n.importNoFile;
-			opmlResult.className   = 'rs-error';
+			progText.textContent = rsFollowing.i18n.importNoFile;
+			progress.hidden      = false;
 			return;
 		}
 
-		opmlImportBtn.disabled    = true;
-		opmlImportBtn.textContent = rsFollowing.i18n.importing;
-		opmlResult.textContent    = '';
-		opmlResult.className      = '';
+		opmlImportBtn.disabled = true;
+		progress.hidden        = false;
+		setProgress( 0, 1 );
+		progText.textContent = rsFollowing.i18n.importing;
 
-		const body = new FormData();
-		body.append( 'file', opmlFile.files[ 0 ] );
+		// Step 1: parse file → get feed list (no DB writes).
+		const formData = new FormData();
+		formData.append( 'file', opmlFile.files[ 0 ] );
 
+		let feeds;
 		try {
-			const res  = await fetch( rsFollowing.opmlImportUrl, {
+			const res  = await fetch( rsFollowing.opmlParseUrl, {
 				method:  'POST',
 				headers: { 'X-WP-Nonce': nonce },
-				body,
+				body:    formData,
 			} );
 			const data = await res.json();
-
-			if ( res.ok ) {
-				opmlResult.textContent = rsFollowing.i18n.importResult
-					.replace( '%added%',   data.added )
-					.replace( '%updated%', data.updated )
-					.replace( '%skipped%', data.skipped );
-				opmlFile.value = '';
-				if ( data.added || data.updated ) {
-					await loadTable();
-				}
-			} else {
-				opmlResult.textContent = data.message || rsFollowing.i18n.importError;
-				opmlResult.className   = 'rs-error';
+			if ( ! res.ok ) {
+				progText.textContent = data.message || rsFollowing.i18n.importError;
+				opmlImportBtn.disabled = false;
+				return;
 			}
+			feeds = data.feeds || [];
 		} catch {
-			opmlResult.textContent = rsFollowing.i18n.importError;
-			opmlResult.className   = 'rs-error';
+			progText.textContent   = rsFollowing.i18n.importError;
+			opmlImportBtn.disabled = false;
+			return;
 		}
 
-		opmlImportBtn.disabled    = false;
-		opmlImportBtn.textContent = rsFollowing.i18n.importBtn;
+		// Step 2: upsert each feed individually so we can show real progress.
+		const total   = feeds.length;
+		let done      = 0;
+		let added     = 0;
+		let updated   = 0;
+		let unchanged = 0;
+		let failed    = 0;
+
+		setProgress( 0, total );
+
+		for ( let i = 0; i < feeds.length; i += BATCH ) {
+			const batch = feeds.slice( i, i + BATCH );
+			await Promise.all( batch.map( async feed => {
+				try {
+					const res = await apiFetch( 'POST', rsFollowing.opmlEntryUrl, feed );
+					if ( res.status === 201 )      { added++; }
+					else if ( res.status === 200 ) { updated++; }
+					else if ( res.status === 409 ) { unchanged++; }
+					else                           { failed++; }
+				} catch {
+					failed++;
+				}
+				done++;
+				setProgress( done, total );
+			} ) );
+		}
+
+		opmlImportBtn.disabled = false;
+		progText.textContent   = rsFollowing.i18n.importResult
+			.replace( '%added%',   added )
+			.replace( '%updated%', updated )
+			.replace( '%skipped%', unchanged )
+			.replace( '%failed%',  failed );
+		opmlFile.value = '';
+
+		if ( added > 0 || updated > 0 ) {
+			await loadTable();
+		}
 	} );
 
 	// ── OPML export ───────────────────────────────────────────────────────────
