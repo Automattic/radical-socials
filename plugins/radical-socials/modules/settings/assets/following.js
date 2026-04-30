@@ -14,6 +14,7 @@
 	const progress    = document.getElementById( 'rs-add-progress' );
 	const progBar     = document.getElementById( 'rs-add-progress-bar' );
 	const progText    = document.getElementById( 'rs-add-progress-text' );
+	const failureList = document.getElementById( 'rs-add-failures' );
 
 	const TYPE_LABELS = {
 		rss:         'RSS',
@@ -193,26 +194,40 @@
 
 		if ( ! lines.length ) return;
 
-		const total = lines.length;
-		let done    = 0;
-		let added   = 0;
-		let skipped = 0;
-		let failed  = 0;
+		const total    = lines.length;
+		let done       = 0;
+		let added      = 0;
+		let skipped    = 0;
+		let failed     = 0;
+		const failures = [];
 
 		setProgress( 0, total );
-		progress.hidden = false;
-		addBtn.disabled = true;
+		progress.hidden      = false;
+		failureList.hidden   = true;
+		failureList.innerHTML = '';
+		addBtn.disabled      = true;
 
 		for ( let i = 0; i < lines.length; i += BATCH ) {
 			const batch = lines.slice( i, i + BATCH );
 			await Promise.all( batch.map( async input => {
 				try {
-					const res = await apiFetch( 'POST', api, { input } );
-					if ( res.status === 201 )      { added++; }
-					else if ( res.status === 409 ) { skipped++; }
-					else                           { failed++; }
+					const res  = await fetch( api, {
+						method:  'POST',
+						headers: { 'X-WP-Nonce': nonce, 'Content-Type': 'application/json' },
+						body:    JSON.stringify( { input } ),
+					} );
+					const data = await res.json().catch( () => ( {} ) );
+					if ( res.status === 201 ) {
+						added++;
+					} else if ( res.status === 409 ) {
+						skipped++;
+					} else {
+						failed++;
+						failures.push( { input, reason: errorLabel( data.error ) } );
+					}
 				} catch {
 					failed++;
+					failures.push( { input, reason: rsFollowing.i18n.errorNetwork } );
 				}
 				done++;
 				setProgress( done, total );
@@ -226,6 +241,25 @@
 			.replace( '%failed%',  failed );
 		progText.textContent = summary;
 
+		if ( failures.length ) {
+			const label = document.createElement( 'p' );
+			label.style.cssText  = 'margin:4px 0 2px;font-weight:600';
+			label.textContent    = rsFollowing.i18n.failuresLabel;
+			const ul = document.createElement( 'ul' );
+			ul.style.cssText = 'margin:0;padding-left:1.4em';
+			failures.forEach( ( { input: inp, reason } ) => {
+				const li   = document.createElement( 'li' );
+				const code = document.createElement( 'code' );
+				code.textContent = inp;
+				li.appendChild( code );
+				li.appendChild( document.createTextNode( ' — ' + reason ) );
+				ul.appendChild( li );
+			} );
+			failureList.appendChild( label );
+			failureList.appendChild( ul );
+			failureList.hidden = false;
+		}
+
 		if ( added > 0 ) {
 			addInput.value = '';
 			await loadTable();
@@ -236,6 +270,12 @@
 		progBar.value        = done;
 		progBar.max          = total;
 		progText.textContent = done + ' / ' + total;
+	}
+
+	// ── Error helpers ──────────────────────────────────────────────────────
+
+	function errorLabel( code ) {
+		return ( code && rsFollowing.i18n.errors[ code ] ) || rsFollowing.i18n.errorUnknown;
 	}
 
 	// ── Fetch helper ───────────────────────────────────────────────────────

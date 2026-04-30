@@ -241,7 +241,8 @@ class Radical_Socials_Following_REST {
 		if ( ! class_exists( 'Activitypub\Collection\Following' ) ) {
 			return [];
 		}
-		$follows = \Activitypub\Collection\Following::get_many( 0 ); // blog actor = 0
+		$uid     = get_current_user_id();
+		$follows = \Activitypub\Collection\Following::query_all( $uid )['following'];
 		$items   = [];
 		foreach ( $follows as $post ) {
 			$acct    = get_post_meta( $post->ID, '_activitypub_acct', true );
@@ -273,14 +274,17 @@ class Radical_Socials_Following_REST {
 			return self::add_activitypub( $input );
 		}
 
+		// Mastodon-style profile URL — checked on raw input before URL validation
+		// because wp_http_validate_url may reject URLs with @ in the path.
+		// Also handles cross-instance links: https://mastodon.social/@user@other.instance
+		if ( preg_match( '~^https?://([^/]+)/@([^/?#]+)/?$~', $input, $m ) ) {
+			$handle = str_contains( $m[2], '@' ) ? '@' . $m[2] : '@' . $m[2] . '@' . $m[1];
+			return self::add_activitypub( $handle );
+		}
+
 		$url = esc_url_raw( $input );
 		if ( ! wp_http_validate_url( $url ) ) {
 			return new WP_REST_Response( [ 'error' => 'invalid_url', 'input' => $input ], 400 );
-		}
-
-		// Mastodon-style profile URL: https://instance.social/@handle
-		if ( preg_match( '~^https?://([^/]+)/@([^/@][^/]*)/?$~', $url, $m ) ) {
-			return self::add_activitypub( '@' . $m[2] . '@' . $m[1] );
 		}
 
 		return self::add_rss( $url );
@@ -329,7 +333,7 @@ class Radical_Socials_Following_REST {
 			return new WP_REST_Response( [ 'error' => 'activitypub_unavailable', 'input' => $handle ], 503 );
 		}
 
-		$result = \Activitypub\follow( $handle, 0 ); // blog actor = 0
+		$result = \Activitypub\follow( $handle, get_current_user_id() );
 
 		if ( is_wp_error( $result ) ) {
 			return new WP_REST_Response( [
@@ -386,7 +390,7 @@ class Radical_Socials_Following_REST {
 
 			case 'activitypub':
 				if ( function_exists( 'Activitypub\unfollow' ) && $url ) {
-					\Activitypub\unfollow( $url, 0 );
+					\Activitypub\unfollow( $url, get_current_user_id() );
 				}
 				// Remove from favorites.
 				$fav_key = 'activitypub:' . $id;

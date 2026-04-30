@@ -63,6 +63,16 @@ class Radical_Socials_Settings_Page {
 					'starLabel'     => __( 'Star this feed', 'radical-socials' ),
 					'unstarLabel'   => __( 'Unstar this feed', 'radical-socials' ),
 					'addSummary'    => __( 'Done — %added% added, %skipped% already existed, %failed% failed.', 'radical-socials' ),
+					'failuresLabel' => __( 'The following could not be added:', 'radical-socials' ),
+					'errorNetwork'  => __( 'Network error', 'radical-socials' ),
+					'errorUnknown'  => __( 'Unknown error', 'radical-socials' ),
+					'errors'        => [
+						'invalid_url'                   => __( 'Invalid URL — make sure it starts with https://', 'radical-socials' ),
+						'activitypub_unavailable'       => __( 'ActivityPub plugin is not active', 'radical-socials' ),
+						'activitypub_user_not_found'    => __( 'Account not found — check the handle or URL', 'radical-socials' ),
+						'activitypub_already_following' => __( 'Already following', 'radical-socials' ),
+						'already_exists'                => __( 'Already following', 'radical-socials' ),
+					],
 					'importBtn'     => __( 'Import OPML', 'radical-socials' ),
 					'importing'     => __( 'Importing…', 'radical-socials' ),
 					'importResult'  => __( 'Done — %added% added, %updated% updated, %skipped% unchanged, %failed% failed.', 'radical-socials' ),
@@ -324,6 +334,7 @@ class Radical_Socials_Settings_Page {
 							<progress id="rs-add-progress-bar" value="0" max="100" style="width:100%;max-width:100%;display:block"></progress>
 							<span id="rs-add-progress-text"></span>
 						</div>
+						<div id="rs-add-failures" hidden style="margin-top:8px"></div>
 					</div>
 
 					<div style="margin-top:24px">
