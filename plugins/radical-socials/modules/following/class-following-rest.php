@@ -83,25 +83,18 @@ class Radical_Socials_Following_REST {
 	}
 
 	public static function handle_refresh(): WP_REST_Response {
-		// Try spawn_cron() first — works on any host that allows loopback HTTP
-		// requests (the default on standard hosting).
+		// Reset staleness state so the next page load triggers maybe_refresh_feed()
+		// immediately, regardless of the 15-minute window.
+		update_option( 'rs_last_feed_fetch', 0, false );
+		delete_transient( 'rs_feed_refresh_lock' );
+
+		// Schedule and attempt a non-blocking cron fire. On standard hosting this
+		// runs the fetch immediately in a separate process. On Docker/restricted
+		// environments spawn_cron() fails silently — the fetch will run on the
+		// next page load via maybe_refresh_feed().
+		wp_clear_scheduled_hook( 'rs_fetch_following' );
 		wp_schedule_single_event( time() - 1, 'rs_fetch_following' );
-
-		if ( spawn_cron() !== false ) {
-			return new WP_REST_Response( [ 'ok' => true ], 202 );
-		}
-
-		// Fallback for environments where loopback HTTP is unavailable (e.g. Docker).
-		// Register the fetch to run after the response is sent so the caller
-		// never waits for all the feeds to be polled.
-		ignore_user_abort( true );
-		register_shutdown_function( static function () {
-			if ( function_exists( 'fastcgi_finish_request' ) ) {
-				fastcgi_finish_request();
-			}
-			set_time_limit( 0 );
-			Radical_Socials_Feed_Fetcher::run();
-		} );
+		spawn_cron();
 
 		return new WP_REST_Response( [ 'ok' => true ], 202 );
 	}

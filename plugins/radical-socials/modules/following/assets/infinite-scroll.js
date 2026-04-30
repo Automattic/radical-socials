@@ -9,22 +9,21 @@ const { state, actions } = store( 'radical-socials/following', {
 			state.refreshing = true;
 			state.pulling    = false;
 
-			// Ask the server to schedule a background fetch. The endpoint returns
-			// 202 immediately — the actual feed fetching happens in a separate
-			// wp-cron worker process so we never block here.
 			try {
-				yield fetch( state.refreshUrl, {
+				const res = yield fetch( state.refreshUrl, {
 					method:  'POST',
 					headers: { 'X-WP-Nonce': state.nonce },
 				} );
-			} catch {
-				// Continue to reload even on network error.
+				if ( ! res.ok ) {
+					console.error( '[radical-socials] refresh failed:', res.status, res.statusText, { url: state.refreshUrl } );
+				}
+			} catch ( err ) {
+				console.error( '[radical-socials] refresh network error:', err, { url: state.refreshUrl, nonce: !! state.nonce } );
 			}
 
-			// Brief pause so the spinner is visible, then reload to pick up
-			// any items that arrived since the last fetch.
-			yield new Promise( ( resolve ) => setTimeout( resolve, 1500 ) );
-			window.location.reload();
+			// Hold the spinner long enough to be perceptible.
+			yield new Promise( ( r ) => setTimeout( r, 400 ) );
+			state.refreshing = false;
 		},
 	},
 

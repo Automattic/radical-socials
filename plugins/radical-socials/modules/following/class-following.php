@@ -149,13 +149,12 @@ class Radical_Socials_Following {
 	}
 
 	/**
-	 * Fire a non-blocking background fetch on any frontend or admin page load
-	 * when the feed hasn't been refreshed in the last 15 minutes.
+	 * Schedule a background feed fetch on any page load when the feed is stale
+	 * (older than 15 minutes). Uses a 10-minute transient lock to prevent
+	 * concurrent page loads from stacking up multiple fetches.
 	 *
-	 * Uses a 10-minute transient lock so concurrent page loads don't trigger
-	 * multiple simultaneous fetches. The visitor never waits — spawn_cron()
-	 * fires a non-blocking wp-cron.php request; Docker/loopback-restricted
-	 * environments fall back to a shutdown function instead.
+	 * Relies entirely on wp-cron (spawn_cron) — never runs synchronously so
+	 * page loads are never delayed by feed fetching.
 	 */
 	public static function maybe_refresh_feed(): void {
 		if ( wp_doing_ajax() || wp_doing_cron() ) {
@@ -173,25 +172,9 @@ class Radical_Socials_Following {
 		}
 		set_transient( 'rs_feed_refresh_lock', 1, 10 * MINUTE_IN_SECONDS );
 
-		// Schedule a single cron event and fire it via spawn_cron() (non-blocking
-		// loopback HTTP to wp-cron.php). Falls back to a shutdown function for
-		// environments where loopback is unavailable (e.g. Docker dev).
 		wp_clear_scheduled_hook( self::FETCH_HOOK );
 		wp_schedule_single_event( time() - 1, self::FETCH_HOOK );
-
-		if ( spawn_cron() !== false ) {
-			return;
-		}
-
-		// Loopback unavailable — run after the response is sent.
-		ignore_user_abort( true );
-		register_shutdown_function( static function () {
-			if ( function_exists( 'fastcgi_finish_request' ) ) {
-				fastcgi_finish_request();
-			}
-			set_time_limit( 0 );
-			Radical_Socials_Feed_Fetcher::run();
-		} );
+		spawn_cron();
 	}
 
 	public static function refresh_secret(): string {
