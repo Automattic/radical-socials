@@ -29,6 +29,11 @@ const { state, actions } = store( 'radical-socials/following', {
 
 	callbacks: {
 		initPullToRefresh() {
+			// Skip in the site editor canvas (loaded in an iframe).
+			if ( window !== window.top ) {
+				return;
+			}
+
 			const { ref } = getElement();
 			let startY       = 0;
 			let trackingPull = false;
@@ -61,6 +66,11 @@ const { state, actions } = store( 'radical-socials/following', {
 		},
 
 		observeSentinel() {
+			// Skip in the site editor canvas (loaded in an iframe).
+			if ( window !== window.top ) {
+				return;
+			}
+
 			const context = getContext();
 			const { ref } = getElement();
 

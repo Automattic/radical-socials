@@ -221,8 +221,12 @@ class Radical_Socials_Following {
 	}
 
 	/**
-	 * Wraps the feed query block in an Interactivity API region so the
+	 * Adds Interactivity API directives to the feed query block so the
 	 * infinite-scroll store can read total pages and append new items.
+	 *
+	 * Attributes are injected directly on the block's outer element (via
+	 * WP_HTML_Tag_Processor) rather than adding an extra wrapper div, so the
+	 * site editor can still correctly identify and select the block.
 	 */
 	public static function wrap_following_query( string $html, array $block ): string {
 		if ( 'core/query' !== $block['blockName'] ) {
@@ -238,7 +242,7 @@ class Radical_Socials_Following {
 		$total     = (int) ( wp_count_posts( $post_type )->publish ?? 0 );
 		$max_pages = $total > 0 ? (int) ceil( $total / $per_page ) : 1;
 
-		$context = wp_json_encode( [
+		$context  = wp_json_encode( [
 			'page'     => 1,
 			'maxPages' => $max_pages,
 			'queryId'  => $query_id,
@@ -250,11 +254,11 @@ class Radical_Socials_Following {
 		$is_following = is_post_type_archive( 'rs_feed_item' );
 
 		wp_interactivity_state( 'radical-socials/following', [
-			'refreshUrl'  => rest_url( 'radical-socials/v1/following/refresh' ),
-			'nonce'       => is_user_logged_in() ? wp_create_nonce( 'wp_rest' ) : '',
-			'canRefresh'  => is_user_logged_in() && $is_following,
-			'refreshing'  => false,
-			'pulling'     => false,
+			'refreshUrl' => rest_url( 'radical-socials/v1/following/refresh' ),
+			'nonce'      => is_user_logged_in() ? wp_create_nonce( 'wp_rest' ) : '',
+			'canRefresh' => is_user_logged_in() && $is_following,
+			'refreshing' => false,
+			'pulling'    => false,
 		] );
 
 		$pull_indicator = ( is_user_logged_in() && $is_following )
@@ -267,12 +271,35 @@ class Radical_Socials_Following {
 			. '</div>'
 			: '';
 
-		return '<div data-wp-interactive="radical-socials/following" data-wp-context=\'' . esc_attr( $context ) . '\''
-			. ( ( is_user_logged_in() && $is_following ) ? ' data-wp-init="callbacks.initPullToRefresh"' : '' ) . '>'
-			. $pull_indicator
-			. $html
-			. $sentinel
-			. '</div>';
+		// Add Interactivity API attributes directly to the query block's outer
+		// element so the site editor can still map the DOM node to the block.
+		$processor = new WP_HTML_Tag_Processor( $html );
+		if ( $processor->next_tag() ) {
+			$processor->set_attribute( 'data-wp-interactive', 'radical-socials/following' );
+			$processor->set_attribute( 'data-wp-context', $context );
+			if ( is_user_logged_in() && $is_following ) {
+				$processor->set_attribute( 'data-wp-init', 'callbacks.initPullToRefresh' );
+			}
+		}
+		$html = $processor->get_updated_html();
+
+		// Insert pull indicator after the opening tag (top of feed).
+		if ( $pull_indicator ) {
+			$first_close = strpos( $html, '>' );
+			if ( $first_close !== false ) {
+				$html = substr( $html, 0, $first_close + 1 )
+					. $pull_indicator
+					. substr( $html, $first_close + 1 );
+			}
+		}
+
+		// Insert sentinel before the block's final closing tag (bottom of feed).
+		$last_div = strrpos( $html, '</div>' );
+		if ( $last_div !== false ) {
+			$html = substr( $html, 0, $last_div ) . $sentinel . substr( $html, $last_div );
+		}
+
+		return $html;
 	}
 
 	// ── ActivityPub push ──────────────────────────────────────────────────────
