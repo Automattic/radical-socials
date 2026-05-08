@@ -30,7 +30,7 @@ class Radical_Socials_OPML {
 
 		$doc = new DOMDocument();
 		libxml_use_internal_errors( true );
-		$loaded = $doc->loadXML( trim( $xml ) );
+		$loaded = $doc->loadXML( trim( $xml ), LIBXML_NONET );
 		libxml_clear_errors();
 
 		if ( ! $loaded ) {
