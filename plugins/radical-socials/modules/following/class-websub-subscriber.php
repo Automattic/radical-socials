@@ -52,11 +52,11 @@ class Radical_Socials_WebSub_Subscriber {
 	 * We echo the challenge back to confirm.
 	 */
 	public static function handle_verification( WP_REST_Request $request ): WP_REST_Response {
-		$mode      = $request->get_param( 'hub_mode' );
-		$topic     = $request->get_param( 'hub_topic' );
-		$challenge = $request->get_param( 'hub_challenge' );
+		$mode      = self::get_hub_param( $request, 'hub.mode' );
+		$topic     = self::get_hub_param( $request, 'hub.topic' );
+		$challenge = self::get_hub_param( $request, 'hub.challenge' );
 
-		if ( ! $challenge ) {
+		if ( '' === $challenge ) {
 			return new WP_REST_Response( 'missing_challenge', 400 );
 		}
 
@@ -73,7 +73,7 @@ class Radical_Socials_WebSub_Subscriber {
 	 * Hub POSTs new feed content. Verify HMAC signature, then parse and ingest.
 	 */
 	public static function handle_notification( WP_REST_Request $request ): WP_REST_Response {
-		$topic = $request->get_param( 'hub_topic' );
+		$topic = self::get_hub_param( $request, 'hub.topic' );
 		$body  = $request->get_body();
 
 		if ( strlen( $body ) > 2 * MB_IN_BYTES ) {
@@ -168,13 +168,13 @@ class Radical_Socials_WebSub_Subscriber {
 		}
 
 		$secret   = wp_generate_password( 32, false );
-		$callback = rest_url( self::REST_NAMESPACE . self::CALLBACK_ROUTE );
+		$callback = self::callback_url( $feed_url );
 
 		wp_remote_post(
 			$hub_url,
 			[
 				'body' => [
-					'hub.callback'      => add_query_arg( 'hub_topic', rawurlencode( $feed_url ), $callback ),
+					'hub.callback'      => $callback,
 					'hub.mode'          => 'subscribe',
 					'hub.topic'         => $feed_url,
 					'hub.secret'        => $secret,
@@ -201,13 +201,13 @@ class Radical_Socials_WebSub_Subscriber {
 
 		$entry    = $subs[ $feed_url ];
 		$hub_url  = is_array( $entry ) ? $entry['hub'] : $entry; // back-compat with old string format
-		$callback = rest_url( self::REST_NAMESPACE . self::CALLBACK_ROUTE );
+		$callback = self::callback_url( $feed_url );
 
 		wp_remote_post(
 			$hub_url,
 			[
 				'body' => [
-					'hub.callback' => add_query_arg( 'hub_topic', rawurlencode( $feed_url ), $callback ),
+					'hub.callback' => $callback,
 					'hub.mode'     => 'unsubscribe',
 					'hub.topic'    => $feed_url,
 				],
@@ -255,6 +255,24 @@ class Radical_Socials_WebSub_Subscriber {
 	/** @return array<string, array{hub:string,secret:string}|string> */
 	private static function get_subscriptions(): array {
 		return (array) get_option( self::SUBS_OPTION, [] );
+	}
+
+	private static function get_hub_param( WP_REST_Request $request, string $name ): string {
+		$value = $request->get_param( $name );
+
+		if ( null === $value ) {
+			$value = $request->get_param( str_replace( '.', '_', $name ) );
+		}
+
+		return is_scalar( $value ) ? (string) $value : '';
+	}
+
+	private static function callback_url( string $feed_url ): string {
+		return add_query_arg(
+			'hub.topic',
+			$feed_url,
+			rest_url( self::REST_NAMESPACE . self::CALLBACK_ROUTE )
+		);
 	}
 }
 
