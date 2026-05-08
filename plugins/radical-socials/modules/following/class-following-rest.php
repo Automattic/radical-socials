@@ -18,6 +18,7 @@ class Radical_Socials_Following_REST {
 	const REST_NAMESPACE    = 'radical-socials/v1';
 	const ROUTE             = '/following';
 	const FAVORITES_OPTION  = 'rs_following_favorites';
+	const OPML_MAX_BYTES    = 2097152; // 2 MB.
 
 	public static function init(): void {
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
@@ -147,8 +148,26 @@ class Radical_Socials_Following_REST {
 			return new WP_REST_Response( [ 'error' => 'no_file' ], 400 );
 		}
 
+		$file = $files['file'];
+		if ( ! empty( $file['error'] ) ) {
+			return new WP_REST_Response( [ 'error' => 'upload_error' ], 400 );
+		}
+
+		$size = isset( $file['size'] ) ? (int) $file['size'] : (int) filesize( $file['tmp_name'] );
+		if ( 0 >= $size ) {
+			return new WP_REST_Response( [ 'error' => 'empty_file' ], 400 );
+		}
+
+		if ( self::OPML_MAX_BYTES < $size ) {
+			return new WP_REST_Response( [ 'error' => 'file_too_large' ], 413 );
+		}
+
+		if ( ! self::is_valid_opml_upload( $file ) ) {
+			return new WP_REST_Response( [ 'error' => 'invalid_file_type' ], 415 );
+		}
+
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-		$xml = file_get_contents( $files['file']['tmp_name'] );
+		$xml = file_get_contents( $file['tmp_name'] );
 		if ( ! $xml ) {
 			return new WP_REST_Response( [ 'error' => 'empty_file' ], 400 );
 		}
@@ -159,6 +178,27 @@ class Radical_Socials_Following_REST {
 		}
 
 		return new WP_REST_Response( [ 'feeds' => $feeds ], 200 );
+	}
+
+	private static function is_valid_opml_upload( array $file ): bool {
+		$extension = strtolower( pathinfo( $file['name'] ?? '', PATHINFO_EXTENSION ) );
+		if ( ! in_array( $extension, [ 'opml', 'xml' ], true ) ) {
+			return false;
+		}
+
+		$type = strtolower( trim( (string) ( $file['type'] ?? '' ) ) );
+		if ( '' === $type ) {
+			return true;
+		}
+
+		$type = explode( ';', $type )[0];
+		return in_array( $type, [
+			'application/opml+xml',
+			'application/xml',
+			'text/opml',
+			'text/x-opml',
+			'text/xml',
+		], true );
 	}
 
 	/**
