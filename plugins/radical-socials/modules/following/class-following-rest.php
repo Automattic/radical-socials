@@ -435,7 +435,7 @@ class Radical_Socials_Following_REST {
 		update_option( 'rs_rss_subscriptions', $subs, false );
 
 		// Try WebSub — fire-and-forget, failure is non-fatal.
-		Radical_Socials_WebSub_Subscriber::subscribe( $url );
+		Radical_Socials_WebSub_Subscriber::subscribe( $resolved );
 
 		return new WP_REST_Response( [
 			'id'    => md5( $resolved ),
@@ -492,8 +492,8 @@ class Radical_Socials_Following_REST {
 					} )
 				);
 				update_option( 'rs_rss_subscriptions', $subs, false );
-				if ( $url ) {
-					Radical_Socials_WebSub_Subscriber::unsubscribe( $url );
+				if ( $deleted_sub ) {
+					Radical_Socials_WebSub_Subscriber::unsubscribe( $deleted_sub['url'] );
 				}
 				if ( $deleted_sub ) {
 					self::delete_feed_items_for_source( $deleted_sub );
