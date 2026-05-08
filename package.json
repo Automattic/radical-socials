@@ -15,7 +15,8 @@
     "env:reset": "wp-env clean all && wp-env start",
     "playground:start": "wp-playground-cli server --mount=./plugins/radical-socials:/wordpress/wp-content/plugins/radical-socials --mount=./themes/radical-theme:/wordpress/wp-content/themes/radical-theme --port=8890 --blueprint=./playground-blueprint.json",
     "env:cron": "curl -s 'http://localhost:8890/wp-cron.php?doing_wp_cron' > /dev/null",
-    "test": "wp-scripts test-unit-js"
+    "test": "wp-scripts test-unit-js",
+    "test:integration": "wp-env run cli wp radical-socials integration-tests"
   },
   "engines": {
     "npm": "10.x"

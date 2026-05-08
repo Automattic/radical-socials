@@ -22,6 +22,10 @@ require_once __DIR__ . '/modules/social-post/class-social-post.php';
 require_once __DIR__ . '/modules/frontend-editor/class-frontend-editor.php';
 require_once __DIR__ . '/modules/following/loader.php';
 
+if ( defined( 'WP_CLI' ) && WP_CLI ) {
+	require_once __DIR__ . '/modules/dev/class-integration-tests.php';
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
