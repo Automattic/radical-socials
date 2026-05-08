@@ -491,28 +491,45 @@ class Radical_Socials_Following_REST {
 						return true;
 					} )
 				);
+
+				if ( ! $deleted_sub ) {
+					return new WP_REST_Response( [ 'error' => 'rss_subscription_not_found' ], 404 );
+				}
+
 				update_option( 'rs_rss_subscriptions', $subs, false );
-				if ( $deleted_sub ) {
-					Radical_Socials_WebSub_Subscriber::unsubscribe( $deleted_sub['url'] );
-				}
-				if ( $deleted_sub ) {
-					self::delete_feed_items_for_source( $deleted_sub );
-				}
+				Radical_Socials_WebSub_Subscriber::unsubscribe( $deleted_sub['url'] );
+				self::delete_feed_items_for_source( $deleted_sub );
+
 				// Remove from favorites.
-				if ( $deleted_sub ) {
-					$fav_key = 'rss:' . md5( $deleted_sub['url'] );
-					$favs    = array_values( array_filter(
-						(array) get_option( self::FAVORITES_OPTION, [] ),
-						fn( $f ) => $f !== $fav_key
-					) );
-					update_option( self::FAVORITES_OPTION, $favs, false );
-				}
+				$fav_key = 'rss:' . md5( $deleted_sub['url'] );
+				$favs    = array_values( array_filter(
+					(array) get_option( self::FAVORITES_OPTION, [] ),
+					fn( $f ) => $f !== $fav_key
+				) );
+				update_option( self::FAVORITES_OPTION, $favs, false );
 				break;
 
 			case 'activitypub':
-				if ( function_exists( 'Activitypub\unfollow' ) && $url ) {
-					\Activitypub\unfollow( $url, get_current_user_id() );
+				if ( ! $url ) {
+					return new WP_REST_Response( [ 'error' => 'missing_activitypub_url' ], 400 );
 				}
+
+				if ( ! function_exists( 'Activitypub\unfollow' ) ) {
+					return new WP_REST_Response( [ 'error' => 'activitypub_unavailable' ], 503 );
+				}
+
+				$result = \Activitypub\unfollow( $url, get_current_user_id() );
+				if ( is_wp_error( $result ) ) {
+					return new WP_REST_Response( [
+						'error' => $result->get_error_code(),
+						'input' => $url,
+					], 400 );
+				}
+
+				if ( false === $result ) {
+					return new WP_REST_Response( [ 'error' => 'activitypub_unfollow_failed' ], 502 );
+				}
+
 				// Remove from favorites.
 				$fav_key = 'activitypub:' . $id;
 				$favs    = array_values( array_filter(
@@ -538,6 +555,9 @@ class Radical_Socials_Following_REST {
 				) );
 				update_option( self::FAVORITES_OPTION, $favs, false );
 				break;
+
+			default:
+				return new WP_REST_Response( [ 'error' => 'invalid_type' ], 400 );
 		}
 
 		return new WP_REST_Response( [ 'deleted' => true ], 200 );
