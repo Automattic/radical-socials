@@ -49,7 +49,7 @@ class Radical_Socials_WPCOM_Reader {
 	 * Return the list of sites the authenticated user follows on WP.com Reader.
 	 * Returns up to 100 entries (one API page).
 	 *
-	 * @return array<int, array{id:string, type:string, url:string, title:string, blog_id:string}>
+	 * @return array<int, array{id:string, type:string, url:string, title:string, blog_id:string, subscription_id:string}>
 	 */
 	public static function get_following_list(): array {
 		$token = Radical_Socials_WPCOM_OAuth::get_token();
@@ -74,17 +74,21 @@ class Radical_Socials_WPCOM_Reader {
 			return [];
 		}
 
-		return array_map( fn( $sub ) => [
-			'id'      => (string) ( $sub['ID'] ?? '' ),
-			'type'    => 'wpcom',
-			'url'     => $sub['URL'] ?? $sub['feed_URL'] ?? '',
-			'title'   => $sub['blog_name'] ?? $sub['URL'] ?? '',
-			'blog_id' => (string) ( $sub['blog_ID'] ?? '' ),
-		], $data['subscriptions'] );
+		return array_map(
+			fn( $sub ) => [
+				'id'              => (string) ( $sub['blog_ID'] ?? '' ),
+				'type'            => 'wpcom',
+				'url'             => $sub['URL'] ?? $sub['feed_URL'] ?? '',
+				'title'           => $sub['blog_name'] ?? $sub['URL'] ?? '',
+				'blog_id'         => (string) ( $sub['blog_ID'] ?? '' ),
+				'subscription_id' => (string) ( $sub['ID'] ?? '' ),
+			],
+			$data['subscriptions']
+		);
 	}
 
 	/**
-	 * Unfollow a WP.com site by subscription ID (blog_ID from the following list).
+	 * Unfollow a WP.com site by blog_ID from the following list.
 	 */
 	public static function unfollow_site( string $blog_id ): bool {
 		$token = Radical_Socials_WPCOM_OAuth::get_token();

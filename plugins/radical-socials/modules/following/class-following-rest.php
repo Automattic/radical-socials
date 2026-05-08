@@ -524,7 +524,14 @@ class Radical_Socials_Following_REST {
 				break;
 
 			case 'wpcom':
-				Radical_Socials_WPCOM_Reader::unfollow_site( $id );
+				if ( ! $id ) {
+					return new WP_REST_Response( [ 'error' => 'missing_blog_id' ], 400 );
+				}
+
+				if ( ! Radical_Socials_WPCOM_Reader::unfollow_site( $id ) ) {
+					return new WP_REST_Response( [ 'error' => 'wpcom_unfollow_failed' ], 502 );
+				}
+
 				$fav_key = 'wpcom:' . $id;
 				$favs    = array_values( array_filter(
 					(array) get_option( self::FAVORITES_OPTION, [] ),
