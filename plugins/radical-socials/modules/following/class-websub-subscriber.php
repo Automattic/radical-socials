@@ -163,7 +163,7 @@ class Radical_Socials_WebSub_Subscriber {
 	 */
 	public static function subscribe( string $feed_url ): void {
 		$hub_url = self::discover_hub( $feed_url );
-		if ( ! $hub_url ) {
+		if ( ! $hub_url || ! Radical_Socials_RSS_Fetcher::is_safe_remote_url( $hub_url ) ) {
 			return; // no hub; on-demand fetch will handle this feed
 		}
 
@@ -203,18 +203,20 @@ class Radical_Socials_WebSub_Subscriber {
 		$hub_url  = is_array( $entry ) ? $entry['hub'] : $entry; // back-compat with old string format
 		$callback = self::callback_url( $feed_url );
 
-		wp_remote_post(
-			$hub_url,
-			[
-				'body' => [
-					'hub.callback' => $callback,
-					'hub.mode'     => 'unsubscribe',
-					'hub.topic'    => $feed_url,
-				],
-				'timeout'            => 10,
-				'reject_unsafe_urls' => true,
-			]
-		);
+		if ( Radical_Socials_RSS_Fetcher::is_safe_remote_url( $hub_url ) ) {
+			wp_remote_post(
+				$hub_url,
+				[
+					'body' => [
+						'hub.callback' => $callback,
+						'hub.mode'     => 'unsubscribe',
+						'hub.topic'    => $feed_url,
+					],
+					'timeout'            => 10,
+					'reject_unsafe_urls' => true,
+				]
+			);
+		}
 
 		unset( $subs[ $feed_url ] );
 		update_option( self::SUBS_OPTION, $subs, false );
@@ -224,6 +226,10 @@ class Radical_Socials_WebSub_Subscriber {
 	 * Fetch the feed and look for a <link rel="hub"> header or element.
 	 */
 	private static function discover_hub( string $feed_url ): string {
+		if ( ! Radical_Socials_RSS_Fetcher::is_safe_remote_url( $feed_url ) ) {
+			return '';
+		}
+
 		// First check HTTP Link headers (faster).
 		$response = wp_safe_remote_head( $feed_url, [ 'timeout' => 8 ] );
 		if ( ! is_wp_error( $response ) ) {
@@ -231,7 +237,8 @@ class Radical_Socials_WebSub_Subscriber {
 			if ( $link_header ) {
 				foreach ( (array) $link_header as $header ) {
 					if ( preg_match( '/<([^>]+)>;\s*rel=["\']?hub["\']?/i', $header, $m ) ) {
-						return esc_url_raw( $m[1] );
+						$hub_url = esc_url_raw( $m[1] );
+						return Radical_Socials_RSS_Fetcher::is_safe_remote_url( $hub_url ) ? $hub_url : '';
 					}
 				}
 			}
@@ -246,7 +253,8 @@ class Radical_Socials_WebSub_Subscriber {
 		$body = wp_remote_retrieve_body( $response );
 		if ( preg_match( '/<(?:atom:)?link[^>]+rel=["\']hub["\'][^>]+href=["\']([^"\']+)["\']/', $body, $m ) ||
 		     preg_match( '/<(?:atom:)?link[^>]+href=["\']([^"\']+)["\'][^>]+rel=["\']hub["\']/', $body, $m ) ) {
-			return esc_url_raw( $m[1] );
+			$hub_url = esc_url_raw( $m[1] );
+			return Radical_Socials_RSS_Fetcher::is_safe_remote_url( $hub_url ) ? $hub_url : '';
 		}
 
 		return '';

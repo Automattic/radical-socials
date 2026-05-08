@@ -404,6 +404,9 @@ class Radical_Socials_Following_REST {
 		if ( ! wp_http_validate_url( $url ) ) {
 			return new WP_REST_Response( [ 'error' => 'invalid_url', 'input' => $input ], 400 );
 		}
+		if ( ! Radical_Socials_RSS_Fetcher::is_safe_remote_url( $url ) ) {
+			return new WP_REST_Response( [ 'error' => 'unsafe_url', 'input' => $input ], 400 );
+		}
 
 		return self::add_rss( $url );
 	}

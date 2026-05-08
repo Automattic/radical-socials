@@ -18,6 +18,10 @@ class Radical_Socials_RSS_Fetcher {
 	 * @return array<int, array{title:string, url:string, excerpt:string, date:string, source_name:string, source_url:string, thumbnail_url:string, guid:string, feed_type:string}>
 	 */
 	public static function fetch( string $feed_url, int $count = 20 ): array {
+		if ( ! self::is_safe_remote_url( $feed_url ) ) {
+			return [];
+		}
+
 		if ( ! function_exists( 'fetch_feed' ) ) {
 			require_once ABSPATH . WPINC . '/feed.php';
 		}
@@ -95,8 +99,64 @@ class Radical_Socials_RSS_Fetcher {
 	 * Called by add_rss() so the canonical URL is stored from the start.
 	 */
 	public static function resolve_url( string $url ): string {
+		if ( ! self::is_safe_remote_url( $url ) ) {
+			return $url;
+		}
+
 		$discovered = self::discover_feed_url( $url );
 		return ( $discovered && $discovered !== $url ) ? $discovered : $url;
+	}
+
+	public static function is_safe_remote_url( string $url ): bool {
+		if ( ! wp_http_validate_url( $url ) ) {
+			return false;
+		}
+
+		$host = wp_parse_url( $url, PHP_URL_HOST );
+		if ( ! $host ) {
+			return false;
+		}
+
+		$host = strtolower( trim( $host, "[] \t\n\r\0\x0B." ) );
+		if ( 'localhost' === $host ) {
+			return false;
+		}
+
+		$ips = [];
+		if ( filter_var( $host, FILTER_VALIDATE_IP ) ) {
+			$ips[] = $host;
+		} elseif ( function_exists( 'dns_get_record' ) ) {
+			$records = @dns_get_record( $host, DNS_A + DNS_AAAA );
+			if ( is_array( $records ) ) {
+				foreach ( $records as $record ) {
+					if ( ! empty( $record['ip'] ) ) {
+						$ips[] = $record['ip'];
+					}
+					if ( ! empty( $record['ipv6'] ) ) {
+						$ips[] = $record['ipv6'];
+					}
+				}
+			}
+		}
+
+		if ( ! $ips ) {
+			$resolved = gethostbyname( $host );
+			if ( $resolved && $resolved !== $host ) {
+				$ips[] = $resolved;
+			}
+		}
+
+		if ( ! $ips ) {
+			return false;
+		}
+
+		foreach ( array_unique( $ips ) as $ip ) {
+			if ( ! filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**
@@ -107,6 +167,10 @@ class Radical_Socials_RSS_Fetcher {
 		$subs    = (array) get_option( 'rs_rss_subscriptions', [] );
 		$updated = 0;
 		foreach ( $subs as &$sub ) {
+			if ( ! self::is_safe_remote_url( $sub['url'] ) ) {
+				continue;
+			}
+
 			$r    = wp_safe_remote_head( $sub['url'], [ 'timeout' => 5, 'redirection' => 5 ] );
 			$code = is_wp_error( $r ) ? 0 : (int) wp_remote_retrieve_response_code( $r );
 			if ( $code === 0 || $code >= 400 ) {
@@ -130,11 +194,15 @@ class Radical_Socials_RSS_Fetcher {
 	 * an RSS/Atom <link> tag.
 	 */
 	private static function discover_feed_url( string $old_url ): string {
+		if ( ! self::is_safe_remote_url( $old_url ) ) {
+			return '';
+		}
+
 		// 1. Try upgrading http → https.
 		if ( str_starts_with( $old_url, 'http://' ) ) {
 			$https = 'https://' . substr( $old_url, 7 );
-			$r     = wp_safe_remote_head( $https, [ 'timeout' => 5, 'redirection' => 5 ] );
-			if ( ! is_wp_error( $r ) && wp_remote_retrieve_response_code( $r ) < 400 ) {
+			$r     = self::is_safe_remote_url( $https ) ? wp_safe_remote_head( $https, [ 'timeout' => 5, 'redirection' => 5 ] ) : null;
+			if ( $r && ! is_wp_error( $r ) && wp_remote_retrieve_response_code( $r ) < 400 ) {
 				return $https;
 			}
 		}
@@ -145,6 +213,10 @@ class Radical_Socials_RSS_Fetcher {
 			return '';
 		}
 		$home = ( $parsed['scheme'] ?? 'https' ) . '://' . $parsed['host'] . ( isset( $parsed['port'] ) ? ':' . $parsed['port'] : '' ) . '/';
+		if ( ! self::is_safe_remote_url( $home ) ) {
+			return '';
+		}
+
 		$r    = wp_safe_remote_get( $home, [
 			'timeout'     => 8,
 			'redirection' => 5,
@@ -169,7 +241,7 @@ class Radical_Socials_RSS_Fetcher {
 			return '';
 		}
 
-		if ( wp_http_validate_url( $url ) ) {
+		if ( self::is_safe_remote_url( $url ) ) {
 			return esc_url_raw( $url );
 		}
 
@@ -188,7 +260,7 @@ class Radical_Socials_RSS_Fetcher {
 			$absolute  = $base['scheme'] . '://' . $base['host'] . ( isset( $base['port'] ) ? ':' . $base['port'] : '' ) . $directory . $url;
 		}
 
-		return wp_http_validate_url( $absolute ) ? esc_url_raw( $absolute ) : '';
+		return self::is_safe_remote_url( $absolute ) ? esc_url_raw( $absolute ) : '';
 	}
 
 	/**
@@ -221,6 +293,6 @@ class Radical_Socials_RSS_Fetcher {
 	 */
 	public static function get_feed_urls(): array {
 		$subs = (array) get_option( 'rs_rss_subscriptions', [] );
-		return array_values( array_filter( array_column( $subs, 'url' ), 'wp_http_validate_url' ) );
+		return array_values( array_filter( array_column( $subs, 'url' ), [ __CLASS__, 'is_safe_remote_url' ] ) );
 	}
 }

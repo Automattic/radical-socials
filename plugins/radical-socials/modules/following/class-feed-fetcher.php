@@ -36,7 +36,7 @@ class Radical_Socials_Feed_Fetcher {
 		$updated = false;
 
 		foreach ( $subs as &$sub ) {
-			if ( ! wp_http_validate_url( $sub['url'] ) ) {
+			if ( ! Radical_Socials_RSS_Fetcher::is_safe_remote_url( $sub['url'] ) ) {
 				continue;
 			}
 			$feed_items = Radical_Socials_RSS_Fetcher::fetch( $sub['url'], 20 );

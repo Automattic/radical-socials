@@ -71,13 +71,13 @@ class Radical_Socials_Integration_Tests {
 		$xml = '<?xml version="1.0" encoding="UTF-8"?>'
 			. '<opml version="1.0"><body>'
 			. '<outline text="News">'
-			. '<outline type="rss" text="Example Feed" xmlUrl="https://feeds.example.com/rss" htmlUrl="https://example.com/" />'
+			. '<outline type="rss" text="Example Feed" xmlUrl="https://93.184.216.34/rss" htmlUrl="https://example.com/" />'
 			. '</outline>'
 			. '</body></opml>';
 
 		$feeds = Radical_Socials_OPML::parse( $xml );
 		$this->assert_same( 1, count( $feeds ), 'OPML parser should find one feed.' );
-		$this->assert_same( 'https://feeds.example.com/rss', $feeds[0]['url'], 'OPML parser should preserve feed URL.' );
+		$this->assert_same( 'https://93.184.216.34/rss', $feeds[0]['url'], 'OPML parser should preserve feed URL.' );
 		$this->assert_same( [ 'News' ], $feeds[0]['categories'], 'OPML parser should preserve folder categories.' );
 
 		$result = Radical_Socials_OPML::import( $feeds );
@@ -85,15 +85,24 @@ class Radical_Socials_Integration_Tests {
 		$this->assert_same( 0, $result['updated'], 'OPML import should not update on first import.' );
 
 		$export = Radical_Socials_OPML::export();
-		$this->assert_contains( 'xmlUrl="https://feeds.example.com/rss"', $export, 'OPML export should include the feed URL.' );
+		$this->assert_contains( 'xmlUrl="https://93.184.216.34/rss"', $export, 'OPML export should include the feed URL.' );
 		$this->assert_contains( 'htmlUrl="https://example.com/"', $export, 'OPML export should include the source URL.' );
 		$this->assert_contains( 'category="News"', $export, 'OPML export should include categories.' );
 	}
 
 	private function test_rss_canonical_urls(): void {
+		$this->assert_true(
+			! Radical_Socials_RSS_Fetcher::is_safe_remote_url( 'http://127.0.0.1/feed' ),
+			'RSS URL validation should reject loopback addresses.'
+		);
+		$this->assert_true(
+			! Radical_Socials_RSS_Fetcher::is_safe_remote_url( 'http://169.254.169.254/latest/meta-data/' ),
+			'RSS URL validation should reject link-local metadata addresses.'
+		);
+
 		update_option( 'rs_rss_subscriptions', [
 			[
-				'url'        => 'https://example.com/feed',
+				'url'        => 'https://93.184.216.34/feed',
 				'title'      => 'Example',
 				'source_url' => 'https://example.com/',
 			],
@@ -101,21 +110,21 @@ class Radical_Socials_Integration_Tests {
 
 		$this->with_http_mocks(
 			[
-				'HEAD https://example.com/feed' => $this->http_response( '', 200 ),
-				'GET https://example.org/'      => $this->http_response(
+				'HEAD https://93.184.216.34/feed' => $this->http_response( '', 200 ),
+				'GET https://93.184.216.34/'      => $this->http_response(
 					'<html><head><link rel="alternate" type="application/rss+xml" href="/feed.xml" /></head></html>',
 					200
 				),
 			],
 			function (): void {
 				$request = new WP_REST_Request( 'POST', '/radical-socials/v1/following' );
-				$request->set_param( 'input', 'http://example.com/feed' );
+				$request->set_param( 'input', 'http://93.184.216.34/feed' );
 
 				$response = Radical_Socials_Following_REST::add_following( $request );
 				$this->assert_same( 409, $response->get_status(), 'RSS add should reject duplicates after URL resolution.' );
 
-				$resolved = Radical_Socials_RSS_Fetcher::resolve_url( 'https://example.org/old-feed.xml' );
-				$this->assert_same( 'https://example.org/feed.xml', $resolved, 'RSS discovery should resolve relative feed URLs against the homepage.' );
+				$resolved = Radical_Socials_RSS_Fetcher::resolve_url( 'https://93.184.216.34/old-feed.xml' );
+				$this->assert_same( 'https://93.184.216.34/feed.xml', $resolved, 'RSS discovery should resolve relative feed URLs against the homepage.' );
 			}
 		);
 	}

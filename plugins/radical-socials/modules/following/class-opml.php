@@ -103,7 +103,7 @@ class Radical_Socials_OPML {
 		}
 
 		foreach ( $feeds as $feed ) {
-			if ( ! wp_http_validate_url( $feed['url'] ) ) {
+			if ( ! Radical_Socials_RSS_Fetcher::is_safe_remote_url( $feed['url'] ) ) {
 				$skipped++;
 				continue;
 			}
