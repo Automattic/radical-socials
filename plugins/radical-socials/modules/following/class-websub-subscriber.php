@@ -180,8 +180,9 @@ class Radical_Socials_WebSub_Subscriber {
 					'hub.secret'        => $secret,
 					'hub.lease_seconds' => 864000, // 10 days; hub may override
 				],
-				'timeout'             => 10,
-				'reject_unsafe_urls'  => true,
+				'timeout'            => Radical_Socials_RSS_Fetcher::HTTP_TIMEOUT,
+				'redirection'        => Radical_Socials_RSS_Fetcher::HTTP_REDIRECTION,
+				'reject_unsafe_urls' => true,
 			]
 		);
 
@@ -212,7 +213,8 @@ class Radical_Socials_WebSub_Subscriber {
 						'hub.mode'     => 'unsubscribe',
 						'hub.topic'    => $feed_url,
 					],
-					'timeout'            => 10,
+					'timeout'            => Radical_Socials_RSS_Fetcher::HTTP_TIMEOUT,
+					'redirection'        => Radical_Socials_RSS_Fetcher::HTTP_REDIRECTION,
 					'reject_unsafe_urls' => true,
 				]
 			);
@@ -231,7 +233,7 @@ class Radical_Socials_WebSub_Subscriber {
 		}
 
 		// First check HTTP Link headers (faster).
-		$response = wp_safe_remote_head( $feed_url, [ 'timeout' => 8 ] );
+		$response = wp_safe_remote_head( $feed_url, Radical_Socials_RSS_Fetcher::http_args() );
 		if ( ! is_wp_error( $response ) ) {
 			$link_header = wp_remote_retrieve_header( $response, 'link' );
 			if ( $link_header ) {
@@ -245,7 +247,7 @@ class Radical_Socials_WebSub_Subscriber {
 		}
 
 		// Fall back to parsing the feed body for <atom:link rel="hub">.
-		$response = wp_safe_remote_get( $feed_url, [ 'timeout' => 10 ] );
+		$response = wp_safe_remote_get( $feed_url, Radical_Socials_RSS_Fetcher::http_args() );
 		if ( is_wp_error( $response ) ) {
 			return '';
 		}

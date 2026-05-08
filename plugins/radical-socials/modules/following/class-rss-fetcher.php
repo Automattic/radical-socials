@@ -12,6 +12,9 @@ defined( 'ABSPATH' ) || exit;
 
 class Radical_Socials_RSS_Fetcher {
 
+	public const HTTP_TIMEOUT     = 10;
+	public const HTTP_REDIRECTION = 3;
+
 	/**
 	 * Fetch up to $count items from a single feed URL.
 	 *
@@ -29,7 +32,7 @@ class Radical_Socials_RSS_Fetcher {
 		// WordPress caches feed results for 12 h by default; match our hourly cron instead.
 		$ttl = fn() => HOUR_IN_SECONDS;
 		add_filter( 'wp_feed_cache_transient_lifetime', $ttl );
-		$feed = fetch_feed( $feed_url );
+		$feed = self::fetch_feed_with_http_args( $feed_url );
 
 		// If the stored URL is dead, try to discover the current feed from the site homepage.
 		if ( is_wp_error( $feed ) ) {
@@ -37,7 +40,7 @@ class Radical_Socials_RSS_Fetcher {
 			if ( $discovered && $discovered !== $feed_url ) {
 				self::save_url_update( $feed_url, $discovered );
 				$feed_url = $discovered;
-				$feed     = fetch_feed( $feed_url );
+				$feed     = self::fetch_feed_with_http_args( $feed_url );
 			}
 		}
 
@@ -171,7 +174,7 @@ class Radical_Socials_RSS_Fetcher {
 				continue;
 			}
 
-			$r    = wp_safe_remote_head( $sub['url'], [ 'timeout' => 5, 'redirection' => 5 ] );
+			$r    = wp_safe_remote_head( $sub['url'], self::http_args() );
 			$code = is_wp_error( $r ) ? 0 : (int) wp_remote_retrieve_response_code( $r );
 			if ( $code === 0 || $code >= 400 ) {
 				$new = self::discover_feed_url( $sub['url'] );
@@ -201,7 +204,7 @@ class Radical_Socials_RSS_Fetcher {
 		// 1. Try upgrading http → https.
 		if ( str_starts_with( $old_url, 'http://' ) ) {
 			$https = 'https://' . substr( $old_url, 7 );
-			$r     = self::is_safe_remote_url( $https ) ? wp_safe_remote_head( $https, [ 'timeout' => 5, 'redirection' => 5 ] ) : null;
+			$r     = self::is_safe_remote_url( $https ) ? wp_safe_remote_head( $https, self::http_args() ) : null;
 			if ( $r && ! is_wp_error( $r ) && wp_remote_retrieve_response_code( $r ) < 400 ) {
 				return $https;
 			}
@@ -217,11 +220,7 @@ class Radical_Socials_RSS_Fetcher {
 			return '';
 		}
 
-		$r    = wp_safe_remote_get( $home, [
-			'timeout'     => 8,
-			'redirection' => 5,
-			'user-agent'  => 'Mozilla/5.0 (compatible; RadicalSocials/1.0; +https://github.com/Automattic/radical-socials)',
-		] );
+		$r    = wp_safe_remote_get( $home, self::http_args() );
 		if ( is_wp_error( $r ) || wp_remote_retrieve_response_code( $r ) >= 400 ) {
 			return '';
 		}
@@ -284,6 +283,28 @@ class Radical_Socials_RSS_Fetcher {
 			return esc_url_raw( $m[1] );
 		}
 		return '';
+	}
+
+	public static function http_args(): array {
+		return [
+			'timeout'            => self::HTTP_TIMEOUT,
+			'redirection'        => self::HTTP_REDIRECTION,
+			'reject_unsafe_urls' => true,
+			'user-agent'         => 'Mozilla/5.0 (compatible; RadicalSocials/1.0; +https://github.com/Automattic/radical-socials)',
+		];
+	}
+
+	private static function fetch_feed_with_http_args( string $feed_url ) {
+		$http_args = static function ( array $args ) {
+			return array_merge( $args, self::http_args() );
+		};
+
+		add_filter( 'http_request_args', $http_args );
+		try {
+			return fetch_feed( $feed_url );
+		} finally {
+			remove_filter( 'http_request_args', $http_args );
+		}
 	}
 
 	/**
