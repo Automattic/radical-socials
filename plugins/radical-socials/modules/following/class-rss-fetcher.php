@@ -144,7 +144,7 @@ class Radical_Socials_RSS_Fetcher {
 		if ( empty( $parsed['host'] ) ) {
 			return '';
 		}
-		$home = ( $parsed['scheme'] ?? 'https' ) . '://' . $parsed['host'] . '/';
+		$home = ( $parsed['scheme'] ?? 'https' ) . '://' . $parsed['host'] . ( isset( $parsed['port'] ) ? ':' . $parsed['port'] : '' ) . '/';
 		$r    = wp_safe_remote_get( $home, [
 			'timeout'     => 8,
 			'redirection' => 5,
@@ -157,10 +157,38 @@ class Radical_Socials_RSS_Fetcher {
 		if ( preg_match( '/<link[^>]+type=["\']application\/(?:rss|atom)\+xml["\'][^>]+href=["\']([^"\']+)["\']/', $body, $m )
 			|| preg_match( '/<link[^>]+href=["\']([^"\']+)["\'][^>]+type=["\']application\/(?:rss|atom)\+xml["\']/', $body, $m )
 		) {
-			return esc_url_raw( html_entity_decode( $m[1] ) );
+			return self::resolve_relative_url( html_entity_decode( $m[1] ), $home );
 		}
 
 		return '';
+	}
+
+	private static function resolve_relative_url( string $url, string $base_url ): string {
+		$url = trim( $url );
+		if ( '' === $url ) {
+			return '';
+		}
+
+		if ( wp_http_validate_url( $url ) ) {
+			return esc_url_raw( $url );
+		}
+
+		$base = wp_parse_url( $base_url );
+		if ( empty( $base['scheme'] ) || empty( $base['host'] ) ) {
+			return '';
+		}
+
+		if ( str_starts_with( $url, '//' ) ) {
+			$absolute = $base['scheme'] . ':' . $url;
+		} elseif ( str_starts_with( $url, '/' ) ) {
+			$absolute = $base['scheme'] . '://' . $base['host'] . ( isset( $base['port'] ) ? ':' . $base['port'] : '' ) . $url;
+		} else {
+			$path      = $base['path'] ?? '/';
+			$directory = trailingslashit( preg_replace( '~/[^/]*$~', '/', $path ) );
+			$absolute  = $base['scheme'] . '://' . $base['host'] . ( isset( $base['port'] ) ? ':' . $base['port'] : '' ) . $directory . $url;
+		}
+
+		return wp_http_validate_url( $absolute ) ? esc_url_raw( $absolute ) : '';
 	}
 
 	/**

@@ -412,12 +412,11 @@ class Radical_Socials_Following_REST {
 		$subs = (array) get_option( 'rs_rss_subscriptions', [] );
 		$urls = array_column( $subs, 'url' );
 
-		if ( in_array( $url, $urls, true ) ) {
-			return new WP_REST_Response( [ 'error' => 'already_exists', 'input' => $url ], 409 );
-		}
-
 		// Resolve to canonical URL before storing (handles moved/http→https feeds).
 		$resolved = Radical_Socials_RSS_Fetcher::resolve_url( $url );
+		if ( in_array( $resolved, $urls, true ) ) {
+			return new WP_REST_Response( [ 'error' => 'already_exists', 'input' => $url ], 409 );
+		}
 
 		// Fetch the feed now to get its title and seed initial items.
 		$title      = $resolved;
