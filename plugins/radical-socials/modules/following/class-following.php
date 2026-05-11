@@ -8,9 +8,9 @@
  * Feed updates arrive via three paths:
  *  1. ActivityPub inbox  — true push: hook fires when the ActivityPub plugin
  *                          stores a new incoming Create activity.
- *  2. RSS/WebSub         — push from hub for WebSub-capable feeds; hourly
- *                          background fetch for feeds without a hub.
- *  3. WP.com Reader      — included in the hourly background fetch.
+ *  2. RSS/WebSub         — push from hub for WebSub-capable feeds; 15-minute
+ *                          background fetch and manual refresh otherwise.
+ *  3. WP.com Reader      — included in recurring/manual background fetches.
  *
  * @package RadicalSocials
  */
@@ -29,7 +29,7 @@ class Radical_Socials_Following {
 	const FETCH_SCHEDULE = 'rs_every_15_minutes';
 	const FETCH_INTERVAL = 15 * MINUTE_IN_SECONDS;
 
-	/** Cron hook for immediate on-demand fetches. */
+	/** Cron hook for immediate manual refresh fetches. */
 	const REFRESH_HOOK = 'rs_refresh_following_now';
 
 	/** Transient lock used to prevent overlapping feed fetches. */

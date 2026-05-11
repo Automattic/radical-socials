@@ -7,7 +7,7 @@
  * and POST a subscription request. The hub then pushes new content to our
  * callback endpoint whenever the feed updates — no polling required.
  *
- * Feeds that don't advertise a hub fall back to on-demand fetch on page visit.
+ * Feeds that don't advertise a hub fall back to recurring/manual fetches.
  *
  * Spec: https://www.w3.org/TR/websub/
  *
@@ -192,7 +192,7 @@ class Radical_Socials_WebSub_Subscriber {
 	public static function subscribe( string $feed_url ): void {
 		$hub_url = self::discover_hub( $feed_url );
 		if ( ! $hub_url || ! Radical_Socials_RSS_Fetcher::is_safe_remote_url( $hub_url ) ) {
-			return; // no hub; on-demand fetch will handle this feed
+			return; // no hub; recurring/manual fetches will handle this feed
 		}
 
 		$secret   = wp_generate_password( 32, false );
