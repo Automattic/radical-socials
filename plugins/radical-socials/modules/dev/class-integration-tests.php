@@ -99,6 +99,14 @@ class Radical_Socials_Integration_Tests {
 			! Radical_Socials_RSS_Fetcher::is_safe_remote_url( 'http://169.254.169.254/latest/meta-data/' ),
 			'RSS URL validation should reject link-local metadata addresses.'
 		);
+		$this->assert_true(
+			Radical_Socials_RSS_Fetcher::is_safe_remote_url( 'https://example.invalid/feed' ),
+			'RSS URL validation should not reject ordinary hostnames only because DNS preflight cannot resolve them.'
+		);
+		$this->assert_true(
+			! Radical_Socials_RSS_Fetcher::has_valid_remote_url_format( 'file:///tmp/feed.xml' ),
+			'RSS URL validation should reject non-HTTP URL formats.'
+		);
 
 		update_option( 'rs_rss_subscriptions', [
 			[

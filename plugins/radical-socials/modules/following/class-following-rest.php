@@ -438,7 +438,7 @@ class Radical_Socials_Following_REST {
 		}
 
 		$url = esc_url_raw( $input );
-		if ( ! wp_http_validate_url( $url ) ) {
+		if ( ! Radical_Socials_RSS_Fetcher::has_valid_remote_url_format( $url ) ) {
 			return new WP_REST_Response( [ 'error' => 'invalid_url', 'input' => $input ], 400 );
 		}
 		if ( ! Radical_Socials_RSS_Fetcher::is_safe_remote_url( $url ) ) {

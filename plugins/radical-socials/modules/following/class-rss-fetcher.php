@@ -111,7 +111,7 @@ class Radical_Socials_RSS_Fetcher {
 	}
 
 	public static function is_safe_remote_url( string $url ): bool {
-		if ( ! wp_http_validate_url( $url ) ) {
+		if ( ! self::has_valid_remote_url_format( $url ) ) {
 			return false;
 		}
 
@@ -121,12 +121,13 @@ class Radical_Socials_RSS_Fetcher {
 		}
 
 		$host = strtolower( trim( $host, "[] \t\n\r\0\x0B." ) );
-		if ( 'localhost' === $host ) {
+		if ( ! $host || 'localhost' === $host || str_ends_with( $host, '.localhost' ) ) {
 			return false;
 		}
 
 		$ips = [];
-		if ( filter_var( $host, FILTER_VALIDATE_IP ) ) {
+		$is_ip_host = (bool) filter_var( $host, FILTER_VALIDATE_IP );
+		if ( $is_ip_host ) {
 			$ips[] = $host;
 		} elseif ( function_exists( 'dns_get_record' ) ) {
 			$records = @dns_get_record( $host, DNS_A + DNS_AAAA );
@@ -149,17 +150,52 @@ class Radical_Socials_RSS_Fetcher {
 			}
 		}
 
-		if ( ! $ips ) {
-			return false;
+		if ( ! $ips && ! $is_ip_host ) {
+			// Some environments cannot pre-resolve valid public hostnames even
+			// though WP's HTTP layer can fetch them. Let wp_safe_remote_* enforce
+			// the final network safety checks at request time.
+			return true;
 		}
 
 		foreach ( array_unique( $ips ) as $ip ) {
 			if ( ! filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) {
+				// WordPress Playground resolves external domains through a local
+				// proxy IP. For hostnames, trust WP's own HTTP validator when it
+				// explicitly accepts the URL; literal IPs must still pass above.
+				if ( ! $is_ip_host && wp_http_validate_url( $url ) ) {
+					return true;
+				}
 				return false;
 			}
 		}
 
 		return true;
+	}
+
+	public static function has_valid_remote_url_format( string $url ): bool {
+		$url = trim( $url );
+		if ( '' === $url || preg_match( '/[\x00-\x1F\x7F]/', $url ) ) {
+			return false;
+		}
+
+		$parsed = wp_parse_url( $url );
+		if ( false === $parsed || empty( $parsed['scheme'] ) || empty( $parsed['host'] ) ) {
+			return false;
+		}
+
+		if ( ! in_array( strtolower( (string) $parsed['scheme'] ), [ 'http', 'https' ], true ) ) {
+			return false;
+		}
+
+		if ( isset( $parsed['user'] ) || isset( $parsed['pass'] ) ) {
+			return false;
+		}
+
+		if ( isset( $parsed['port'] ) && ( (int) $parsed['port'] < 1 || (int) $parsed['port'] > 65535 ) ) {
+			return false;
+		}
+
+		return (bool) esc_url_raw( $url, [ 'http', 'https' ] );
 	}
 
 	/**

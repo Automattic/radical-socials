@@ -69,7 +69,7 @@ class Radical_Socials_Settings_Page {
 					'errorUnknown'  => __( 'Unknown error', 'radical-socials' ),
 					'errors'        => [
 						'invalid_url'                   => __( 'Invalid URL — make sure it starts with https://', 'radical-socials' ),
-						'unsafe_url'                    => __( 'URL must resolve to a public website', 'radical-socials' ),
+						'unsafe_url'                    => __( 'URL must be a public HTTP(S) address', 'radical-socials' ),
 						'activitypub_unavailable'       => __( 'ActivityPub plugin is not active', 'radical-socials' ),
 						'activitypub_user_not_found'    => __( 'Account not found — check the handle or URL', 'radical-socials' ),
 						'activitypub_already_following' => __( 'Already following', 'radical-socials' ),
