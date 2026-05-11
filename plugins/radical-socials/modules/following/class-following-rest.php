@@ -483,6 +483,7 @@ class Radical_Socials_Following_REST {
 				Radical_Socials_Feed_Fetcher::upsert_item( $item );
 			}
 			Radical_Socials_Feed_Fetcher::enforce_cap();
+			update_option( 'rs_last_feed_fetch', time(), false );
 		}
 
 		$subs[] = [ 'url' => $resolved, 'title' => $title, 'source_url' => $source_url ];
