@@ -4,6 +4,10 @@ const PULL_THRESHOLD = 80; // px of overscroll needed to trigger a refresh
 const REFRESH_LABEL_RESET_DELAY = 1800;
 const REFRESH_POLL_ATTEMPTS = 6;
 const REFRESH_POLL_DELAY = 1000;
+const FOREGROUND_CHECK_INTERVAL = 60000;
+const AUTO_PREPEND_SCROLL_TOP = 120;
+
+let foregroundCheckTimer = null;
 
 const { state, actions } = store( 'radical-socials/following', {
 	actions: {
@@ -71,6 +75,8 @@ const { state, actions } = store( 'radical-socials/following', {
 				trackingPull  = false;
 				state.pulling = false;
 			}, { passive: true } );
+
+			startForegroundChecks();
 		},
 
 		observeSentinel() {
@@ -123,8 +129,18 @@ const { state, actions } = store( 'radical-socials/following', {
 } );
 
 async function prependLatestItems() {
+	const { list, newItems } = await fetchLatestItems();
+	if ( ! newItems.length ) return 0;
+
+	prependItems( list, newItems );
+	return newItems.length;
+}
+
+async function fetchLatestItems() {
 	const list = document.querySelector( '.rs-following-feed .wp-block-post-template' );
-	if ( ! list ) return 0;
+	if ( ! list ) {
+		return { list: null, newItems: [] };
+	}
 
 	const existingIds = new Set(
 		[ ...list.querySelectorAll( '.wp-block-post' ) ]
@@ -141,7 +157,9 @@ async function prependLatestItems() {
 	url.searchParams.set( 'rs_refresh', Date.now().toString() );
 
 	const res = await fetch( url.toString() );
-	if ( ! res.ok ) return 0;
+	if ( ! res.ok ) {
+		return { list, newItems: [] };
+	}
 
 	const text = await res.text();
 	const doc = new DOMParser().parseFromString( text, 'text/html' );
@@ -153,13 +171,15 @@ async function prependLatestItems() {
 		return id && ! existingIds.has( id );
 	} );
 
-	if ( ! newItems.length ) return 0;
+	return { list, newItems };
+}
+
+function prependItems( list, newItems ) {
+	if ( ! list || ! newItems.length ) return;
 
 	newItems.reverse().forEach( ( item ) => {
 		list.insertBefore( item.cloneNode( true ), list.firstElementChild );
 	} );
-
-	return newItems.length;
 }
 
 function updateLastRefreshedFromDocument( doc ) {
@@ -170,6 +190,34 @@ function updateLastRefreshedFromDocument( doc ) {
 	current.textContent = next.textContent;
 	current.title = next.title;
 	current.dataset.rsLastFetched = next.dataset.rsLastFetched || '';
+}
+
+function startForegroundChecks() {
+	if ( foregroundCheckTimer || ! state.canRefresh ) return;
+
+	foregroundCheckTimer = window.setInterval( checkForNewItems, FOREGROUND_CHECK_INTERVAL );
+	document.addEventListener( 'visibilitychange', () => {
+		if ( ! document.hidden ) {
+			checkForNewItems();
+		}
+	} );
+}
+
+async function checkForNewItems() {
+	if ( state.refreshing || document.hidden ) return;
+
+	try {
+		const { list, newItems } = await fetchLatestItems();
+		if ( ! newItems.length ) return;
+
+		if ( window.scrollY <= AUTO_PREPEND_SCROLL_TOP ) {
+			prependItems( list, newItems );
+		}
+
+		setRefreshLabel( formatNewPostsLabel( newItems.length ) );
+	} catch {
+		// Background checks are opportunistic; manual refresh remains available.
+	}
 }
 
 async function waitForLatestItems( previousLastFetched ) {
@@ -225,11 +273,15 @@ function setRefreshLabel( text ) {
 	label.textContent = text;
 }
 
+function formatNewPostsLabel( count ) {
+	return count === 1
+		? state.newPostLabel
+		: state.newPostsLabel.replace( '%d', count );
+}
+
 function updateRefreshLabel( count, finished = true ) {
 	if ( count > 0 ) {
-		setRefreshLabel( count === 1
-			? state.newPostLabel
-			: state.newPostsLabel.replace( '%d', count ) );
+		setRefreshLabel( formatNewPostsLabel( count ) );
 	} else if ( finished ) {
 		setRefreshLabel( state.noNewPostsLabel );
 	} else {
