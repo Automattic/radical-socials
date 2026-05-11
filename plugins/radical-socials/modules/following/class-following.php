@@ -226,11 +226,19 @@ class Radical_Socials_Following {
 			return false;
 		}
 
+		$scheduled = wp_next_scheduled( self::REFRESH_HOOK );
+		if ( ! $scheduled ) {
+			$scheduled = wp_schedule_single_event( time(), self::REFRESH_HOOK );
+		}
+
+		if ( false === $scheduled ) {
+			return false;
+		}
+
 		set_transient( self::REFRESH_LOCK, self::REFRESH_LOCK_QUEUED, self::REFRESH_LOCK_TTL );
-		$scheduled = wp_schedule_single_event( time(), self::REFRESH_HOOK );
 		spawn_cron();
 
-		return false !== $scheduled;
+		return true;
 	}
 
 	// ── Frontend ──────────────────────────────────────────────────────────────
