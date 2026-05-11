@@ -1,6 +1,7 @@
 import { store, getContext, getElement } from '@wordpress/interactivity';
 
 const PULL_THRESHOLD = 80; // px of overscroll needed to trigger a refresh
+const REFRESH_LABEL_RESET_DELAY = 1800;
 
 const { state, actions } = store( 'radical-socials/following', {
 	actions: {
@@ -16,6 +17,9 @@ const { state, actions } = store( 'radical-socials/following', {
 				} );
 				if ( ! res.ok ) {
 					console.error( '[radical-socials] refresh failed:', res.status, res.statusText, { url: state.refreshUrl } );
+				} else {
+					const count = yield prependLatestItems();
+					updateRefreshLabel( count );
 				}
 			} catch ( err ) {
 				console.error( '[radical-socials] refresh network error:', err, { url: state.refreshUrl, nonce: !! state.nonce } );
@@ -113,3 +117,65 @@ const { state, actions } = store( 'radical-socials/following', {
 		},
 	},
 } );
+
+async function prependLatestItems() {
+	const list = document.querySelector( '.rs-following-feed .wp-block-post-template' );
+	if ( ! list ) return 0;
+
+	const existingIds = new Set(
+		[ ...list.querySelectorAll( '.wp-block-post' ) ]
+			.map( getPostId )
+			.filter( Boolean )
+	);
+
+	const url = new URL( window.location.href );
+	for ( const key of [ ...url.searchParams.keys() ] ) {
+		if ( /^query-\d+-page$/.test( key ) ) {
+			url.searchParams.delete( key );
+		}
+	}
+	url.searchParams.set( 'rs_refresh', Date.now().toString() );
+
+	const res = await fetch( url.toString() );
+	if ( ! res.ok ) return 0;
+
+	const text = await res.text();
+	const doc = new DOMParser().parseFromString( text, 'text/html' );
+	const latestItems = [ ...doc.querySelectorAll( '.rs-following-feed .wp-block-post' ) ];
+	const newItems = latestItems.filter( ( item ) => {
+		const id = getPostId( item );
+		return id && ! existingIds.has( id );
+	} );
+
+	if ( ! newItems.length ) return 0;
+
+	newItems.reverse().forEach( ( item ) => {
+		list.insertBefore( item.cloneNode( true ), list.firstElementChild );
+	} );
+
+	return newItems.length;
+}
+
+function getPostId( item ) {
+	const match = [ ...item.classList ].find( ( className ) => /^post-\d+$/.test( className ) );
+	return match || '';
+}
+
+function updateRefreshLabel( count ) {
+	const label = document.querySelector( '.rs-refresh-label' );
+	if ( ! label ) return;
+
+	if ( count > 0 ) {
+		label.textContent = count === 1
+			? state.newPostLabel
+			: state.newPostsLabel.replace( '%d', count );
+	} else {
+		label.textContent = state.noNewPostsLabel;
+	}
+
+	window.setTimeout( () => {
+		if ( ! state.refreshing ) {
+			label.textContent = state.refreshLabel;
+		}
+	}, REFRESH_LABEL_RESET_DELAY );
+}

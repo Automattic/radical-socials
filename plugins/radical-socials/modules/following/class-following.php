@@ -254,11 +254,15 @@ class Radical_Socials_Following {
 		$is_following = is_post_type_archive( 'rs_feed_item' );
 
 		wp_interactivity_state( 'radical-socials/following', [
-			'refreshUrl' => rest_url( 'radical-socials/v1/following/refresh' ),
-			'nonce'      => is_user_logged_in() ? wp_create_nonce( 'wp_rest' ) : '',
-			'canRefresh' => is_user_logged_in() && $is_following,
-			'refreshing' => false,
-			'pulling'    => false,
+			'refreshUrl'      => rest_url( 'radical-socials/v1/following/refresh' ),
+			'nonce'           => is_user_logged_in() ? wp_create_nonce( 'wp_rest' ) : '',
+			'canRefresh'      => is_user_logged_in() && $is_following,
+			'refreshing'      => false,
+			'pulling'         => false,
+			'refreshLabel'    => __( 'Refresh feed', 'radical-socials' ),
+			'noNewPostsLabel' => __( 'No new posts', 'radical-socials' ),
+			'newPostLabel'    => __( '1 new post', 'radical-socials' ),
+			'newPostsLabel'   => __( '%d new posts', 'radical-socials' ),
 		] );
 
 		$pull_indicator = ( is_user_logged_in() && $is_following )

@@ -118,20 +118,17 @@ class Radical_Socials_Following_REST {
 	}
 
 	public static function handle_refresh(): WP_REST_Response {
-		// Reset staleness state so the next page load triggers maybe_refresh_feed()
-		// immediately, regardless of the 15-minute window.
-		update_option( 'rs_last_feed_fetch', 0, false );
+		// User-initiated refresh should behave like a social feed refresh:
+		// fetch now, then let the client pull the newly rendered first page.
 		delete_transient( 'rs_feed_refresh_lock' );
-
-		// Schedule and attempt a non-blocking cron fire. On standard hosting this
-		// runs the fetch immediately in a separate process. On Docker/restricted
-		// environments spawn_cron() fails silently — the fetch will run on the
-		// next page load via maybe_refresh_feed().
 		wp_clear_scheduled_hook( 'rs_fetch_following' );
-		wp_schedule_single_event( time() - 1, 'rs_fetch_following' );
-		spawn_cron();
 
-		return new WP_REST_Response( [ 'ok' => true ], 202 );
+		Radical_Socials_Feed_Fetcher::run();
+
+		return new WP_REST_Response( [
+			'ok'           => true,
+			'last_fetched' => (int) get_option( 'rs_last_feed_fetch', time() ),
+		], 200 );
 	}
 
 	// ── OPML import / export ─────────────────────────────────────────────────
