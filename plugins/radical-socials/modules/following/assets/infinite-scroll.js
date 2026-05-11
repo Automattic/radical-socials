@@ -13,6 +13,7 @@ const { state, actions } = store( 'radical-socials/following', {
 			state.pulling    = false;
 
 			try {
+				const previousLastFetched = getCurrentLastFetched();
 				const res = yield fetch( state.refreshUrl, {
 					method:  'POST',
 					headers: { 'X-WP-Nonce': state.nonce },
@@ -20,8 +21,9 @@ const { state, actions } = store( 'radical-socials/following', {
 				if ( ! res.ok ) {
 					console.error( '[radical-socials] refresh failed:', res.status, res.statusText, { url: state.refreshUrl } );
 				} else {
-					const count = yield waitForLatestItems();
-					updateRefreshLabel( count );
+					setRefreshLabel( state.refreshingLabel );
+					const result = yield waitForLatestItems( previousLastFetched );
+					updateRefreshLabel( result.count, result.finished );
 				}
 			} catch ( err ) {
 				console.error( '[radical-socials] refresh network error:', err, { url: state.refreshUrl, nonce: !! state.nonce } );
@@ -170,7 +172,7 @@ function updateLastRefreshedFromDocument( doc ) {
 	current.dataset.rsLastFetched = next.dataset.rsLastFetched || '';
 }
 
-async function waitForLatestItems() {
+async function waitForLatestItems( previousLastFetched ) {
 	for ( let attempt = 0; attempt < REFRESH_POLL_ATTEMPTS; attempt++ ) {
 		if ( attempt > 0 ) {
 			await new Promise( ( resolve ) => setTimeout( resolve, REFRESH_POLL_DELAY ) );
@@ -178,11 +180,38 @@ async function waitForLatestItems() {
 
 		const count = await prependLatestItems();
 		if ( count > 0 ) {
-			return count;
+			return { count, finished: true };
+		}
+
+		if ( hasRefreshedSince( previousLastFetched ) ) {
+			return { count: 0, finished: true };
 		}
 	}
 
-	return 0;
+	const status = await fetchRefreshStatus();
+	return {
+		count:    0,
+		finished: ! status || ! status.refreshing,
+	};
+}
+
+function getCurrentLastFetched() {
+	const current = document.querySelector( '.rs-last-refreshed' );
+	return current ? current.dataset.rsLastFetched || '' : '';
+}
+
+function hasRefreshedSince( previousLastFetched ) {
+	const currentLastFetched = getCurrentLastFetched();
+	return currentLastFetched && currentLastFetched !== previousLastFetched;
+}
+
+async function fetchRefreshStatus() {
+	const res = await fetch( state.refreshUrl, {
+		method:  'GET',
+		headers: { 'X-WP-Nonce': state.nonce },
+	} );
+	if ( ! res.ok ) return null;
+	return res.json().catch( () => null );
 }
 
 function getPostId( item ) {
@@ -190,21 +219,26 @@ function getPostId( item ) {
 	return match || '';
 }
 
-function updateRefreshLabel( count ) {
+function setRefreshLabel( text ) {
 	const label = document.querySelector( '.rs-refresh-label' );
 	if ( ! label ) return;
+	label.textContent = text;
+}
 
+function updateRefreshLabel( count, finished = true ) {
 	if ( count > 0 ) {
-		label.textContent = count === 1
+		setRefreshLabel( count === 1
 			? state.newPostLabel
-			: state.newPostsLabel.replace( '%d', count );
+			: state.newPostsLabel.replace( '%d', count ) );
+	} else if ( finished ) {
+		setRefreshLabel( state.noNewPostsLabel );
 	} else {
-		label.textContent = state.noNewPostsLabel;
+		setRefreshLabel( state.stillRefreshingLabel );
 	}
 
 	window.setTimeout( () => {
 		if ( ! state.refreshing ) {
-			label.textContent = state.refreshLabel;
+			setRefreshLabel( state.refreshLabel );
 		}
 	}, REFRESH_LABEL_RESET_DELAY );
 }

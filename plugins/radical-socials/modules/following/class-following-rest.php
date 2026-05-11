@@ -28,9 +28,16 @@ class Radical_Socials_Following_REST {
 		$auth = fn() => current_user_can( 'manage_options' );
 
 		register_rest_route( self::REST_NAMESPACE, self::ROUTE . '/refresh', [
-			'methods'             => 'POST',
-			'callback'            => [ __CLASS__, 'handle_refresh' ],
-			'permission_callback' => [ __CLASS__, 'verify_refresh_secret' ],
+			[
+				'methods'             => 'GET',
+				'callback'            => [ __CLASS__, 'refresh_status' ],
+				'permission_callback' => [ __CLASS__, 'verify_refresh_secret' ],
+			],
+			[
+				'methods'             => 'POST',
+				'callback'            => [ __CLASS__, 'handle_refresh' ],
+				'permission_callback' => [ __CLASS__, 'verify_refresh_secret' ],
+			],
 		] );
 
 		register_rest_route( self::REST_NAMESPACE, self::ROUTE . '/favorite', [
@@ -122,11 +129,19 @@ class Radical_Socials_Following_REST {
 		// enqueue work quickly, then let the client poll the rendered first page.
 		$queued = Radical_Socials_Following::queue_refresh();
 
+		return self::refresh_status_response( $queued );
+	}
+
+	public static function refresh_status(): WP_REST_Response {
+		return self::refresh_status_response( false );
+	}
+
+	private static function refresh_status_response( bool $queued ): WP_REST_Response {
 		return new WP_REST_Response( [
 			'ok'           => true,
 			'queued'       => $queued,
 			'refreshing'   => $queued || (bool) get_transient( Radical_Socials_Following::REFRESH_LOCK ),
-			'last_fetched' => (int) get_option( 'rs_last_feed_fetch', time() ),
+			'last_fetched' => (int) get_option( 'rs_last_feed_fetch', 0 ),
 		], $queued ? 202 : 200 );
 	}
 
