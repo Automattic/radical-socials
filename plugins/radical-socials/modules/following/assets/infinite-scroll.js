@@ -2,6 +2,8 @@ import { store, getContext, getElement } from '@wordpress/interactivity';
 
 const PULL_THRESHOLD = 80; // px of overscroll needed to trigger a refresh
 const REFRESH_LABEL_RESET_DELAY = 1800;
+const REFRESH_POLL_ATTEMPTS = 6;
+const REFRESH_POLL_DELAY = 1000;
 
 const { state, actions } = store( 'radical-socials/following', {
 	actions: {
@@ -18,7 +20,7 @@ const { state, actions } = store( 'radical-socials/following', {
 				if ( ! res.ok ) {
 					console.error( '[radical-socials] refresh failed:', res.status, res.statusText, { url: state.refreshUrl } );
 				} else {
-					const count = yield prependLatestItems();
+					const count = yield waitForLatestItems();
 					updateRefreshLabel( count );
 				}
 			} catch ( err ) {
@@ -154,6 +156,21 @@ async function prependLatestItems() {
 	} );
 
 	return newItems.length;
+}
+
+async function waitForLatestItems() {
+	for ( let attempt = 0; attempt < REFRESH_POLL_ATTEMPTS; attempt++ ) {
+		if ( attempt > 0 ) {
+			await new Promise( ( resolve ) => setTimeout( resolve, REFRESH_POLL_DELAY ) );
+		}
+
+		const count = await prependLatestItems();
+		if ( count > 0 ) {
+			return count;
+		}
+	}
+
+	return 0;
 }
 
 function getPostId( item ) {

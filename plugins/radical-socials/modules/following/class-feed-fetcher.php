@@ -15,19 +15,36 @@ defined( 'ABSPATH' ) || exit;
 class Radical_Socials_Feed_Fetcher {
 
 	public static function run(): void {
-		$items = array_merge(
-			Radical_Socials_WPCOM_Reader::fetch( 40 ),
-			self::fetch_all_rss(),
-			Radical_Socials_ActivityPub_Fetcher::fetch( 40 ),
-			Radical_Socials_ActivityPub_Fetcher::fetch_outboxes( 10 ),
-		);
+		if ( class_exists( 'Radical_Socials_Following' ) ) {
+			if ( Radical_Socials_Following::REFRESH_LOCK_RUNNING === get_transient( Radical_Socials_Following::REFRESH_LOCK ) ) {
+				return;
+			}
+			set_transient(
+				Radical_Socials_Following::REFRESH_LOCK,
+				Radical_Socials_Following::REFRESH_LOCK_RUNNING,
+				Radical_Socials_Following::REFRESH_LOCK_TTL
+			);
+		}
 
-		self::upsert_batch( $items );
+		try {
+			$items = array_merge(
+				Radical_Socials_WPCOM_Reader::fetch( 40 ),
+				self::fetch_all_rss(),
+				Radical_Socials_ActivityPub_Fetcher::fetch( 40 ),
+				Radical_Socials_ActivityPub_Fetcher::fetch_outboxes( 10 ),
+			);
 
-		self::prune_orphaned_items();
-		self::enforce_cap();
+			self::upsert_batch( $items );
 
-		update_option( 'rs_last_feed_fetch', time(), false );
+			self::prune_orphaned_items();
+			self::enforce_cap();
+
+			update_option( 'rs_last_feed_fetch', time(), false );
+		} finally {
+			if ( class_exists( 'Radical_Socials_Following' ) ) {
+				delete_transient( Radical_Socials_Following::REFRESH_LOCK );
+			}
+		}
 	}
 
 	private static function fetch_all_rss(): array {

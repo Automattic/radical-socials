@@ -25,6 +25,18 @@ class Radical_Socials_Following {
 	/** Cron hook for recurring background fetches. */
 	const FETCH_HOOK = 'rs_fetch_following';
 
+	/** Cron hook for immediate on-demand fetches. */
+	const REFRESH_HOOK = 'rs_refresh_following_now';
+
+	/** Transient lock used to prevent overlapping feed fetches. */
+	const REFRESH_LOCK = 'rs_feed_refresh_lock';
+
+	const REFRESH_LOCK_QUEUED  = 'queued';
+	const REFRESH_LOCK_RUNNING = 'running';
+
+	/** Maximum time to hold the refresh lock if a fetch does not finish cleanly. */
+	const REFRESH_LOCK_TTL = 600;
+
 	public static function init(): void {
 		add_action( 'init',             [ __CLASS__, 'register_cpt'        ] );
 		add_action( 'init',             [ __CLASS__, 'register_taxonomy'   ] );
@@ -33,6 +45,7 @@ class Radical_Socials_Following {
 
 		// Recurring background fetch.
 		add_action( self::FETCH_HOOK, [ 'Radical_Socials_Feed_Fetcher', 'run' ] );
+		add_action( self::REFRESH_HOOK, [ 'Radical_Socials_Feed_Fetcher', 'run' ] );
 
 		// ActivityPub push: fire immediately when a new inbox activity is saved.
 		add_action( 'save_post_ap_inbox', [ __CLASS__, 'on_activitypub_activity' ], 10, 2 );
@@ -93,6 +106,7 @@ class Radical_Socials_Following {
 
 	public static function deactivate(): void {
 		wp_clear_scheduled_hook( self::FETCH_HOOK );
+		wp_clear_scheduled_hook( self::REFRESH_HOOK );
 	}
 
 	// ── CPT & taxonomy ────────────────────────────────────────────────────────
@@ -165,8 +179,7 @@ class Radical_Socials_Following {
 
 	/**
 	 * Schedule a background feed fetch on any page load when the feed is stale
-	 * (older than 15 minutes). Uses a 10-minute transient lock to prevent
-	 * concurrent page loads from stacking up multiple fetches.
+	 * (older than 15 minutes).
 	 */
 	public static function maybe_refresh_feed(): void {
 		if ( wp_doing_ajax() || wp_doing_cron() ) {
@@ -179,18 +192,23 @@ class Radical_Socials_Following {
 		if ( time() - $last < $stale_after ) {
 			return;
 		}
-		if ( get_transient( 'rs_feed_refresh_lock' ) ) {
-			return;
-		}
-		set_transient( 'rs_feed_refresh_lock', 1, 10 * MINUTE_IN_SECONDS );
-
-		wp_clear_scheduled_hook( self::FETCH_HOOK );
-		wp_schedule_single_event( time() - 1, self::FETCH_HOOK );
-		spawn_cron();
+		self::queue_refresh();
 	}
 
 	public static function refresh_secret(): string {
 		return wp_hash( 'rs_feed_refresh_' . wp_salt() );
+	}
+
+	public static function queue_refresh(): bool {
+		if ( get_transient( self::REFRESH_LOCK ) ) {
+			return false;
+		}
+
+		set_transient( self::REFRESH_LOCK, self::REFRESH_LOCK_QUEUED, self::REFRESH_LOCK_TTL );
+		$scheduled = wp_schedule_single_event( time(), self::REFRESH_HOOK );
+		spawn_cron();
+
+		return false !== $scheduled;
 	}
 
 	// ── Frontend ──────────────────────────────────────────────────────────────

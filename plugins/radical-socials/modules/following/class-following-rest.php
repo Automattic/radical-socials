@@ -119,16 +119,15 @@ class Radical_Socials_Following_REST {
 
 	public static function handle_refresh(): WP_REST_Response {
 		// User-initiated refresh should behave like a social feed refresh:
-		// fetch now, then let the client pull the newly rendered first page.
-		delete_transient( 'rs_feed_refresh_lock' );
-		wp_clear_scheduled_hook( 'rs_fetch_following' );
-
-		Radical_Socials_Feed_Fetcher::run();
+		// enqueue work quickly, then let the client poll the rendered first page.
+		$queued = Radical_Socials_Following::queue_refresh();
 
 		return new WP_REST_Response( [
 			'ok'           => true,
+			'queued'       => $queued,
+			'refreshing'   => $queued || (bool) get_transient( Radical_Socials_Following::REFRESH_LOCK ),
 			'last_fetched' => (int) get_option( 'rs_last_feed_fetch', time() ),
-		], 200 );
+		], $queued ? 202 : 200 );
 	}
 
 	// ── OPML import / export ─────────────────────────────────────────────────
