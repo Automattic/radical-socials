@@ -156,14 +156,23 @@ class Radical_Socials_Integration_Tests {
 
 		$request = new WP_REST_Request( 'GET', '/radical-socials/v1/websub/callback' );
 		$request->set_query_params( [
-			'hub.mode'      => 'subscribe',
-			'hub.topic'     => $feed_url,
-			'hub.challenge' => 'challenge-token',
+			'hub.mode'          => 'subscribe',
+			'hub.topic'         => $feed_url,
+			'hub.challenge'     => 'challenge-token',
+			'hub.lease_seconds' => '3600',
 		] );
 
+		$before   = time();
 		$response = Radical_Socials_WebSub_Subscriber::handle_verification( $request );
 		$this->assert_same( 200, $response->get_status(), 'WebSub verification should accept a known dotted hub.topic.' );
 		$this->assert_same( 'challenge-token', $response->get_data(), 'WebSub verification should echo hub.challenge.' );
+
+		$subs = (array) get_option( 'rs_websub_subscriptions', [] );
+		$this->assert_same( 3600, (int) $subs[ $feed_url ]['lease_seconds'], 'WebSub verification should store the confirmed lease length.' );
+		$this->assert_true(
+			(int) $subs[ $feed_url ]['lease_expires'] >= $before + 3600,
+			'WebSub verification should store the lease expiry.'
+		);
 
 		update_option( 'rs_last_feed_fetch', 0, false );
 

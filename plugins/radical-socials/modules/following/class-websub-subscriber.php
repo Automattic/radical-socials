@@ -21,9 +21,15 @@ class Radical_Socials_WebSub_Subscriber {
 	const REST_NAMESPACE = 'radical-socials/v1';
 	const CALLBACK_ROUTE = '/websub/callback';
 	const SUBS_OPTION    = 'rs_websub_subscriptions'; // array of feed_url => [ hub, secret ]
+	const RENEW_HOOK     = 'rs_renew_websub_subscriptions';
+
+	const DEFAULT_LEASE_SECONDS = 864000; // 10 days.
+	const RENEW_WINDOW          = 172800; // 2 days.
 
 	public static function init(): void {
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
+		add_action( 'init', [ __CLASS__, 'schedule_renewals' ] );
+		add_action( self::RENEW_HOOK, [ __CLASS__, 'renew_subscriptions' ] );
 	}
 
 	public static function register_routes(): void {
@@ -64,6 +70,23 @@ class Radical_Socials_WebSub_Subscriber {
 		// Only confirm intents we actually requested.
 		if ( ! isset( $subs[ $topic ] ) ) {
 			return new WP_REST_Response( 'unknown_topic', 404 );
+		}
+
+		if ( 'subscribe' === $mode ) {
+			$entry         = is_array( $subs[ $topic ] ) ? $subs[ $topic ] : [ 'hub' => (string) $subs[ $topic ] ];
+			$lease_seconds = absint( self::get_hub_param( $request, 'hub.lease_seconds' ) );
+			if ( ! $lease_seconds ) {
+				$lease_seconds = absint( $entry['lease_seconds'] ?? self::DEFAULT_LEASE_SECONDS );
+			}
+
+			$entry['lease_seconds'] = $lease_seconds;
+			$entry['lease_expires'] = time() + $lease_seconds;
+			$entry['verified_at']   = time();
+			$subs[ $topic ]         = $entry;
+			update_option( self::SUBS_OPTION, $subs, false );
+		} elseif ( 'unsubscribe' === $mode ) {
+			unset( $subs[ $topic ] );
+			update_option( self::SUBS_OPTION, $subs, false );
 		}
 
 		return new WP_REST_Response( $challenge, 200 );
@@ -183,7 +206,7 @@ class Radical_Socials_WebSub_Subscriber {
 					'hub.mode'          => 'subscribe',
 					'hub.topic'         => $feed_url,
 					'hub.secret'        => $secret,
-					'hub.lease_seconds' => 864000, // 10 days; hub may override
+					'hub.lease_seconds' => self::DEFAULT_LEASE_SECONDS,
 				],
 				'timeout'            => Radical_Socials_RSS_Fetcher::HTTP_TIMEOUT,
 				'redirection'        => Radical_Socials_RSS_Fetcher::HTTP_REDIRECTION,
@@ -192,8 +215,38 @@ class Radical_Socials_WebSub_Subscriber {
 		);
 
 		$subs             = self::get_subscriptions();
-		$subs[ $feed_url ] = [ 'hub' => $hub_url, 'secret' => $secret ];
+		$subs[ $feed_url ] = [
+			'hub'           => $hub_url,
+			'secret'        => $secret,
+			'lease_seconds' => self::DEFAULT_LEASE_SECONDS,
+			'lease_expires' => time() + self::DEFAULT_LEASE_SECONDS,
+			'requested_at'  => time(),
+		];
 		update_option( self::SUBS_OPTION, $subs, false );
+	}
+
+	public static function schedule_renewals(): void {
+		if ( ! wp_next_scheduled( self::RENEW_HOOK ) ) {
+			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', self::RENEW_HOOK );
+		}
+	}
+
+	public static function deactivate(): void {
+		wp_clear_scheduled_hook( self::RENEW_HOOK );
+	}
+
+	public static function renew_subscriptions(): void {
+		$subs = self::get_subscriptions();
+		$now  = time();
+
+		foreach ( $subs as $feed_url => $entry ) {
+			$expires = is_array( $entry ) ? (int) ( $entry['lease_expires'] ?? 0 ) : 0;
+			if ( $expires && $expires - $now > self::RENEW_WINDOW ) {
+				continue;
+			}
+
+			self::subscribe( $feed_url );
+		}
 	}
 
 	/**
@@ -267,7 +320,7 @@ class Radical_Socials_WebSub_Subscriber {
 		return '';
 	}
 
-	/** @return array<string, array{hub:string,secret:string}|string> */
+	/** @return array<string, array{hub:string,secret:string,lease_seconds?:int,lease_expires?:int,requested_at?:int,verified_at?:int}|string> */
 	private static function get_subscriptions(): array {
 		return (array) get_option( self::SUBS_OPTION, [] );
 	}

@@ -47,6 +47,7 @@ add_action( 'admin_menu', 'radical_socials_add_menu_page' );
 
 function radical_socials_deactivate(): void {
 	Radical_Socials_Following::deactivate();
+	Radical_Socials_WebSub_Subscriber::deactivate();
 }
 register_deactivation_hook( __FILE__, 'radical_socials_deactivate' );
 
