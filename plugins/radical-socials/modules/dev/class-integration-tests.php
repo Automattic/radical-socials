@@ -15,6 +15,9 @@ class Radical_Socials_Integration_Tests {
 	/** @var int[] */
 	private array $created_users = [];
 
+	/** @var int[] */
+	private array $created_posts = [];
+
 	/**
 	 * @param string[]              $args
 	 * @param array<string, string> $assoc_args
@@ -35,6 +38,7 @@ class Radical_Socials_Integration_Tests {
 			'rs_rss_subscriptions',
 			'rs_websub_subscriptions',
 			'rs_following_favorites',
+			'rs_last_feed_fetch',
 		] );
 		$original_user_id = get_current_user_id();
 
@@ -59,6 +63,10 @@ class Radical_Socials_Integration_Tests {
 					require_once ABSPATH . 'wp-admin/includes/user.php';
 				}
 				wp_delete_user( $user_id );
+			}
+
+			foreach ( $this->created_posts as $post_id ) {
+				wp_delete_post( $post_id, true );
 			}
 		}
 
@@ -156,6 +164,39 @@ class Radical_Socials_Integration_Tests {
 		$response = Radical_Socials_WebSub_Subscriber::handle_verification( $request );
 		$this->assert_same( 200, $response->get_status(), 'WebSub verification should accept a known dotted hub.topic.' );
 		$this->assert_same( 'challenge-token', $response->get_data(), 'WebSub verification should echo hub.challenge.' );
+
+		update_option( 'rs_last_feed_fetch', 0, false );
+
+		$body = '<?xml version="1.0" encoding="UTF-8"?>'
+			. '<rss version="2.0"><channel>'
+			. '<title>Example Feed</title>'
+			. '<link>https://example.com/</link>'
+			. '<item>'
+			. '<title>Pushed item</title>'
+			. '<link>https://example.com/pushed-item</link>'
+			. '<description>Pushed content.</description>'
+			. '<pubDate>Mon, 11 May 2026 12:00:00 +0000</pubDate>'
+			. '</item>'
+			. '</channel></rss>';
+
+		$request = new WP_REST_Request( 'POST', '/radical-socials/v1/websub/callback' );
+		$request->set_query_params( [ 'hub.topic' => $feed_url ] );
+		$request->set_body( $body );
+		$request->set_header( 'x_hub_signature', 'sha256=' . hash_hmac( 'sha256', $body, 'secret' ) );
+
+		$response = Radical_Socials_WebSub_Subscriber::handle_notification( $request );
+		$this->assert_same( 200, $response->get_status(), 'WebSub notification should accept a signed known topic.' );
+		$this->assert_true( 0 < (int) get_option( 'rs_last_feed_fetch', 0 ), 'WebSub notification should update the last refresh timestamp.' );
+
+		$posts = get_posts( [
+			'post_type'   => 'rs_feed_item',
+			'post_status' => 'publish',
+			'name'        => md5( 'https://example.com/pushed-item' ),
+			'fields'      => 'ids',
+			'numberposts' => 1,
+		] );
+		$this->assert_true( ! empty( $posts ), 'WebSub notification should ingest pushed feed items.' );
+		$this->created_posts[] = (int) $posts[0];
 	}
 
 	private function test_rest_permissions_and_deletes(): void {

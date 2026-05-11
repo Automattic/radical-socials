@@ -122,6 +122,7 @@ class Radical_Socials_WebSub_Subscriber {
 		$channel_title = wp_strip_all_tags( (string) $feed->get_title() );
 		$channel_url   = esc_url_raw( (string) $feed->get_permalink() );
 
+		$ingested = 0;
 		foreach ( $items as $item ) {
 			$url = esc_url_raw( (string) $item->get_permalink() );
 			if ( ! $url ) {
@@ -151,9 +152,13 @@ class Radical_Socials_WebSub_Subscriber {
 				'guid'          => md5( $url ),
 				'feed_type'     => 'rss',
 			] );
+			++$ingested;
 		}
 
-		Radical_Socials_Feed_Fetcher::enforce_cap();
+		if ( $ingested > 0 ) {
+			Radical_Socials_Feed_Fetcher::enforce_cap();
+			update_option( 'rs_last_feed_fetch', time(), false );
+		}
 
 		return new WP_REST_Response( 'ok', 200 );
 	}
