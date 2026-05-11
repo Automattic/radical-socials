@@ -29,8 +29,8 @@ class Radical_Socials_RSS_Fetcher {
 			require_once ABSPATH . WPINC . '/feed.php';
 		}
 
-		// WordPress caches feed results for 12 h by default; match our hourly cron instead.
-		$ttl = fn() => HOUR_IN_SECONDS;
+		// WordPress caches feed results for 12 h by default; match our refresh cadence instead.
+		$ttl = static fn() => Radical_Socials_Following::FETCH_INTERVAL;
 		add_filter( 'wp_feed_cache_transient_lifetime', $ttl );
 		$feed = self::fetch_feed_with_http_args( $feed_url );
 

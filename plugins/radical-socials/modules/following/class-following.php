@@ -25,6 +25,10 @@ class Radical_Socials_Following {
 	/** Cron hook for recurring background fetches. */
 	const FETCH_HOOK = 'rs_fetch_following';
 
+	/** Recurring schedule for social-style feed refreshes. */
+	const FETCH_SCHEDULE = 'rs_every_15_minutes';
+	const FETCH_INTERVAL = 15 * MINUTE_IN_SECONDS;
+
 	/** Cron hook for immediate on-demand fetches. */
 	const REFRESH_HOOK = 'rs_refresh_following_now';
 
@@ -38,6 +42,8 @@ class Radical_Socials_Following {
 	const REFRESH_LOCK_TTL = 600;
 
 	public static function init(): void {
+		add_filter( 'cron_schedules', [ __CLASS__, 'add_cron_schedules' ] );
+
 		add_action( 'init',             [ __CLASS__, 'register_cpt'        ] );
 		add_action( 'init',             [ __CLASS__, 'register_taxonomy'   ] );
 		add_action( 'init',             [ __CLASS__, 'schedule_recurring'  ] );
@@ -98,9 +104,25 @@ class Radical_Socials_Following {
 
 	// ── Cron ──────────────────────────────────────────────────────────────────
 
+	public static function add_cron_schedules( array $schedules ): array {
+		$schedules[ self::FETCH_SCHEDULE ] = [
+			'interval' => self::FETCH_INTERVAL,
+			'display'  => __( 'Every 15 minutes', 'radical-socials' ),
+		];
+		return $schedules;
+	}
+
 	public static function schedule_recurring(): void {
-		if ( ! wp_next_scheduled( self::FETCH_HOOK ) ) {
-			wp_schedule_event( time(), 'hourly', self::FETCH_HOOK );
+		$next             = wp_next_scheduled( self::FETCH_HOOK );
+		$current_schedule = $next ? wp_get_schedule( self::FETCH_HOOK ) : false;
+
+		if ( $next && self::FETCH_SCHEDULE !== $current_schedule ) {
+			wp_clear_scheduled_hook( self::FETCH_HOOK );
+			$next = false;
+		}
+
+		if ( ! $next ) {
+			wp_schedule_event( time() + self::FETCH_INTERVAL, self::FETCH_SCHEDULE, self::FETCH_HOOK );
 		}
 	}
 
