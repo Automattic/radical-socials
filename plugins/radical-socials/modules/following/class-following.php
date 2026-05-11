@@ -388,6 +388,7 @@ class Radical_Socials_Following {
 		if ( $items ) {
 			Radical_Socials_Feed_Fetcher::upsert_item( $items );
 			Radical_Socials_Feed_Fetcher::enforce_cap();
+			update_option( 'rs_last_feed_fetch', time(), false );
 		}
 	}
 }
