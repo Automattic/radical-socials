@@ -305,6 +305,9 @@ class Radical_Socials_Following {
 			'newPostsLabel'   => __( '%d new posts', 'radical-socials' ),
 		] );
 
+		$last_fetched = (int) get_option( 'rs_last_feed_fetch', 0 );
+		$last_title   = $last_fetched ? wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $last_fetched ) : '';
+
 		$pull_indicator = ( is_user_logged_in() && $is_following )
 			? '<div class="rs-refresh-bar" data-wp-class--rs-pull-refreshing="state.refreshing">'
 				. '<button class="rs-refresh-btn" data-wp-on--click="actions.refresh" data-wp-bind--disabled="state.refreshing">'
@@ -312,6 +315,9 @@ class Radical_Socials_Following {
 					. '<span class="rs-pull-spinner" aria-hidden="true"></span>'
 					. '<span class="rs-refresh-label">' . esc_html__( 'Refresh feed', 'radical-socials' ) . '</span>'
 				. '</button>'
+				. '<span class="rs-last-refreshed" data-rs-last-fetched="' . esc_attr( (string) $last_fetched ) . '" title="' . esc_attr( $last_title ) . '">'
+					. esc_html( self::last_refreshed_label( $last_fetched ) )
+				. '</span>'
 			. '</div>'
 			: '';
 
@@ -344,6 +350,23 @@ class Radical_Socials_Following {
 		}
 
 		return $html;
+	}
+
+	private static function last_refreshed_label( int $last_fetched ): string {
+		if ( ! $last_fetched ) {
+			return __( 'Not refreshed yet', 'radical-socials' );
+		}
+
+		$elapsed = time() - $last_fetched;
+		if ( $elapsed < MINUTE_IN_SECONDS ) {
+			return __( 'Last refreshed just now', 'radical-socials' );
+		}
+
+		return sprintf(
+			/* translators: %s: Human-readable elapsed time, for example "8 minutes". */
+			__( 'Last refreshed %s ago', 'radical-socials' ),
+			human_time_diff( $last_fetched )
+		);
 	}
 
 	// ── ActivityPub push ──────────────────────────────────────────────────────

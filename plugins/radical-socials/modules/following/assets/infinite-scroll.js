@@ -143,6 +143,8 @@ async function prependLatestItems() {
 
 	const text = await res.text();
 	const doc = new DOMParser().parseFromString( text, 'text/html' );
+	updateLastRefreshedFromDocument( doc );
+
 	const latestItems = [ ...doc.querySelectorAll( '.rs-following-feed .wp-block-post' ) ];
 	const newItems = latestItems.filter( ( item ) => {
 		const id = getPostId( item );
@@ -156,6 +158,16 @@ async function prependLatestItems() {
 	} );
 
 	return newItems.length;
+}
+
+function updateLastRefreshedFromDocument( doc ) {
+	const current = document.querySelector( '.rs-last-refreshed' );
+	const next = doc.querySelector( '.rs-last-refreshed' );
+	if ( ! current || ! next ) return;
+
+	current.textContent = next.textContent;
+	current.title = next.title;
+	current.dataset.rsLastFetched = next.dataset.rsLastFetched || '';
 }
 
 async function waitForLatestItems() {

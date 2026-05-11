@@ -1,5 +1,8 @@
 .rs-refresh-bar {
 	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
 	justify-content: center;
 	padding: 8px 0 4px;
 }
@@ -45,6 +48,11 @@
 
 .rs-refresh-bar.rs-pull-refreshing .rs-pull-spinner {
 	display: block;
+}
+
+.rs-last-refreshed {
+	font-size: 0.8em;
+	opacity: 0.55;
 }
 
 @keyframes rs-spin {
