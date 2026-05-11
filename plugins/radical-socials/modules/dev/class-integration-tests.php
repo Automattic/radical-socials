@@ -174,6 +174,24 @@ class Radical_Socials_Integration_Tests {
 			'WebSub verification should store the lease expiry.'
 		);
 
+		$this->with_http_mocks(
+			[
+				'HEAD https://example.com/feed' => $this->http_response( '', 200, [ 'link' => '<https://hub.example.com/>; rel="hub"' ] ),
+				'POST https://hub.example.com/' => $this->http_response( '', 202 ),
+			],
+			function () use ( $feed_url, $subs ): void {
+				Radical_Socials_WebSub_Subscriber::subscribe( $feed_url );
+				$renewed = (array) get_option( 'rs_websub_subscriptions', [] );
+
+				$this->assert_same( 'secret', $renewed[ $feed_url ]['secret'], 'WebSub renewal should keep the existing shared secret.' );
+				$this->assert_same(
+					(int) $subs[ $feed_url ]['lease_expires'],
+					(int) $renewed[ $feed_url ]['lease_expires'],
+					'WebSub renewal should not extend the lease before hub verification.'
+				);
+			}
+		);
+
 		update_option( 'rs_last_feed_fetch', 0, false );
 
 		$body = '<?xml version="1.0" encoding="UTF-8"?>'
@@ -314,9 +332,9 @@ class Radical_Socials_Integration_Tests {
 	/**
 	 * @return array<string, mixed>
 	 */
-	private function http_response( string $body, int $status ): array {
+	private function http_response( string $body, int $status, array $headers = [] ): array {
 		return [
-			'headers'  => [],
+			'headers'  => $headers,
 			'body'     => $body,
 			'response' => [
 				'code'    => $status,

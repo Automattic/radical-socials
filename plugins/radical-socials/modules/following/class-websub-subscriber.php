@@ -195,7 +195,9 @@ class Radical_Socials_WebSub_Subscriber {
 			return; // no hub; recurring/manual fetches will handle this feed
 		}
 
-		$secret   = wp_generate_password( 32, false );
+		$subs     = self::get_subscriptions();
+		$existing = isset( $subs[ $feed_url ] ) && is_array( $subs[ $feed_url ] ) ? $subs[ $feed_url ] : [];
+		$secret   = $existing['secret'] ?? wp_generate_password( 32, false );
 		$callback = self::callback_url( $feed_url );
 
 		wp_remote_post(
@@ -214,12 +216,13 @@ class Radical_Socials_WebSub_Subscriber {
 			]
 		);
 
-		$subs             = self::get_subscriptions();
+		$lease_seconds = (int) ( $existing['lease_seconds'] ?? self::DEFAULT_LEASE_SECONDS );
+		$lease_expires = (int) ( $existing['lease_expires'] ?? 0 );
 		$subs[ $feed_url ] = [
 			'hub'           => $hub_url,
 			'secret'        => $secret,
-			'lease_seconds' => self::DEFAULT_LEASE_SECONDS,
-			'lease_expires' => time() + self::DEFAULT_LEASE_SECONDS,
+			'lease_seconds' => $lease_seconds,
+			'lease_expires' => $lease_expires ?: time() + $lease_seconds,
 			'requested_at'  => time(),
 		];
 		update_option( self::SUBS_OPTION, $subs, false );
