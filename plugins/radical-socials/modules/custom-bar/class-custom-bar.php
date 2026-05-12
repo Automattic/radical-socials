@@ -95,7 +95,17 @@ class Radical_Socials_Custom_Bar {
 		}
 
 		$user             = wp_get_current_user();
-		$avatar           = get_avatar( $user->ID, self::H, '', esc_attr__( 'Profile', 'radical-socials' ), [ 'class' => 'rs-bar-avatar' ] );
+		$avatar_id        = (int) get_user_meta( $user->ID, 'rs_profile_avatar_id', true );
+		$avatar           = $avatar_id ? wp_get_attachment_image(
+			$avatar_id,
+			[ self::H, self::H ],
+			false,
+			[
+				'class' => 'rs-bar-avatar',
+				'alt'   => esc_attr__( 'Profile', 'radical-socials' ),
+			]
+		) : '';
+		$avatar           = $avatar ?: get_avatar( $user->ID, self::H, '', esc_attr__( 'Profile', 'radical-socials' ), [ 'class' => 'rs-bar-avatar' ] );
 		$pending          = (int) wp_count_comments()->moderated;
 		$can_publish_post = Radical_Socials_Social_Post::current_user_can_publish();
 		?>
