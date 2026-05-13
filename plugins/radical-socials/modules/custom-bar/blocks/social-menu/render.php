@@ -20,10 +20,11 @@ foreach ( $links as $link ) {
 		$extra .= sprintf( ' %s="%s"', esc_attr( $name ), esc_attr( $value ) );
 	}
 	$items .= sprintf(
-		'<li class="wp-block-radical-socials-social-menu__item is-rs-link-%s"><a href="%s"%s>%s</a></li>',
+		'<li class="wp-block-radical-socials-social-menu__item is-rs-link-%s"><a href="%s"%s><span class="dashicons %s" aria-hidden="true"></span><span class="wp-block-radical-socials-social-menu__label">%s</span></a></li>',
 		esc_attr( $link['id'] ),
 		esc_url( $link['url'] ),
 		$extra,
+		esc_attr( $link['icon'] ),
 		esc_html( $link['label'] )
 	);
 }
