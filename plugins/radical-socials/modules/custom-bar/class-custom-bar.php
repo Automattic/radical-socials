@@ -28,6 +28,9 @@ class Radical_Socials_Custom_Bar {
 	const BREAKPOINT = 782;
 
 	public static function init(): void {
+		// Block registration must run in admin too so the editor can list the block.
+		add_action( 'init', [ __CLASS__, 'register_blocks' ] );
+
 		if ( is_admin() ) {
 			return;
 		}
@@ -40,6 +43,67 @@ class Radical_Socials_Custom_Bar {
 		add_action( 'wp_head',            [ __CLASS__, 'offset_styles'  ], 1 );
 		add_action( 'wp_footer',          [ __CLASS__, 'render'         ] );
 		add_filter( 'body_class',         [ __CLASS__, 'add_body_class' ] );
+	}
+
+	public static function register_blocks(): void {
+		register_block_type( __DIR__ . '/blocks/social-menu' );
+	}
+
+	/**
+	 * Single source of truth for the navigation links shared by the custom
+	 * bar and the radical-socials/nav-links block.
+	 *
+	 * Each item:
+	 *   id    (string) — used as a CSS class and for bar-specific tweaks
+	 *   label (string) — visible link text
+	 *   url   (string) — link href
+	 *   icon  (string) — dashicons class name (used by the bar; ignored by the block)
+	 *   attrs (array)  — optional extra HTML attributes for the <a> element
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function get_links(): array {
+		$links = [
+			[
+				'id'    => 'home',
+				'label' => __( 'Home', 'radical-socials' ),
+				'url'   => home_url( '/' ),
+				'icon'  => 'dashicons-admin-home',
+			],
+		];
+
+		if ( is_user_logged_in() && current_user_can( 'publish_posts' ) ) {
+			$links[] = [
+				'id'    => 'create',
+				'label' => __( 'Create', 'radical-socials' ),
+				'url'   => '#',
+				'icon'  => 'dashicons-plus-alt2',
+				'attrs' => [ 'data-rs-action' => 'open-editor' ],
+			];
+		}
+
+		$links[] = [
+			'id'    => 'explore',
+			'label' => __( 'Explore', 'radical-socials' ),
+			'url'   => '#',
+			'icon'  => 'dashicons-search',
+		];
+
+		$links[] = [
+			'id'    => 'comments',
+			'label' => __( 'Comments', 'radical-socials' ),
+			'url'   => admin_url( 'edit-comments.php?comment_status=moderated' ),
+			'icon'  => 'dashicons-admin-comments',
+		];
+
+		$links[] = [
+			'id'    => 'profile',
+			'label' => __( 'Profile', 'radical-socials' ),
+			'url'   => admin_url( 'admin.php?page=radical-socials-settings' ),
+			'icon'  => 'dashicons-admin-users',
+		];
+
+		return apply_filters( 'radical_socials_nav_links', $links );
 	}
 
 	/**
@@ -94,9 +158,9 @@ class Radical_Socials_Custom_Bar {
 			return;
 		}
 
-		$user             = wp_get_current_user();
-		$avatar_id        = (int) get_user_meta( $user->ID, 'rs_profile_avatar_id', true );
-		$avatar           = $avatar_id ? wp_get_attachment_image(
+		$user      = wp_get_current_user();
+		$avatar_id = (int) get_user_meta( $user->ID, 'rs_profile_avatar_id', true );
+		$avatar    = $avatar_id ? wp_get_attachment_image(
 			$avatar_id,
 			[ self::H, self::H ],
 			false,
@@ -105,52 +169,54 @@ class Radical_Socials_Custom_Bar {
 				'alt'   => esc_attr__( 'Profile', 'radical-socials' ),
 			]
 		) : '';
-		$avatar           = $avatar ?: get_avatar( $user->ID, self::H, '', esc_attr__( 'Profile', 'radical-socials' ), [ 'class' => 'rs-bar-avatar' ] );
-		$pending          = (int) wp_count_comments()->moderated;
-		$can_publish_post = is_user_logged_in() && current_user_can( 'publish_posts' );
+		$avatar    = $avatar ?: get_avatar( $user->ID, self::H, '', esc_attr__( 'Profile', 'radical-socials' ), [ 'class' => 'rs-bar-avatar' ] );
+		$pending   = (int) wp_count_comments()->moderated;
+		$links     = self::get_links();
 		?>
 		<nav id="rs-bar" aria-label="<?php esc_attr_e( 'Site navigation', 'radical-socials' ); ?>">
 			<ul>
-				<li>
-					<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="rs-bar-link" aria-label="<?php esc_attr_e( 'Home', 'radical-socials' ); ?>">
-						<span class="dashicons dashicons-admin-home" aria-hidden="true"></span>
-						<span class="rs-bar-label"><?php esc_html_e( 'Home', 'radical-socials' ); ?></span>
-					</a>
-				</li>
-				<?php if ( $can_publish_post ) : ?>
+				<?php foreach ( $links as $link ) : ?>
+					<?php
+					$extra_attrs = '';
+					foreach ( $link['attrs'] ?? [] as $name => $value ) {
+						$extra_attrs .= sprintf( ' %s="%s"', esc_attr( $name ), esc_attr( $value ) );
+					}
+					$aria = 'comments' === $link['id'] && $pending > 0
+						? sprintf( __( 'Comments — %d pending', 'radical-socials' ), $pending )
+						: $link['label'];
+					?>
 					<li>
-						<a href="#" class="rs-bar-link" data-rs-action="open-editor" aria-label="<?php esc_attr_e( 'Create', 'radical-socials' ); ?>">
-							<span class="dashicons dashicons-plus-alt2" aria-hidden="true"></span>
-							<span class="rs-bar-label"><?php esc_html_e( 'Create', 'radical-socials' ); ?></span>
+						<a href="<?php echo esc_url( $link['url'] ); ?>" class="rs-bar-link" aria-label="<?php echo esc_attr( $aria ); ?>"<?php echo $extra_attrs; ?>>
+							<?php echo self::render_bar_icon( $link, $avatar, $pending ); ?>
+							<span class="rs-bar-label"><?php echo esc_html( $link['label'] ); ?></span>
 						</a>
 					</li>
-				<?php endif; ?>
-				<li>
-					<a href="#" class="rs-bar-link" aria-label="<?php esc_attr_e( 'Explore', 'radical-socials' ); ?>">
-						<span class="dashicons dashicons-search" aria-hidden="true"></span>
-						<span class="rs-bar-label"><?php esc_html_e( 'Explore', 'radical-socials' ); ?></span>
-					</a>
-				</li>
-				<li>
-					<a href="<?php echo esc_url( admin_url( 'edit-comments.php?comment_status=moderated' ) ); ?>" class="rs-bar-link" aria-label="<?php echo $pending > 0 ? esc_attr( sprintf( __( 'Comments — %d pending', 'radical-socials' ), $pending ) ) : esc_attr__( 'Comments', 'radical-socials' ); ?>">
-						<span class="rs-bar-icon-wrap">
-							<span class="dashicons dashicons-admin-comments" aria-hidden="true"></span>
-							<?php if ( $pending > 0 ) : ?>
-								<span class="rs-bar-badge" aria-hidden="true"><?php echo $pending > 99 ? '99+' : $pending; ?></span>
-							<?php endif; ?>
-						</span>
-						<span class="rs-bar-label"><?php esc_html_e( 'Comments', 'radical-socials' ); ?></span>
-					</a>
-				</li>
-				<li>
-					<a href="<?php echo esc_url( admin_url( 'admin.php?page=radical-socials-settings' ) ); ?>" class="rs-bar-link" aria-label="<?php esc_attr_e( 'Profile', 'radical-socials' ); ?>">
-						<?php echo $avatar; ?>
-						<span class="rs-bar-label"><?php esc_html_e( 'Profile', 'radical-socials' ); ?></span>
-					</a>
-				</li>
+				<?php endforeach; ?>
 			</ul>
 		</nav>
 		<?php
+	}
+
+	/**
+	 * Render the icon (or avatar/badge) for a given bar link.
+	 * Keeps the bar-specific decorations (avatar swap for profile, badge for
+	 * comments) out of the shared link data.
+	 */
+	private static function render_bar_icon( array $link, string $avatar, int $pending ): string {
+		if ( 'profile' === $link['id'] ) {
+			return $avatar;
+		}
+		if ( 'comments' === $link['id'] && $pending > 0 ) {
+			return sprintf(
+				'<span class="rs-bar-icon-wrap"><span class="dashicons %s" aria-hidden="true"></span><span class="rs-bar-badge" aria-hidden="true">%s</span></span>',
+				esc_attr( $link['icon'] ),
+				$pending > 99 ? '99+' : (int) $pending
+			);
+		}
+		return sprintf(
+			'<span class="dashicons %s" aria-hidden="true"></span>',
+			esc_attr( $link['icon'] )
+		);
 	}
 
 	/**
