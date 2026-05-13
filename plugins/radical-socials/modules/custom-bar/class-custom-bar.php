@@ -29,7 +29,8 @@ class Radical_Socials_Custom_Bar {
 
 	public static function init(): void {
 		// Block registration must run in admin too so the editor can list the block.
-		add_action( 'init', [ __CLASS__, 'register_blocks' ] );
+		add_action( 'init',                       [ __CLASS__, 'register_blocks' ] );
+		add_action( 'enqueue_block_editor_assets', [ __CLASS__, 'localize_block_editor' ] );
 
 		if ( is_admin() ) {
 			return;
@@ -47,6 +48,23 @@ class Radical_Socials_Custom_Bar {
 
 	public static function register_blocks(): void {
 		register_block_type( __DIR__ . '/blocks/social-menu' );
+	}
+
+	/**
+	 * Expose the link list to the social-menu block's editor script so it can
+	 * render the list in React (instead of via ServerSideRender). This lets
+	 * useBlockProps attach directly to the real <ul>, so the layout system's
+	 * orientation/blockGap controls work in the editor without static CSS.
+	 */
+	public static function localize_block_editor(): void {
+		$handle = generate_block_asset_handle( 'radical-socials/social-menu', 'editorScript' );
+		wp_add_inline_script(
+			$handle,
+			'window.radicalSocialsSocialMenu = ' . wp_json_encode( [
+				'links' => self::get_links(),
+			] ) . ';',
+			'before'
+		);
 	}
 
 	/**
