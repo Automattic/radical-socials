@@ -164,6 +164,11 @@
 				"color": {
 					"text": "var(--wp--preset--color--contrast-3)"
 				}
+			},
+			"core/navigation-link": {
+				"color": {
+					"text": "var(--wp--preset--color--contrast-2)"
+				}
 			}
 		},
 		"color": {
@@ -171,6 +176,11 @@
 			"text": "var(--wp--preset--color--contrast-1)"
 		},
 		"elements": {
+			"heading": {
+				"color": {
+					"text": "var(--wp--preset--color--contrast-2)"
+				}
+			},
 			"link": {
 				"color": {
 					"text": "var(--wp--preset--color--contrast-2)"
