@@ -19,6 +19,10 @@ class Radical_Socials_Frontend_Editor {
 		add_action( 'wp_enqueue_scripts', [ self::class, 'enqueue' ] );
 	}
 
+	private static function current_user_can_publish(): bool {
+		return is_user_logged_in() && current_user_can( 'publish_posts' );
+	}
+
 	public static function register_block(): void {
 		register_block_type(
 			__DIR__ . '/block.json',
@@ -27,14 +31,14 @@ class Radical_Socials_Frontend_Editor {
 	}
 
 	public static function render(): string {
-		if ( ! Radical_Socials_Social_Post::current_user_can_publish() ) {
+		if ( ! self::current_user_can_publish() ) {
 			return '';
 		}
 		return '<div id="radical-socials-editor"></div>';
 	}
 
 	public static function enqueue(): void {
-		if ( ! Radical_Socials_Social_Post::current_user_can_publish() ) {
+		if ( ! self::current_user_can_publish() ) {
 			return;
 		}
 

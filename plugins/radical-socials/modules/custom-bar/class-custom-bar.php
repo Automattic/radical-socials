@@ -107,7 +107,7 @@ class Radical_Socials_Custom_Bar {
 		) : '';
 		$avatar           = $avatar ?: get_avatar( $user->ID, self::H, '', esc_attr__( 'Profile', 'radical-socials' ), [ 'class' => 'rs-bar-avatar' ] );
 		$pending          = (int) wp_count_comments()->moderated;
-		$can_publish_post = Radical_Socials_Social_Post::current_user_can_publish();
+		$can_publish_post = is_user_logged_in() && current_user_can( 'publish_posts' );
 		?>
 		<nav id="rs-bar" aria-label="<?php esc_attr_e( 'Site navigation', 'radical-socials' ); ?>">
 			<ul>

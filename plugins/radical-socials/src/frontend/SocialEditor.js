@@ -114,7 +114,7 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 		for ( const name of names ) {
 			const slug   = name.toLowerCase();
 			const search = await fetch(
-				`${ window.radicalSocials.restUrl }wp/v2/social-tags?slug=${ encodeURIComponent( slug ) }`,
+				`${ window.radicalSocials.restUrl }wp/v2/tags?slug=${ encodeURIComponent( slug ) }`,
 				{ headers: { 'X-WP-Nonce': window.radicalSocials.nonce } }
 			);
 			if ( ! search.ok ) throw new Error( 'Tag lookup failed.' );
@@ -125,7 +125,7 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 			}
 
 			const create = await fetch(
-				`${ window.radicalSocials.restUrl }wp/v2/social-tags`,
+				`${ window.radicalSocials.restUrl }wp/v2/tags`,
 				{
 					method:  'POST',
 					headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': window.radicalSocials.nonce },
@@ -149,7 +149,7 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 			const tagIds        = await resolveTagIds( hashtags );
 
 			const response = await fetch(
-				`${ window.radicalSocials.restUrl }wp/v2/social-posts`,
+				`${ window.radicalSocials.restUrl }wp/v2/posts`,
 				{
 					method:  'POST',
 					headers: {
@@ -160,7 +160,7 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 						status:  'publish',
 						content,
 						...( featuredMedia          && { featured_media: featuredMedia } ),
-						...( tagIds.length          && { 'social-tags': tagIds } ),
+						...( tagIds.length          && { tags: tagIds } ),
 					} ),
 				}
 			);

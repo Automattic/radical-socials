@@ -21,7 +21,6 @@ const RADICAL_SOCIALS_REWRITE_VERSION = 'following-archives-v1';
 
 require_once __DIR__ . '/modules/custom-bar/class-custom-bar.php';
 require_once __DIR__ . '/modules/settings/class-settings-page.php';
-require_once __DIR__ . '/modules/social-post/class-social-post.php';
 require_once __DIR__ . '/modules/frontend-editor/class-frontend-editor.php';
 require_once __DIR__ . '/modules/following/loader.php';
 
@@ -55,7 +54,6 @@ function radical_socials_deactivate(): void {
 register_deactivation_hook( __FILE__, 'radical_socials_deactivate' );
 
 function radical_socials_register_rewrite_objects(): void {
-	Radical_Socials_Social_Post::register();
 	Radical_Socials_Following::register_cpt();
 	Radical_Socials_Following::register_taxonomy();
 	Radical_Socials_Favorites::register_cpt();
