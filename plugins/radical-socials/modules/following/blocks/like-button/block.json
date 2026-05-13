@@ -1,0 +1,22 @@
+{
+	"apiVersion": 3,
+	"name": "radical-socials/like-button",
+	"title": "Like Button",
+	"category": "theme",
+	"description": "Heart button shown to the site owner on each feed item. Saves the item as a permanent Favorite.",
+	"textdomain": "radical-socials",
+	"blockHooks": {
+		"core/post-template": "last_child"
+	},
+	"render": "file:./render.php",
+	"editorScript": "file:./editor.js",
+	"viewScriptModule": "file:./assets/like-button.js",
+	"style": "file:./assets/style.css",
+	"supports": {
+		"html": false,
+		"reusable": false,
+		"interactivity": {
+			"clientNavigation": true
+		}
+	}
+}

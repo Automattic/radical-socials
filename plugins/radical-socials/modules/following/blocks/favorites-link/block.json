@@ -1,0 +1,24 @@
+{
+	"apiVersion": 3,
+	"name": "radical-socials/favorites-link",
+	"title": "Favorites Link",
+	"category": "theme",
+	"description": "A link to the Favorites page, for use inside a Navigation block.",
+	"textdomain": "radical-socials",
+	"parent": [ "core/navigation" ],
+	"blockHooks": {
+		"core/navigation": "last_child"
+	},
+	"render": "file:./render.php",
+	"editorScript": "file:./editor.js",
+	"supports": {
+		"html": false,
+		"reusable": false,
+		"interactivity": {
+			"clientNavigation": true
+		},
+		"typography": {
+			"fontSize": true
+		}
+	}
+}

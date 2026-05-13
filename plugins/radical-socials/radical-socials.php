@@ -20,6 +20,11 @@ require_once __DIR__ . '/modules/custom-bar/class-custom-bar.php';
 require_once __DIR__ . '/modules/settings/class-settings-page.php';
 require_once __DIR__ . '/modules/social-post/class-social-post.php';
 require_once __DIR__ . '/modules/frontend-editor/class-frontend-editor.php';
+require_once __DIR__ . '/modules/following/loader.php';
+
+if ( defined( 'WP_CLI' ) && WP_CLI ) {
+	require_once __DIR__ . '/modules/dev/class-integration-tests.php';
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -39,3 +44,28 @@ function radical_socials_add_menu_page(): void {
 	);
 }
 add_action( 'admin_menu', 'radical_socials_add_menu_page' );
+
+function radical_socials_deactivate(): void {
+	Radical_Socials_Following::deactivate();
+	Radical_Socials_WebSub_Subscriber::deactivate();
+}
+register_deactivation_hook( __FILE__, 'radical_socials_deactivate' );
+
+function radical_socials_register_rewrite_objects(): void {
+	Radical_Socials_Social_Post::register();
+	Radical_Socials_Following::register_cpt();
+	Radical_Socials_Following::register_taxonomy();
+	Radical_Socials_Favorites::register_cpt();
+	Radical_Socials_Favorites::extend_taxonomies();
+}
+
+function radical_socials_activate(): void {
+	radical_socials_register_rewrite_objects();
+	flush_rewrite_rules();
+
+	// Use the single blog-wide actor. Identity (name, logo) syncs from WP options automatically.
+	if ( defined( 'ACTIVITYPUB_BLOG_MODE' ) && ! get_option( 'activitypub_actor_mode' ) ) {
+		update_option( 'activitypub_actor_mode', ACTIVITYPUB_BLOG_MODE );
+	}
+}
+register_activation_hook( __FILE__, 'radical_socials_activate' );
