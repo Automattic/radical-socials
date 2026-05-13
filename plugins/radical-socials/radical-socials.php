@@ -14,6 +14,9 @@
 
 defined( 'ABSPATH' ) || exit;
 
+// Bump when plugin rewrite registrations change and existing sites need a refresh.
+const RADICAL_SOCIALS_REWRITE_VERSION = 'following-archives-v1';
+
 // ── Modules ──────────────────────────────────────────────────────────────────
 
 require_once __DIR__ . '/modules/custom-bar/class-custom-bar.php';
@@ -62,6 +65,7 @@ function radical_socials_register_rewrite_objects(): void {
 function radical_socials_activate(): void {
 	radical_socials_register_rewrite_objects();
 	flush_rewrite_rules();
+	update_option( 'radical_socials_rewrite_version', RADICAL_SOCIALS_REWRITE_VERSION, false );
 
 	// Use the single blog-wide actor. Identity (name, logo) syncs from WP options automatically.
 	if ( defined( 'ACTIVITYPUB_BLOG_MODE' ) && ! get_option( 'activitypub_actor_mode' ) ) {
@@ -69,3 +73,13 @@ function radical_socials_activate(): void {
 	}
 }
 register_activation_hook( __FILE__, 'radical_socials_activate' );
+
+function radical_socials_maybe_flush_rewrite_rules(): void {
+	if ( RADICAL_SOCIALS_REWRITE_VERSION === get_option( 'radical_socials_rewrite_version' ) ) {
+		return;
+	}
+
+	flush_rewrite_rules( false );
+	update_option( 'radical_socials_rewrite_version', RADICAL_SOCIALS_REWRITE_VERSION, false );
+}
+add_action( 'init', 'radical_socials_maybe_flush_rewrite_rules', 20 );
