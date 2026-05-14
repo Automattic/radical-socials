@@ -107,19 +107,23 @@ class Radical_Socials_Custom_Bar {
 			'icon'  => 'dashicons-search',
 		];
 
-		$links[] = [
-			'id'    => 'comments',
-			'label' => __( 'Comments', 'radical-socials' ),
-			'url'   => admin_url( 'edit-comments.php?comment_status=moderated' ),
-			'icon'  => 'dashicons-admin-comments',
-		];
+		if ( current_user_can( 'moderate_comments' ) ) {
+			$links[] = [
+				'id'    => 'comments',
+				'label' => __( 'Comments', 'radical-socials' ),
+				'url'   => admin_url( 'edit-comments.php?comment_status=moderated' ),
+				'icon'  => 'dashicons-admin-comments',
+			];
+		}
 
-		$links[] = [
-			'id'    => 'profile',
-			'label' => __( 'Profile', 'radical-socials' ),
-			'url'   => admin_url( 'admin.php?page=radical-socials-settings' ),
-			'icon'  => 'dashicons-admin-users',
-		];
+		if ( current_user_can( 'manage_options' ) ) {
+			$links[] = [
+				'id'    => 'profile',
+				'label' => __( 'Profile', 'radical-socials' ),
+				'url'   => admin_url( 'admin.php?page=radical-socials-settings' ),
+				'icon'  => 'dashicons-admin-users',
+			];
+		}
 
 		return apply_filters( 'radical_socials_nav_links', $links );
 	}
