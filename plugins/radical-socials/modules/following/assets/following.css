@@ -1,3 +1,14 @@
+.rs-following-feed .wp-block-post-content figure,
+.rs-following-feed .wp-block-post-content img,
+.rs-following-feed .wp-block-post-featured-image img {
+	max-width: 100%;
+}
+
+.rs-following-feed .wp-block-post-content img,
+.rs-following-feed .wp-block-post-featured-image img {
+	height: auto;
+}
+
 .rs-refresh-bar {
 	display: flex;
 	align-items: center;
