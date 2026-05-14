@@ -387,7 +387,8 @@ class Radical_Socials_Following {
 	 */
 	public static function on_activitypub_activity( int $post_id, WP_Post $post ): void {
 		// Only process Create activities (new content, not likes/announces).
-		$activity_type = get_post_meta( $post_id, '_ap_activity_type', true );
+		$activity_type = get_post_meta( $post_id, '_activitypub_activity_type', true )
+			?: get_post_meta( $post_id, '_ap_activity_type', true );
 		if ( $activity_type && 'Create' !== $activity_type ) {
 			return;
 		}
