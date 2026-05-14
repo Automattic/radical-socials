@@ -24,11 +24,11 @@ jest.mock( '@wordpress/components', () => ( {
 			</div>
 		);
 	},
-} ) );
+} ), { virtual: true } );
 
 jest.mock( '@wordpress/i18n', () => ( {
 	__: ( str ) => str,
-} ) );
+} ), { virtual: true } );
 
 jest.mock( './SocialEditor', () => {
 	return {

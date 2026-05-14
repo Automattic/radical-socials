@@ -10,7 +10,7 @@ jest.mock( '@wordpress/block-editor', () => ( {
 	BlockTools:    ( { children } ) => <>{ children }</>,
 	WritingFlow:   ( { children } ) => <>{ children }</>,
 	ObserveTyping: ( { children } ) => <>{ children }</>,
-} ) );
+} ), { virtual: true } );
 
 jest.mock( '@wordpress/data', () => ( {
 	useSelect: jest.fn( ( mapSelect ) => mapSelect( ( storeName ) => {
@@ -26,7 +26,7 @@ jest.mock( '@wordpress/data', () => ( {
 		selectBlock:  jest.fn(),
 		insertBlocks: jest.fn(),
 	} ) ),
-} ) );
+} ), { virtual: true } );
 
 jest.mock( '@wordpress/blocks', () => ( {
 	createBlock: ( name ) => ( {
@@ -37,7 +37,7 @@ jest.mock( '@wordpress/blocks', () => ( {
 	} ),
 	serialize: () =>
 		'<!-- wp:paragraph --><p>Hello world</p><!-- /wp:paragraph -->',
-} ) );
+} ), { virtual: true } );
 
 jest.mock( './editor-settings', () => ( {
 	registerEditorBlocks: jest.fn(),
