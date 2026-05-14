@@ -16,7 +16,13 @@
 
 			<!-- wp:query {"queryId":2,"query":{"perPage":10,"pages":0,"offset":0,"order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":true,"postType":"post","taxQuery":null,"parents":[],"format":[]}} -->
 			<div class="wp-block-query rs-following-feed">
-			<!-- wp:pattern {"slug":"radical-theme/loop-content"} /-->
+				<!-- wp:post-template {"metadata":{"ignoredHookedBlocks":["radical-socials/like-button"]}} -->
+				<!-- wp:pattern {"slug":"radical-theme/loop-content"} /-->
+				<!-- /wp:post-template -->
+				<!-- wp:query-pagination {"layout":{"type":"flex","justifyContent":"space-between"}} -->
+				<!-- wp:query-pagination-previous /-->
+				<!-- wp:query-pagination-next /-->
+				<!-- /wp:query-pagination -->
 			</div><!-- /wp:query -->
 			
 		</main>
