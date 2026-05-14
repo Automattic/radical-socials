@@ -22,6 +22,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run unit tests
+        run: npm test -- --runInBand
+
       - name: Build plugin assets
         run: npm run build
 
