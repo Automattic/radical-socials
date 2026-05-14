@@ -3,13 +3,13 @@
 <!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|50","bottom":"var:preset|spacing|50"}}},"layout":{"type":"constrained"}} -->
 <div class="wp-block-group" style="padding-top:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--50)"><!-- wp:columns {"align":"wide"} -->
 <div class="wp-block-columns alignwide"><!-- wp:column {"width":"300px"} -->
-<div class="wp-block-column" style="flex-basis:300px"><!-- wp:template-part {"slug":"sidebar-left","theme":"radical-theme"} /--></div>
+<div class="wp-block-column" style="flex-basis:300px"><!-- wp:template-part {"slug":"sidebar-left"} /--></div>
 <!-- /wp:column -->
 
 <!-- wp:column {"width":"620px","style":{"spacing":{"padding":{"right":"var:preset|spacing|40","left":"var:preset|spacing|40"}}}} -->
 <div class="wp-block-column" style="padding-right:var(--wp--preset--spacing--40);padding-left:var(--wp--preset--spacing--40);flex-basis:620px"><!-- wp:group {"tagName":"main","layout":{"type":"constrained"}} -->
 <main class="wp-block-group"><!-- wp:query {"queryId":3,"query":{"perPage":20,"pages":0,"offset":0,"order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":false,"postType":"rs_favorite","taxQuery":null,"parents":[],"format":[]},"className":"rs-following-feed"} -->
-<div class="wp-block-query rs-following-feed"><!-- wp:post-template -->
+<div class="wp-block-query rs-following-feed"><!-- wp:post-template {"metadata":{"ignoredHookedBlocks":["radical-socials/like-button"]}} -->
 <!-- wp:post-featured-image {"isLink":true,"style":{"spacing":{"margin":{"bottom":"var:preset|spacing|50"}}}} /-->
 
 <!-- wp:post-title {"isLink":true,"style":{"spacing":{"margin":{"bottom":"0"}}}} /-->
@@ -40,7 +40,7 @@
 
 <!-- wp:separator {"className":"is-style-default","style":{"spacing":{"margin":{"top":"var:preset|spacing|50","bottom":"var:preset|spacing|50"}}}} -->
 <hr class="wp-block-separator has-alpha-channel-opacity is-style-default" style="margin-top:var(--wp--preset--spacing--50);margin-bottom:var(--wp--preset--spacing--50)"/>
-<!-- /wp:separator -->
+<!-- /wp:separator --><!-- wp:radical-socials/like-button /-->
 <!-- /wp:post-template -->
 
 <!-- wp:query-pagination -->
@@ -55,7 +55,7 @@
 <!-- /wp:column -->
 
 <!-- wp:column {"width":""} -->
-<div class="wp-block-column"><!-- wp:template-part {"slug":"sidebar-right","theme":"radical-theme"} /--></div>
+<div class="wp-block-column"><!-- wp:template-part {"slug":"sidebar-right"} /--></div>
 <!-- /wp:column --></div>
 <!-- /wp:columns --></div>
 <!-- /wp:group -->

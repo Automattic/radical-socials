@@ -140,6 +140,11 @@
 	},
 	"styles": {
 		"blocks": {
+			"core/navigation-link": {
+				"color": {
+					"text": "var(--wp--preset--color--contrast-2)"
+				}
+			},
 			"core/search": {
 				"css": "& .wp-block-search__input{padding: 4px 16px;}",
 				"elements": {
@@ -163,11 +168,6 @@
 				},
 				"color": {
 					"text": "var(--wp--preset--color--contrast-3)"
-				}
-			},
-			"core/navigation-link": {
-				"color": {
-					"text": "var(--wp--preset--color--contrast-2)"
 				}
 			}
 		},
