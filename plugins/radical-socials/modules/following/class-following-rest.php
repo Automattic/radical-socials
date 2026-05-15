@@ -194,24 +194,25 @@ class Radical_Socials_Following_REST {
 	}
 
 	private static function is_valid_opml_upload( array $file ): bool {
+		// Extension is the strong filter: a non-.opml/.xml upload never gets past here.
 		$extension = strtolower( pathinfo( $file['name'] ?? '', PATHINFO_EXTENSION ) );
 		if ( ! in_array( $extension, [ 'opml', 'xml' ], true ) ) {
 			return false;
 		}
 
-		$type = strtolower( trim( (string) ( $file['type'] ?? '' ) ) );
-		if ( '' === $type ) {
-			return true;
+		// Content sniff: real OPML / XML files start with an XML prolog or an
+		// <opml> root within the first few hundred bytes (after any BOM / whitespace).
+		// This is far more reliable than the browser-supplied MIME type —
+		// macOS sends `application/octet-stream` for .opml because the OS has
+		// no MIME mapping for it, so we'd otherwise reject legitimate uploads.
+		$tmp = $file['tmp_name'] ?? '';
+		if ( ! $tmp || ! is_readable( $tmp ) ) {
+			return false;
 		}
+		$head = (string) file_get_contents( $tmp, false, null, 0, 512 );
+		$head = ltrim( $head, "\xEF\xBB\xBF \t\r\n" );
 
-		$type = explode( ';', $type )[0];
-		return in_array( $type, [
-			'application/opml+xml',
-			'application/xml',
-			'text/opml',
-			'text/x-opml',
-			'text/xml',
-		], true );
+		return str_starts_with( $head, '<?xml' ) || stripos( $head, '<opml' ) !== false;
 	}
 
 	/**
