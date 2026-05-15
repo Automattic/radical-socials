@@ -71,6 +71,10 @@ class Radical_Socials_Following {
 		// one of our taxonomies.
 		add_filter( 'query_loop_block_query_vars', [ __CLASS__, 'inherit_taxonomy_in_feed_query' ], 10, 3 );
 
+		// Suppress core/post-title for ActivityPub feed items (notes don't have
+		// titles) and for any feed item whose title is empty.
+		add_filter( 'render_block_core/post-title', [ __CLASS__, 'hide_empty_or_activitypub_titles' ], 10, 2 );
+
 		// Infinite scroll on feed archive pages.
 		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'enqueue_infinite_scroll' ] );
 		add_action( 'template_redirect',  [ __CLASS__, 'maybe_add_block_filter'  ] );
@@ -369,6 +373,35 @@ class Radical_Socials_Following {
 			[],
 			filemtime( __DIR__ . '/assets/following.css' ) ?: '1'
 		);
+	}
+
+	/**
+	 * Suppress core/post-title output for rs_feed_item posts when:
+	 *   - the post is an ActivityPub item (notes have no titles), OR
+	 *   - the title is empty (e.g. RSS items that came through with no title,
+	 *     or older entries that had the now-removed "(untitled)" placeholder
+	 *     wiped by the next refresh).
+	 *
+	 * Avoids any locale-specific string matching — we rely on the feed_type
+	 * meta and on the presence of a real title rather than checking for a
+	 * translated placeholder.
+	 */
+	public static function hide_empty_or_activitypub_titles( string $block_content, array $block ): string {
+		$post_id = $block['context']['postId'] ?? get_the_ID();
+		if ( ! $post_id || 'rs_feed_item' !== get_post_type( $post_id ) ) {
+			return $block_content;
+		}
+
+		$feed_type = (string) get_post_meta( $post_id, '_rs_item_feed_type', true );
+		if ( 'activitypub' === $feed_type ) {
+			return '';
+		}
+
+		if ( '' === trim( (string) get_post_field( 'post_title', $post_id ) ) ) {
+			return '';
+		}
+
+		return $block_content;
 	}
 
 	public static function maybe_add_block_filter(): void {

@@ -109,7 +109,9 @@ class Radical_Socials_ActivityPub_Fetcher {
 		[ $author_name, $author_icon_url ] = self::lookup_author_by_actor_url( (string) $actor_url );
 
 		return [
-			'title'           => wp_strip_all_tags( $name ?: $actor_name . ' posted' ),
+			// AP notes don't have a meaningful title — only use object.name if
+			// the remote actually set one (e.g. a syndicated blog post).
+			'title'           => wp_strip_all_tags( (string) $name ),
 			'url'             => $object_url,
 			'content'         => wp_kses_post( $content ),
 			'excerpt'         => wp_trim_words( wp_strip_all_tags( $content ), 30 ),
@@ -296,7 +298,9 @@ class Radical_Socials_ActivityPub_Fetcher {
 		}
 
 		return [
-			'title'           => wp_strip_all_tags( $name ?: $actor_name . ' posted' ),
+			// AP notes don't have a meaningful title — only use object.name if
+			// the remote actually set one (e.g. a syndicated blog post).
+			'title'           => wp_strip_all_tags( (string) $name ),
 			'url'             => $object_url,
 			'content'         => wp_kses_post( $content ),
 			'excerpt'         => wp_trim_words( wp_strip_all_tags( $content ), 30 ),

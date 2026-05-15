@@ -141,7 +141,11 @@ class Radical_Socials_Feed_Fetcher {
 			'post_type'    => 'rs_feed_item',
 			'post_status'  => 'publish',
 			'post_name'    => $guid,
-			'post_title'   => $item['title'] ?: __( '(untitled)', 'radical-socials' ),
+			// Leave the title empty when the source has no real title rather
+			// than faking a localised "(untitled)" placeholder. The render
+			// filter in Following::hide_empty_or_activitypub_titles() hides
+			// the post-title block in that case.
+			'post_title'   => (string) ( $item['title'] ?? '' ),
 			'post_content' => wp_kses( $item['content'] ?? $item['excerpt'] ?? '', self::kses_allowlist() ),
 			'post_excerpt' => wp_strip_all_tags( $item['excerpt'] ?? '' ),
 			'post_date'    => get_date_from_gmt( gmdate( 'Y-m-d H:i:s', strtotime( $item['date'] ?? 'now' ) ) ),
