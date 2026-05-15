@@ -47,13 +47,48 @@ class Radical_Socials_Feed_Fetcher {
 		}
 	}
 
+	/**
+	 * Per-run cap on the number of RSS feeds we hit. Chunking matters because
+	 * each fetch is an outbound HTTP request and shared hosts (e.g. Hostinger)
+	 * routinely kill PHP at 300s — processing 100+ feeds serially in one tick
+	 * runs out of time, the process gets killed mid-fetch, and the refresh
+	 * lock can end up stranded. AP outbox polling already chunks to 10/run
+	 * via `rs_ap_outbox_offset`; we mirror that shape here.
+	 */
+	const RSS_FETCH_PER_RUN = 10;
+
 	private static function fetch_all_rss(): array {
 		$subs    = (array) get_option( 'rs_rss_subscriptions', [] );
 		$items   = [];
 		$updated = false;
 
-		foreach ( $subs as &$sub ) {
+		$total = count( $subs );
+		if ( ! $total ) {
+			return [];
+		}
+
+		// Rotate through the subscriptions over successive cron ticks. With
+		// FETCH_INTERVAL = 15 min and RSS_FETCH_PER_RUN = 10, an account with
+		// ~200 feeds cycles fully every ~5 hours, which matches the cadence
+		// most social/news feeds publish at without saturating shared hosts.
+		$offset = (int) get_option( 'rs_rss_fetch_offset', 0 );
+		$offset = $total ? ( $offset % $total ) : 0;
+		$slice  = array_slice( $subs, $offset, self::RSS_FETCH_PER_RUN );
+
+		// Advance the offset *before* doing the work, so a PHP timeout
+		// mid-batch still rotates us forward next run (avoids the same flaky
+		// feed permanently blocking everything behind it).
+		update_option( 'rs_rss_fetch_offset', ( $offset + count( $slice ) ) % $total, false );
+
+		// Map slice indices back to the original $subs offsets so we can
+		// write back title/source_url backfills correctly.
+		$slice_keys = array_keys( $slice );
+		foreach ( $slice_keys as $local_idx ) {
+			$absolute_idx = $offset + $local_idx;
+			$sub          = &$subs[ $absolute_idx ];
+
 			if ( ! Radical_Socials_RSS_Fetcher::is_safe_remote_url( $sub['url'] ) ) {
+				unset( $sub );
 				continue;
 			}
 			$feed_items = Radical_Socials_RSS_Fetcher::fetch( $sub['url'], 20 );
@@ -83,8 +118,8 @@ class Radical_Socials_Feed_Fetcher {
 					$updated           = true;
 				}
 			}
+			unset( $sub );
 		}
-		unset( $sub );
 
 		if ( $updated ) {
 			update_option( 'rs_rss_subscriptions', $subs, false );

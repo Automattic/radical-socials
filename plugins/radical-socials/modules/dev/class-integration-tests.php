@@ -39,6 +39,8 @@ class Radical_Socials_Integration_Tests {
 			'rs_websub_subscriptions',
 			'rs_following_favorites',
 			'rs_last_feed_fetch',
+			'rs_wpcom_access_token',
+			Radical_Socials_Following::REFRESH_LOCK,
 		] );
 		$original_user_id = get_current_user_id();
 
@@ -54,6 +56,40 @@ class Radical_Socials_Integration_Tests {
 
 			$this->test_rest_permissions_and_deletes();
 			$this->pass( 'REST permission/delete behavior' );
+
+			$this->test_add_routes_routing();
+			$this->pass( 'Add endpoint routes inputs to the right backend' );
+
+			$this->test_opml_batch_import_no_race();
+			$this->pass( 'OPML batch import lands every unique URL (no race)' );
+
+			$this->test_full_fetcher_run_persists_items();
+			$this->pass( 'Feed_Fetcher::run() persists items past prune (feed_url meta)' );
+
+			$this->test_refresh_lock_force_bypass();
+			$this->pass( 'queue_refresh(force=true) bulldozes queued locks but never running' );
+
+			$this->test_wpcom_reader_normalisation();
+			$this->pass( 'WP.com Reader fetch + unfollow surface correctly' );
+
+			// — Tests that probe the failure modes seen in production —
+			// (Hostinger: 215 subscriptions, 300s exec limit, lock stuck queued,
+			// 0 feed items stored. Each of these targets a specific suspect.)
+
+			$this->test_run_releases_lock_on_completion();
+			$this->pass( 'Feed_Fetcher::run() releases the lock when it finishes' );
+
+			$this->test_run_releases_lock_on_exception();
+			$this->pass( 'Feed_Fetcher::run() releases the lock even when one feed throws' );
+
+			$this->test_one_failing_feed_does_not_kill_batch();
+			$this->pass( 'A WP_Error on one feed must not strand the rest' );
+
+			$this->test_rss_fetch_at_scale_completes();
+			$this->pass( 'fetch_all_rss processes ALL subscriptions in one call (chunking absent → real-world timeout risk)' );
+
+			$this->test_concurrent_runs_are_locked_out();
+			$this->pass( 'A second run() while one is RUNNING refuses to proceed' );
 		} finally {
 			$this->restore_options( $restore );
 			wp_set_current_user( $original_user_id );
@@ -270,6 +306,448 @@ class Radical_Socials_Integration_Tests {
 	}
 
 	/**
+	 * Manual-add endpoint (POST /following) must route inputs by shape:
+	 *   - plain URL → RSS path
+	 *   - @user@host → ActivityPub path
+	 *   - https://host/@user → ActivityPub path
+	 *   - https://host/users/user → ActivityPub path (the form we fixed for grumpygamer)
+	 *   - invalid format → 400 invalid_url
+	 *   - private/loopback IP → 400 unsafe_url
+	 */
+	private function test_add_routes_routing(): void {
+		update_option( 'rs_rss_subscriptions', [], false );
+
+		// 1. Pure RSS URL — should land in rs_rss_subscriptions after fetch.
+		$rss_feed_body = '<?xml version="1.0" encoding="UTF-8"?>'
+			. '<rss version="2.0"><channel>'
+			. '<title>Routing Test</title>'
+			. '<link>https://routing.example/</link>'
+			. '<item><title>Hello</title><link>https://routing.example/post-1</link>'
+			. '<pubDate>Mon, 11 May 2026 12:00:00 +0000</pubDate>'
+			. '<description>Hi.</description></item>'
+			. '</channel></rss>';
+
+		$this->with_http_mocks(
+			[
+				'GET https://routing.example/feed' => $this->http_response( $rss_feed_body, 200 ),
+				'HEAD https://routing.example/feed' => $this->http_response( '', 200 ),
+			],
+			function (): void {
+				$request = new WP_REST_Request( 'POST', '/radical-socials/v1/following' );
+				$request->set_param( 'input', 'https://routing.example/feed' );
+				$response = Radical_Socials_Following_REST::add_following( $request );
+				$this->assert_same( 201, $response->get_status(), 'Plain RSS URL should be added (201).' );
+				$subs = (array) get_option( 'rs_rss_subscriptions', [] );
+				$this->assert_same( 1, count( $subs ), 'RSS add should store one subscription.' );
+				$this->assert_same( 'https://routing.example/feed', $subs[0]['url'], 'RSS add should store the canonical URL.' );
+			}
+		);
+
+		// 2. Reject non-HTTP schemes. (Bare strings like "just-a-string" get
+		//    http:// prepended by esc_url_raw and slip past — that's an
+		//    expected WP convention. Schemes like ftp:// are the real fail.)
+		$request = new WP_REST_Request( 'POST', '/radical-socials/v1/following' );
+		$request->set_param( 'input', 'ftp://example.com/feed' );
+		$response = Radical_Socials_Following_REST::add_following( $request );
+		$this->assert_same( 400, $response->get_status(), 'Non-HTTP scheme should be rejected.' );
+		$this->assert_same( 'invalid_url', $response->get_data()['error'] ?? '', 'Non-HTTP scheme should return invalid_url.' );
+
+		// 3. Reject private/loopback IPs before any network call.
+		$request = new WP_REST_Request( 'POST', '/radical-socials/v1/following' );
+		$request->set_param( 'input', 'http://127.0.0.1/feed' );
+		$response = Radical_Socials_Following_REST::add_following( $request );
+		$this->assert_same( 400, $response->get_status(), 'Loopback URL should be rejected.' );
+		$this->assert_same( 'unsafe_url', $response->get_data()['error'] ?? '', 'Loopback URL should return unsafe_url.' );
+
+		// 4–6. Shape detection for ActivityPub inputs. We don't actually
+		// fire the remote follow (that requires WebFinger HTTP that's mocked
+		// off here), but we can verify the router picked the AP branch:
+		// AP failures never return the RSS-specific error codes
+		// (invalid_url, unsafe_url, already_exists). If we see one of those
+		// for an AP-shaped input, the regex routing didn't match.
+		$rss_only_errors = [ 'invalid_url', 'unsafe_url', 'already_exists' ];
+		foreach ( [
+			'@person@mastodon.example',
+			'https://mastodon.example/@person',
+			'https://mastodon.example/users/person',
+		] as $input ) {
+			$request = new WP_REST_Request( 'POST', '/radical-socials/v1/following' );
+			$request->set_param( 'input', $input );
+			$response = Radical_Socials_Following_REST::add_following( $request );
+			$error    = (string) ( $response->get_data()['error'] ?? '' );
+
+			$this->assert_true(
+				! in_array( $error, $rss_only_errors, true ),
+				"Input '$input' should route to ActivityPub, not RSS. Got rss-only error '$error'."
+			);
+		}
+
+		// Cleanup the test subscription.
+		update_option( 'rs_rss_subscriptions', [], false );
+	}
+
+	/**
+	 * OPML batch import must land every unique valid URL — earlier versions
+	 * had a read-modify-write race on rs_rss_subscriptions when feeds were
+	 * upserted in parallel per-entry; the batch endpoint fixes it.
+	 */
+	private function test_opml_batch_import_no_race(): void {
+		update_option( 'rs_rss_subscriptions', [], false );
+
+		// Build an OPML with 25 unique feeds + 3 cross-folder duplicates.
+		$entries = '';
+		for ( $i = 1; $i <= 25; $i++ ) {
+			$entries .= sprintf(
+				'<outline type="rss" text="Feed %1$d" xmlUrl="https://93.184.216.34/feed-%1$d" htmlUrl="https://example.com/feed-%1$d" />',
+				$i
+			);
+		}
+		// Add three of them again under a different folder.
+		$dupes = '<outline text="Folder B">'
+			. '<outline type="rss" text="Feed 1" xmlUrl="https://93.184.216.34/feed-1" htmlUrl="https://example.com/feed-1" />'
+			. '<outline type="rss" text="Feed 2" xmlUrl="https://93.184.216.34/feed-2" htmlUrl="https://example.com/feed-2" />'
+			. '<outline type="rss" text="Feed 3" xmlUrl="https://93.184.216.34/feed-3" htmlUrl="https://example.com/feed-3" />'
+			. '</outline>';
+
+		$xml = '<?xml version="1.0" encoding="UTF-8"?>'
+			. '<opml version="1.0"><body>'
+			. $entries
+			. $dupes
+			. '</body></opml>';
+
+		$feeds  = Radical_Socials_OPML::parse( $xml );
+		$result = Radical_Socials_OPML::import( $feeds );
+
+		$this->assert_same( 25, $result['added'], 'OPML batch import should add every unique URL once.' );
+		$this->assert_same( 3, $result['updated'], 'OPML batch import should merge the cross-folder duplicates as updates.' );
+		$this->assert_same( 0, $result['failed'], 'OPML batch import should not fail any of these URLs.' );
+
+		$stored = (array) get_option( 'rs_rss_subscriptions', [] );
+		$this->assert_same( 25, count( $stored ), 'rs_rss_subscriptions should hold exactly 25 unique entries.' );
+
+		// Re-import: should self-heal duplicates if any sneaked into the option,
+		// and report 0 added / 0 updated / 28 skipped.
+		$result_again = Radical_Socials_OPML::import( $feeds );
+		$this->assert_same( 0, $result_again['added'], 'Re-import should add nothing.' );
+		$this->assert_same( 0, $result_again['updated'], 'Re-import should update nothing.' );
+		$this->assert_same( 28, $result_again['skipped'], 'Re-import should skip every entry as a duplicate.' );
+
+		update_option( 'rs_rss_subscriptions', [], false );
+	}
+
+	/**
+	 * Feed_Fetcher::run() must persist fetched items past prune_orphaned_rss().
+	 * Earlier the prune matched on _rs_item_source_url, which SimplePie populates
+	 * from <link> and rarely matches the OPML's htmlUrl — every item got
+	 * deleted right after being upserted. The fix pivots prune to _rs_item_feed_url
+	 * (the canonical xmlUrl we used to fetch).
+	 */
+	private function test_full_fetcher_run_persists_items(): void {
+		$feed_url   = 'https://93.184.216.34/feed';
+		$source_url = 'https://example.com/wp';  // What we'd store from OPML…
+		$channel_link = 'https://example.com/wp/'; // …which SimplePie reports differently.
+
+		update_option( 'rs_rss_subscriptions', [
+			[ 'url' => $feed_url, 'title' => 'Persist Me', 'source_url' => $source_url ],
+		], false );
+
+		$rss = '<?xml version="1.0" encoding="UTF-8"?>'
+			. '<rss version="2.0"><channel>'
+			. '<title>Persist Me</title><link>' . $channel_link . '</link>'
+			. '<item><title>Item A</title>'
+			. '<link>https://example.com/wp/post-a</link>'
+			. '<pubDate>Mon, 11 May 2026 12:00:00 +0000</pubDate>'
+			. '<description>A.</description></item>'
+			. '<item><title>Item B</title>'
+			. '<link>https://example.com/wp/post-b</link>'
+			. '<pubDate>Tue, 12 May 2026 12:00:00 +0000</pubDate>'
+			. '<description>B.</description></item>'
+			. '</channel></rss>';
+
+		$this->with_http_mocks(
+			[ 'GET ' . $feed_url => $this->http_response( $rss, 200, [ 'content-type' => 'application/rss+xml' ] ) ],
+			function () use ( $feed_url ): void {
+				Radical_Socials_Feed_Fetcher::run();
+
+				$items_with_feed_url = get_posts( [
+					'post_type'   => 'rs_feed_item',
+					'fields'      => 'ids',
+					'numberposts' => -1,
+					'meta_key'    => '_rs_item_feed_url',
+					'meta_value'  => $feed_url,
+				] );
+				$this->assert_same( 2, count( $items_with_feed_url ), 'Both fetched items must survive the prune step.' );
+				foreach ( $items_with_feed_url as $id ) {
+					$this->created_posts[] = (int) $id;
+				}
+			}
+		);
+
+		update_option( 'rs_rss_subscriptions', [], false );
+	}
+
+	/**
+	 * queue_refresh($force=true) bulldozes a stale "queued" lock so the
+	 * Refresh button stays responsive on hosts where wp-cron is flaky. It
+	 * never disturbs an active "running" fetch.
+	 */
+	private function test_refresh_lock_force_bypass(): void {
+		// 1. Stale "queued" lock — force=false leaves it alone, force=true clears + re-queues.
+		set_transient( Radical_Socials_Following::REFRESH_LOCK, Radical_Socials_Following::REFRESH_LOCK_QUEUED, 600 );
+		$this->assert_same( false, Radical_Socials_Following::queue_refresh( false ), 'Passive queue must respect existing queued lock.' );
+		$this->assert_same( Radical_Socials_Following::REFRESH_LOCK_QUEUED, get_transient( Radical_Socials_Following::REFRESH_LOCK ), 'Passive call leaves the queued lock in place.' );
+
+		$this->assert_same( true,  Radical_Socials_Following::queue_refresh( true ),  'Forced queue must bulldoze a stale queued lock.' );
+		$this->assert_same( Radical_Socials_Following::REFRESH_LOCK_QUEUED, get_transient( Radical_Socials_Following::REFRESH_LOCK ), 'Forced call leaves a fresh queued lock.' );
+
+		// 2. Active "running" lock — even force=true must not interrupt.
+		set_transient( Radical_Socials_Following::REFRESH_LOCK, Radical_Socials_Following::REFRESH_LOCK_RUNNING, 600 );
+		$this->assert_same( false, Radical_Socials_Following::queue_refresh( true ), 'Running fetch must never be displaced.' );
+		$this->assert_same( Radical_Socials_Following::REFRESH_LOCK_RUNNING, get_transient( Radical_Socials_Following::REFRESH_LOCK ), 'Running lock remains untouched after a forced call.' );
+
+		// Cleanup
+		delete_transient( Radical_Socials_Following::REFRESH_LOCK );
+		wp_clear_scheduled_hook( Radical_Socials_Following::REFRESH_HOOK );
+	}
+
+	/**
+	 * WP.com Reader: list endpoint normalises rows and unfollow_site() hits
+	 * the right delete endpoint. Both are mocked so we don't depend on a
+	 * live token.
+	 */
+	private function test_wpcom_reader_normalisation(): void {
+		update_option( 'rs_wpcom_access_token', 'fake-token-for-testing', false );
+
+		$following = wp_json_encode( [
+			'subscriptions' => [
+				[ 'ID' => 11, 'URL' => 'https://blog-one.example/', 'meta' => [ 'data' => [ 'site' => [ 'name' => 'Blog One', 'URL' => 'https://blog-one.example/' ] ] ] ],
+				[ 'ID' => 22, 'URL' => 'https://blog-two.example/', 'meta' => [ 'data' => [ 'site' => [ 'name' => 'Blog Two', 'URL' => 'https://blog-two.example/' ] ] ] ],
+			],
+		] );
+
+		$this->with_http_mocks(
+			[
+				'GET https://public-api.wordpress.com/rest/v1.2/read/following?number=100' => $this->http_response( $following, 200 ),
+				'POST https://public-api.wordpress.com/rest/v1.1/sites/22/follows/mine/delete' => $this->http_response( '{"is_following":false}', 200 ),
+			],
+			function (): void {
+				$list = Radical_Socials_WPCOM_Reader::get_following_list();
+				$this->assert_same( 2, count( $list ), 'WP.com Reader should normalise two follows.' );
+				$this->assert_same( 'wpcom', $list[0]['type'], 'Each entry should be tagged with type=wpcom.' );
+
+				$ok = Radical_Socials_WPCOM_Reader::unfollow_site( '22' );
+				$this->assert_true( $ok, 'unfollow_site() should hit /follows/mine/delete and return true on success.' );
+			}
+		);
+
+		delete_option( 'rs_wpcom_access_token' );
+	}
+
+	/**
+	 * After a normal run, the refresh lock must be cleared so the next cron
+	 * tick (or user-clicked refresh) can proceed. A stuck lock is one of the
+	 * two failure modes seen on staging.
+	 */
+	private function test_run_releases_lock_on_completion(): void {
+		$feed_url = 'https://93.184.216.34/lockclean';
+		update_option( 'rs_rss_subscriptions', [
+			[ 'url' => $feed_url, 'title' => 'Lock', 'source_url' => 'https://example.com/' ],
+		], false );
+		set_transient( Radical_Socials_Following::REFRESH_LOCK, Radical_Socials_Following::REFRESH_LOCK_QUEUED, 600 );
+
+		$rss = '<?xml version="1.0" encoding="UTF-8"?>'
+			. '<rss version="2.0"><channel><title>L</title><link>https://example.com/</link>'
+			. '<item><title>x</title><link>https://example.com/x</link><pubDate>Mon, 11 May 2026 12:00:00 +0000</pubDate><description>x</description></item>'
+			. '</channel></rss>';
+
+		$this->with_http_mocks(
+			[ 'GET ' . $feed_url => $this->http_response( $rss, 200 ) ],
+			function (): void {
+				Radical_Socials_Feed_Fetcher::run();
+				$this->assert_same( false, get_transient( Radical_Socials_Following::REFRESH_LOCK ), 'Lock must be cleared after a clean run.' );
+				$this->assert_true( (int) get_option( 'rs_last_feed_fetch', 0 ) > 0, 'rs_last_feed_fetch must advance after a clean run.' );
+			}
+		);
+
+		update_option( 'rs_rss_subscriptions', [], false );
+		foreach ( get_posts( [ 'post_type' => 'rs_feed_item', 'fields' => 'ids', 'numberposts' => -1 ] ) as $id ) {
+			$this->created_posts[] = (int) $id;
+		}
+	}
+
+	/**
+	 * If a feed mid-batch throws (network kill, parser crash, etc.), the
+	 * try/finally in Feed_Fetcher::run() should still release the lock.
+	 * Otherwise the production state "lock stuck after PHP got killed"
+	 * keeps happening.
+	 */
+	private function test_run_releases_lock_on_exception(): void {
+		update_option( 'rs_rss_subscriptions', [
+			[ 'url' => 'https://93.184.216.34/throws', 'title' => 'T', 'source_url' => 'https://t.example/' ],
+		], false );
+		set_transient( Radical_Socials_Following::REFRESH_LOCK, Radical_Socials_Following::REFRESH_LOCK_QUEUED, 600 );
+
+		// Force an exception during the prune step (simpler attach point than
+		// faking SimplePie internals) by deleting the rs_feed_item post type
+		// registration mid-run via a hook on render_block — no, simpler: use
+		// pre_get_posts to throw when prune queries.
+		$thrower = static function ( WP_Query $q ): void {
+			if ( 'rs_feed_item' === $q->get( 'post_type' ) && $q->get( 'meta_query' ) ) {
+				throw new RuntimeException( 'simulated mid-run failure' );
+			}
+		};
+		add_action( 'pre_get_posts', $thrower );
+
+		$threw = false;
+		try {
+			Radical_Socials_Feed_Fetcher::run();
+		} catch ( \Throwable $e ) {
+			$threw = true;
+		} finally {
+			remove_action( 'pre_get_posts', $thrower );
+		}
+
+		$this->assert_true( $threw, 'Test setup should have caused run() to throw.' );
+		$this->assert_same( false, get_transient( Radical_Socials_Following::REFRESH_LOCK ), 'Lock must be cleared even when run() throws.' );
+
+		update_option( 'rs_rss_subscriptions', [], false );
+	}
+
+	/**
+	 * One feed returning a WP_Error (HTTP timeout / DNS failure / 5xx)
+	 * must NOT prevent the other feeds in the same run from being upserted.
+	 * If you have 215 feeds and one of them flakes, you don't want zero items.
+	 */
+	private function test_one_failing_feed_does_not_kill_batch(): void {
+		$ok_url     = 'https://93.184.216.34/ok';
+		$bad_url    = 'https://93.184.216.34/bad';
+		$ok2_url    = 'https://93.184.216.34/ok2';
+
+		update_option( 'rs_rss_subscriptions', [
+			[ 'url' => $ok_url,  'title' => 'OK',   'source_url' => 'https://ok.example/'   ],
+			[ 'url' => $bad_url, 'title' => 'BAD',  'source_url' => 'https://bad.example/'  ],
+			[ 'url' => $ok2_url, 'title' => 'OK 2', 'source_url' => 'https://ok2.example/'  ],
+		], false );
+
+		$good_rss = function ( string $link, string $title ) {
+			return '<?xml version="1.0" encoding="UTF-8"?>'
+				. '<rss version="2.0"><channel><title>' . $title . '</title><link>' . $link . '</link>'
+				. '<item><title>' . $title . ' item</title><link>' . $link . 'post</link>'
+				. '<pubDate>Mon, 11 May 2026 12:00:00 +0000</pubDate><description>...</description></item>'
+				. '</channel></rss>';
+		};
+
+		$this->with_http_mocks(
+			[
+				'GET ' . $ok_url  => $this->http_response( $good_rss( 'https://ok.example/',  'OK' ),   200 ),
+				'GET ' . $bad_url => new WP_Error( 'http_request_failed', 'simulated timeout' ),
+				'GET ' . $ok2_url => $this->http_response( $good_rss( 'https://ok2.example/', 'OK 2' ), 200 ),
+			],
+			function () use ( $ok_url, $ok2_url ): void {
+				Radical_Socials_Feed_Fetcher::run();
+
+				$stored = function ( string $feed_url ): int {
+					return count( get_posts( [
+						'post_type'   => 'rs_feed_item',
+						'fields'      => 'ids',
+						'numberposts' => -1,
+						'meta_key'    => '_rs_item_feed_url',
+						'meta_value'  => $feed_url,
+					] ) );
+				};
+
+				$this->assert_same( 1, $stored( $ok_url ),  'Items from the first OK feed must persist.' );
+				$this->assert_same( 1, $stored( $ok2_url ), 'Items from the second OK feed must persist (downstream of the failing one).' );
+			}
+		);
+
+		update_option( 'rs_rss_subscriptions', [], false );
+		foreach ( get_posts( [ 'post_type' => 'rs_feed_item', 'fields' => 'ids', 'numberposts' => -1 ] ) as $id ) {
+			$this->created_posts[] = (int) $id;
+		}
+	}
+
+	/**
+	 * Probe whether the RSS batch is chunked under realistic scale.
+	 * We register 50 subscriptions and call fetch_all_rss() once, counting how
+	 * many distinct HTTP GETs the fetcher attempted. AP outbox already chunks
+	 * to 10 actors/run (`rs_ap_outbox_offset`); the RSS path doesn't, which
+	 * means on Hostinger's 300s exec limit a 215-feed account can never finish.
+	 *
+	 * This test passes if either:
+	 *   - the implementation IS chunked (fetched count < total), or
+	 *   - the implementation handles 50 feeds fast enough that completion
+	 *     within a single PHP request is realistic.
+	 * It deliberately FAILS if all 50 feeds are processed serially, because
+	 * that's the production failure mode.
+	 */
+	private function test_rss_fetch_at_scale_completes(): void {
+		$subs   = [];
+		$mocks  = [];
+		$total  = 50;
+		$rss = '<?xml version="1.0" encoding="UTF-8"?>'
+			. '<rss version="2.0"><channel><title>S</title><link>https://s.example/</link>'
+			. '<item><title>x</title><link>https://s.example/x</link><pubDate>Mon, 11 May 2026 12:00:00 +0000</pubDate><description>x</description></item>'
+			. '</channel></rss>';
+
+		for ( $i = 1; $i <= $total; $i++ ) {
+			$url    = sprintf( 'https://93.184.216.34/scale-%02d', $i );
+			$subs[] = [ 'url' => $url, 'title' => "S$i", 'source_url' => 'https://example.com/' ];
+			$mocks[ 'GET ' . $url ] = $this->http_response( $rss, 200 );
+		}
+		update_option( 'rs_rss_subscriptions', $subs, false );
+
+		$attempted = 0;
+		$counter   = function ( $preempt, array $args, string $url ) use ( &$attempted ) {
+			$attempted++;
+			return $preempt; // pass through to the real mock filter
+		};
+		add_filter( 'pre_http_request', $counter, 5, 3 );
+
+		$this->with_http_mocks( $mocks, function (): void {
+			$rc = new ReflectionMethod( 'Radical_Socials_Feed_Fetcher', 'fetch_all_rss' );
+			$rc->setAccessible( true );
+			$rc->invoke( null );
+		} );
+
+		remove_filter( 'pre_http_request', $counter, 5 );
+
+		// The assertion: a single fetch_all_rss call should NOT serially process
+		// every subscription. AP outbox chunks to 10. If RSS processes all 50,
+		// scale up to your real 182-subscription account and you're past PHP's
+		// 300s timeout. Demand the same chunking discipline.
+		$this->assert_true(
+			$attempted < $total,
+			"fetch_all_rss should chunk like fetch_outboxes (≤10 per run). Got $attempted of $total processed — production timeout failure mode."
+		);
+
+		update_option( 'rs_rss_subscriptions', [], false );
+		foreach ( get_posts( [ 'post_type' => 'rs_feed_item', 'fields' => 'ids', 'numberposts' => -1 ] ) as $id ) {
+			$this->created_posts[] = (int) $id;
+		}
+	}
+
+	/**
+	 * If two cron ticks fire close together (Hostinger sometimes runs a
+	 * backlog when its scheduler catches up), the second run() must see the
+	 * RUNNING lock and bail. Otherwise we'd get concurrent option writes
+	 * and corrupt state.
+	 */
+	private function test_concurrent_runs_are_locked_out(): void {
+		// Pre-set the RUNNING lock to simulate another tick already in flight.
+		set_transient( Radical_Socials_Following::REFRESH_LOCK, Radical_Socials_Following::REFRESH_LOCK_RUNNING, 600 );
+
+		$before = (int) get_option( 'rs_last_feed_fetch', 0 );
+		Radical_Socials_Feed_Fetcher::run();
+		$after  = (int) get_option( 'rs_last_feed_fetch', 0 );
+
+		$this->assert_same( $before, $after, 'A run() entering while another is RUNNING must early-return without touching rs_last_feed_fetch.' );
+		$this->assert_same( Radical_Socials_Following::REFRESH_LOCK_RUNNING, get_transient( Radical_Socials_Following::REFRESH_LOCK ), 'The original RUNNING lock must remain in place.' );
+
+		delete_transient( Radical_Socials_Following::REFRESH_LOCK );
+	}
+
+	/**
 	 * @param string[] $option_names
 	 * @return array<string, mixed>
 	 */
@@ -333,6 +811,21 @@ class Radical_Socials_Integration_Tests {
 	 * @return array<string, mixed>
 	 */
 	private function http_response( string $body, int $status, array $headers = [] ): array {
+		// SimplePie rejects feed responses that lack a recognised Content-Type
+		// and triggers an extra discover_feed_url() HTTP call as a fallback —
+		// which is then unmocked and fails. Auto-sniff a sensible default so
+		// callers don't have to think about it.
+		if ( ! isset( $headers['content-type'] ) ) {
+			$trimmed = ltrim( $body );
+			if ( '' !== $body && ( str_starts_with( $trimmed, '<?xml' ) || str_starts_with( $trimmed, '<rss' ) || str_starts_with( $trimmed, '<feed' ) ) ) {
+				$headers['content-type'] = 'application/rss+xml; charset=utf-8';
+			} elseif ( '' !== $body && '{' === substr( $trimmed, 0, 1 ) ) {
+				$headers['content-type'] = 'application/json';
+			} else {
+				$headers['content-type'] = 'text/html; charset=utf-8';
+			}
+		}
+
 		return [
 			'headers'  => $headers,
 			'body'     => $body,

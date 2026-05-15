@@ -127,9 +127,15 @@ class Radical_Socials_WebSub_Subscriber {
 			}
 		}
 
-		// Use SimplePie to parse the pushed Atom/RSS fragment.
+		// Use SimplePie to parse the pushed Atom/RSS fragment. wp-includes/feed.php
+		// defines fetch_feed() but does NOT autoload the SimplePie class — that
+		// only happens the first time fetch_feed() runs. We instantiate SimplePie
+		// directly here, so pull in the class explicitly.
 		if ( ! function_exists( 'fetch_feed' ) ) {
 			require_once ABSPATH . WPINC . '/feed.php';
+		}
+		if ( ! class_exists( 'SimplePie', false ) ) {
+			require_once ABSPATH . WPINC . '/class-simplepie.php';
 		}
 
 		$feed = new SimplePie();
