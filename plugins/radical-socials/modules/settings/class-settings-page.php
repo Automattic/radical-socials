@@ -111,6 +111,75 @@ class Radical_Socials_Settings_Page {
 				$flag = 'tested';
 				break;
 
+			case 'test_feeds':
+				if ( function_exists( 'set_time_limit' ) ) {
+					@set_time_limit( 120 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				}
+				$results = (array) get_transient( 'rs_diag_feed_test_results' );
+				if ( ! isset( $results['rows'] ) || ! is_array( $results['rows'] ) ) {
+					$results = [ 'rows' => [] ];
+				}
+				$tested_urls = array_column( $results['rows'], 'url' );
+
+				// Build the full target list: RSS subscriptions + ActivityPub actors.
+				$targets = [];
+				foreach ( (array) get_option( 'rs_rss_subscriptions', [] ) as $sub ) {
+					if ( ! empty( $sub['url'] ) ) {
+						$targets[] = [ 'url' => (string) $sub['url'], 'type' => 'rss' ];
+					}
+				}
+				foreach ( get_posts( [ 'post_type' => 'ap_actor', 'post_status' => 'any', 'numberposts' => -1, 'fields' => 'all' ] ) as $actor_post ) {
+					if ( ! empty( $actor_post->guid ) ) {
+						$targets[] = [ 'url' => (string) $actor_post->guid, 'type' => 'activitypub' ];
+					}
+				}
+
+				// Take the next 20 untested targets.
+				$untested = array_values( array_filter( $targets, static fn( $t ) => ! in_array( $t['url'], $tested_urls, true ) ) );
+				$batch    = array_slice( $untested, 0, 20 );
+
+				if ( empty( $batch ) ) {
+					$flag = 'feed_test_empty';
+					break;
+				}
+
+				foreach ( $batch as $target ) {
+					$start = microtime( true );
+					$args  = [ 'timeout' => 8, 'redirection' => 3 ];
+					if ( 'activitypub' === $target['type'] ) {
+						$args['headers'] = [ 'Accept' => 'application/activity+json, application/ld+json' ];
+					}
+					$response = wp_safe_remote_get( $target['url'], $args );
+					$elapsed  = (int) round( ( microtime( true ) - $start ) * 1000 );
+
+					$row = [
+						'url'        => $target['url'],
+						'type'       => $target['type'],
+						'elapsed_ms' => $elapsed,
+					];
+					if ( is_wp_error( $response ) ) {
+						$row['status'] = 0;
+						$row['error']  = $response->get_error_message();
+						$row['bytes']  = 0;
+					} else {
+						$row['status'] = (int) wp_remote_retrieve_response_code( $response );
+						$row['error']  = '';
+						$row['bytes']  = strlen( (string) wp_remote_retrieve_body( $response ) );
+					}
+					$results['rows'][] = $row;
+				}
+
+				$results['total_targets'] = count( $targets );
+				$results['last_run']      = time();
+				set_transient( 'rs_diag_feed_test_results', $results, HOUR_IN_SECONDS );
+				$flag = 'feed_test_batch';
+				break;
+
+			case 'reset_feed_test':
+				delete_transient( 'rs_diag_feed_test_results' );
+				$flag = 'feed_test_reset';
+				break;
+
 			default:
 				return;
 		}
@@ -921,11 +990,146 @@ class Radical_Socials_Settings_Page {
 				<button type="submit" class="button button-secondary"<?php disabled( $lock === false ); ?>><?php esc_html_e( 'Clear refresh lock', 'radical-socials' ); ?></button>
 			</form>
 
-			<form method="post" style="display:inline-block">
+			<form method="post" style="display:inline-block;margin-right:8px">
 				<input type="hidden" name="rs_diagnostics_nonce" value="<?php echo esc_attr( $nonce ); ?>" />
 				<input type="hidden" name="rs_diag" value="test_feed" />
 				<button type="submit" class="button button-secondary"<?php disabled( 0 === $rss_count ); ?>><?php esc_html_e( 'Test one feed', 'radical-socials' ); ?></button>
 			</form>
+
+			<?php
+			$feed_test    = (array) get_transient( 'rs_diag_feed_test_results' );
+			$feed_rows    = isset( $feed_test['rows'] ) && is_array( $feed_test['rows'] ) ? $feed_test['rows'] : [];
+			$feed_total   = isset( $feed_test['total_targets'] ) ? (int) $feed_test['total_targets'] : ( $rss_count + $ap_count );
+			$feed_tested  = count( $feed_rows );
+			$feed_remaining = max( 0, $feed_total - $feed_tested );
+			?>
+			<form method="post" style="display:inline-block;margin-right:8px">
+				<input type="hidden" name="rs_diagnostics_nonce" value="<?php echo esc_attr( $nonce ); ?>" />
+				<input type="hidden" name="rs_diag" value="test_feeds" />
+				<button type="submit" class="button button-secondary"<?php disabled( 0 === ( $rss_count + $ap_count ) || 0 === $feed_remaining ); ?>>
+					<?php
+					if ( 0 === $feed_tested ) {
+						esc_html_e( 'Test all feeds', 'radical-socials' );
+					} else {
+						printf(
+							/* translators: 1: tested count, 2: total target count */
+							esc_html__( 'Test next batch (%1$d / %2$d tested)', 'radical-socials' ),
+							$feed_tested,
+							$feed_total
+						);
+					}
+					?>
+				</button>
+			</form>
+
+			<?php if ( $feed_tested > 0 ) : ?>
+				<form method="post" style="display:inline-block">
+					<input type="hidden" name="rs_diagnostics_nonce" value="<?php echo esc_attr( $nonce ); ?>" />
+					<input type="hidden" name="rs_diag" value="reset_feed_test" />
+					<button type="submit" class="button-link" style="color:#888"><?php esc_html_e( 'Reset feed-test results', 'radical-socials' ); ?></button>
+				</form>
+			<?php endif; ?>
+
+			<?php if ( $feed_tested > 0 ) :
+				$bucket    = [ 'ok' => 0, 'slow' => 0, 'error' => 0 ];
+				$by_type   = [ 'rss' => 0, 'activitypub' => 0 ];
+				$by_type_total = [
+					'rss'         => $rss_count,
+					'activitypub' => $ap_count,
+				];
+				foreach ( $feed_rows as $row ) {
+					if ( 200 === ( $row['status'] ?? 0 ) ) {
+						$bucket[ ( $row['elapsed_ms'] ?? 0 ) > 3000 ? 'slow' : 'ok' ]++;
+					} else {
+						$bucket['error']++;
+					}
+					$row_type = (string) ( $row['type'] ?? '' );
+					if ( isset( $by_type[ $row_type ] ) ) {
+						$by_type[ $row_type ]++;
+					}
+				}
+				// Sort by status (errors first) then by elapsed_ms desc.
+				usort( $feed_rows, static function ( $a, $b ) {
+					$a_err = ( $a['status'] ?? 0 ) !== 200 ? 0 : 1;
+					$b_err = ( $b['status'] ?? 0 ) !== 200 ? 0 : 1;
+					if ( $a_err !== $b_err ) {
+						return $a_err - $b_err;
+					}
+					return ( $b['elapsed_ms'] ?? 0 ) - ( $a['elapsed_ms'] ?? 0 );
+				} );
+				?>
+				<h2 style="margin-top:32px"><?php esc_html_e( 'Feed test results', 'radical-socials' ); ?></h2>
+				<p>
+					<span style="color:#0a7b3f"><?php printf( esc_html__( '%d OK', 'radical-socials' ), $bucket['ok'] ); ?></span>
+					&nbsp;·&nbsp;
+					<span style="color:#dba617"><?php printf( esc_html__( '%d slow (>3s)', 'radical-socials' ), $bucket['slow'] ); ?></span>
+					&nbsp;·&nbsp;
+					<span style="color:#dc3232"><?php printf( esc_html__( '%d failed', 'radical-socials' ), $bucket['error'] ); ?></span>
+					<?php if ( ! empty( $feed_test['last_run'] ) ) : ?>
+						&nbsp;·&nbsp;
+						<span class="description"><?php
+							printf(
+								/* translators: %s: time-diff */
+								esc_html__( 'last batch %s ago', 'radical-socials' ),
+								esc_html( human_time_diff( (int) $feed_test['last_run'], time() ) )
+							);
+						?></span>
+					<?php endif; ?>
+				</p>
+				<p class="description" style="margin-top:-6px">
+					<?php
+					printf(
+						/* translators: 1: RSS tested, 2: RSS total, 3: AP tested, 4: AP total */
+						esc_html__( '%1$d / %2$d RSS · %3$d / %4$d ActivityPub tested', 'radical-socials' ),
+						$by_type['rss'],
+						$by_type_total['rss'],
+						$by_type['activitypub'],
+						$by_type_total['activitypub']
+					);
+					?>
+				</p>
+
+				<table class="widefat striped" style="max-width:840px">
+					<thead>
+						<tr>
+							<th><?php esc_html_e( 'Status', 'radical-socials' ); ?></th>
+							<th><?php esc_html_e( 'Time', 'radical-socials' ); ?></th>
+							<th><?php esc_html_e( 'Bytes', 'radical-socials' ); ?></th>
+							<th><?php esc_html_e( 'Type', 'radical-socials' ); ?></th>
+							<th><?php esc_html_e( 'URL / error', 'radical-socials' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( $feed_rows as $row ) :
+							$status = (int) ( $row['status'] ?? 0 );
+							$elapsed = (int) ( $row['elapsed_ms'] ?? 0 );
+							if ( 200 === $status ) {
+								$colour = $elapsed > 3000 ? '#dba617' : '#0a7b3f';
+								$label  = '200';
+							} elseif ( $status > 0 ) {
+								$colour = '#dc3232';
+								$label  = (string) $status;
+							} else {
+								$colour = '#dc3232';
+								$label  = '✘';
+							}
+							?>
+							<tr>
+								<td style="color:<?php echo esc_attr( $colour ); ?>;font-weight:600;white-space:nowrap"><?php echo esc_html( $label ); ?></td>
+								<td><?php echo esc_html( $elapsed . ' ms' ); ?></td>
+								<td><?php echo esc_html( number_format_i18n( (int) ( $row['bytes'] ?? 0 ) ) ); ?></td>
+								<td><code style="font-size:11px"><?php echo esc_html( (string) ( $row['type'] ?? '' ) ); ?></code></td>
+								<td style="word-break:break-all">
+									<a href="<?php echo esc_url( (string) ( $row['url'] ?? '' ) ); ?>" target="_blank" rel="noopener"><?php echo esc_html( (string) ( $row['url'] ?? '' ) ); ?></a>
+									<?php if ( ! empty( $row['error'] ) ) : ?>
+										<br><code style="color:#dc3232;font-size:11px"><?php echo esc_html( (string) $row['error'] ); ?></code>
+									<?php endif; ?>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+			<?php endif; ?>
 
 			<h2 style="margin-top:32px"><?php esc_html_e( 'Hosting', 'radical-socials' ); ?></h2>
 			<table class="form-table" role="presentation">
@@ -997,6 +1201,16 @@ class Radical_Socials_Settings_Page {
 			case 'no_subs':
 				$class = 'notice notice-warning is-dismissible';
 				$body  = esc_html__( 'No RSS subscriptions to test against.', 'radical-socials' );
+				break;
+			case 'feed_test_batch':
+				$body = esc_html__( 'Tested a batch of feeds — see the results table below. Click again to test the next batch.', 'radical-socials' );
+				break;
+			case 'feed_test_empty':
+				$class = 'notice notice-info is-dismissible';
+				$body  = esc_html__( 'Every subscription has already been tested. Use "Reset feed-test results" to start over.', 'radical-socials' );
+				break;
+			case 'feed_test_reset':
+				$body = esc_html__( 'Feed-test results cleared.', 'radical-socials' );
 				break;
 			case 'tested':
 				if ( is_array( $test ) && ! empty( $test['ok'] ) ) {
