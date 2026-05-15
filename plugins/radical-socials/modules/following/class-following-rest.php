@@ -445,8 +445,10 @@ class Radical_Socials_Following_REST {
 
 		// Mastodon-style profile URL — checked on raw input before URL validation
 		// because wp_http_validate_url may reject URLs with @ in the path.
-		// Also handles cross-instance links: https://mastodon.social/@user@other.instance
-		if ( preg_match( '~^https?://([^/]+)/@([^/?#]+)/?$~', $input, $m ) ) {
+		// Matches both `/@user` (web-facing) and `/users/user` (the canonical
+		// ActivityPub actor URL Mastodon publishes as the actor id). Also
+		// handles cross-instance links: https://mastodon.social/@user@other.instance
+		if ( preg_match( '~^https?://([^/]+)/(?:@|users/)([^/?#]+)/?$~', $input, $m ) ) {
 			$handle = str_contains( $m[2], '@' ) ? '@' . $m[2] : '@' . $m[2] . '@' . $m[1];
 			return self::add_activitypub( $handle );
 		}
