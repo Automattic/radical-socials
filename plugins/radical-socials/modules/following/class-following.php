@@ -415,14 +415,16 @@ class Radical_Socials_Following {
 	}
 
 	/**
-	 * 404 every URL that surfaces rs_feed_item content for logged-out
-	 * visitors when the public-following option is off. Covers:
-	 *   - the /following/ archive
-	 *   - any rs_feed_item single view
-	 *   - the home page filtered by one of our taxonomies
-	 *     (e.g. /?rs_feed_type=activitypub) — these aren't proper tax
-	 *     archives because we don't register a rewrite for the taxonomies,
-	 *     but they still expose feed items via the main query.
+	 * 404 every URL that surfaces rs_feed_item or rs_favorite content for
+	 * logged-out visitors when the public-following option is off.
+	 *
+	 * Delegates to is_feed_archive_view() so /following/, /favorites/, any
+	 * single view, real taxonomy archives, and home-page taxonomy filters
+	 * (e.g. /?rs_feed_type=activitypub) are all covered by one source of
+	 * truth — the same predicate enqueue_infinite_scroll() uses.
+	 *
+	 * Single feed-item and favorite views aren't covered by
+	 * is_feed_archive_view(), so we add them explicitly here.
 	 *
 	 * Runs at priority 0 on template_redirect so it short-circuits before
 	 * our own block filter and the visit-triggered refresh hook fire.
@@ -432,13 +434,7 @@ class Radical_Socials_Following {
 			return;
 		}
 
-		$is_following_view = is_post_type_archive( 'rs_feed_item' )
-			|| is_singular( 'rs_feed_item' )
-			|| (bool) get_query_var( 'rs_source' )
-			|| (bool) get_query_var( 'rs_feed_type' )
-			|| (bool) get_query_var( 'rs_feed_category' );
-
-		if ( ! $is_following_view ) {
+		if ( ! self::is_feed_archive_view() && ! is_singular( [ 'rs_feed_item', 'rs_favorite' ] ) ) {
 			return;
 		}
 

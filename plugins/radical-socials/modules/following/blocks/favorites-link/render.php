@@ -8,6 +8,12 @@
  * @package RadicalSocials
  */
 
+// Mirrors /following/ access: hide the link when the current viewer can't see
+// the feed-item area (logged-out + public-following option off).
+if ( ! Radical_Socials_Following::can_view_following() ) {
+	return;
+}
+
 $favorites_page = get_page_by_path( 'favorites', OBJECT, 'page' );
 $url            = $favorites_page ? get_permalink( $favorites_page->ID ) : home_url( '/favorites/' );
 
