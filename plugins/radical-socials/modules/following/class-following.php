@@ -59,6 +59,18 @@ class Radical_Socials_Following {
 		// Make all permalink references point to the original article URL.
 		add_filter( 'post_type_link', [ __CLASS__, 'external_permalink' ], 10, 2 );
 
+		// Force rs_feed_item as the queried post type when one of our taxonomies
+		// is in play — rs_feed_item has exclude_from_search=true, so WP's tax
+		// archive fallback would otherwise pick post/page/attachment and find 0
+		// results.
+		add_action( 'pre_get_posts', [ __CLASS__, 'force_feed_item_for_taxonomy_archives' ] );
+
+		// The feed Query block has inherit=false (so the site editor preview
+		// works), which means it ignores URL-based taxonomy filters by default.
+		// Merge the current term back in when the archive template renders on
+		// one of our taxonomies.
+		add_filter( 'query_loop_block_query_vars', [ __CLASS__, 'inherit_taxonomy_in_feed_query' ], 10, 3 );
+
 		// Infinite scroll on feed archive pages.
 		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'enqueue_infinite_scroll' ] );
 		add_action( 'template_redirect',  [ __CLASS__, 'maybe_add_block_filter'  ] );
@@ -163,6 +175,74 @@ class Radical_Socials_Following {
 				],
 			]
 		);
+	}
+
+	/**
+	 * Force rs_feed_item as the queried post type for archives on our
+	 * taxonomies (rs_source, rs_feed_type, rs_feed_category).
+	 *
+	 * Why: WP_Query's taxonomy-archive fallback uses
+	 * `get_post_types(['exclude_from_search' => false])` to decide which post
+	 * types to include. rs_feed_item has exclude_from_search=true, so it's
+	 * skipped and WP falls back to post/page/attachment — none of which have
+	 * our taxonomies, hence 0 results.
+	 */
+	/**
+	 * Merge any of our taxonomy filters present on the current URL into the
+	 * rs-following-feed Query block's WP_Query args. The template hardcodes
+	 * inherit=false (so the site editor can resolve a preview), which means
+	 * the block otherwise ignores the URL's taxonomy filter.
+	 *
+	 * Reads query vars directly because URLs like `/?rs_feed_type=rss` set
+	 * the taxonomy as a filter on the home query rather than triggering a
+	 * proper tax archive (we don't register a rewrite for our taxonomies), so
+	 * get_queried_object() doesn't return a WP_Term in that case.
+	 */
+	public static function inherit_taxonomy_in_feed_query( array $query, $block, int $page ): array {
+		// The filter fires while rendering core/post-template, which inherits
+		// the parent Query block's attributes via block context. Identify our
+		// feed query by the parent's postType — only the rs-following-feed
+		// query block queries rs_feed_item with inherit=false.
+		$parent_post_type = $block->context['query']['postType'] ?? '';
+		if ( 'rs_feed_item' !== $parent_post_type ) {
+			return $query;
+		}
+
+		$tax_clauses = [];
+		foreach ( [ 'rs_source', 'rs_feed_type', 'rs_feed_category' ] as $tax ) {
+			$term_slug = get_query_var( $tax );
+			if ( $term_slug ) {
+				$tax_clauses[] = [
+					'taxonomy' => $tax,
+					'terms'    => [ $term_slug ],
+					'field'    => 'slug',
+				];
+			}
+		}
+
+		if ( ! $tax_clauses ) {
+			return $query;
+		}
+
+		$query['tax_query'] = empty( $query['tax_query'] )
+			? $tax_clauses
+			: array_merge( $query['tax_query'], $tax_clauses );
+
+		return $query;
+	}
+
+	public static function force_feed_item_for_taxonomy_archives( WP_Query $query ): void {
+		if ( ! $query->is_main_query() ) {
+			return;
+		}
+
+		$our_taxonomies = [ 'rs_source', 'rs_feed_type', 'rs_feed_category' ];
+		foreach ( $our_taxonomies as $tax ) {
+			if ( $query->get( $tax ) ) {
+				$query->set( 'post_type', 'rs_feed_item' );
+				return;
+			}
+		}
 	}
 
 	public static function register_taxonomy(): void {
