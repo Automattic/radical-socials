@@ -127,7 +127,9 @@ class Radical_Socials_Following_REST {
 	public static function handle_refresh(): WP_REST_Response {
 		// User-initiated refresh should behave like a social feed refresh:
 		// enqueue work quickly, then let the client poll the rendered first page.
-		$queued = Radical_Socials_Following::queue_refresh();
+		// Pass force=true so a stuck queued lock (e.g. wp-cron failed to fire
+		// in a docker dev env) gets reset instead of silently swallowing clicks.
+		$queued = Radical_Socials_Following::queue_refresh( true );
 
 		return self::refresh_status_response( $queued );
 	}

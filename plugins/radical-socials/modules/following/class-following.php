@@ -303,9 +303,36 @@ class Radical_Socials_Following {
 		return wp_hash( 'rs_feed_refresh_' . wp_salt() );
 	}
 
-	public static function queue_refresh(): bool {
-		if ( get_transient( self::REFRESH_LOCK ) ) {
+	/**
+	 * Queue a refresh.
+	 *
+	 * @param bool $force When true (user-initiated, e.g. the Refresh button),
+	 *                    a stale `queued` lock is treated as a zombie and
+	 *                    cleared so the request always proceeds. A `running`
+	 *                    lock is always respected — we never disturb an
+	 *                    in-flight fetch. When false (passive/visit-triggered),
+	 *                    any existing lock blocks new queueing.
+	 * @return bool True if a refresh was newly queued or re-queued.
+	 */
+	public static function queue_refresh( bool $force = false ): bool {
+		$lock = get_transient( self::REFRESH_LOCK );
+
+		// An active fetch is in progress — never queue another one on top of it.
+		if ( self::REFRESH_LOCK_RUNNING === $lock ) {
 			return false;
+		}
+
+		// Passive refresh: any lock blocks; user-initiated bulldozes a stuck queue.
+		if ( $lock && ! $force ) {
+			return false;
+		}
+
+		// Forcing past a stuck queued lock — wipe both the lock and any scheduled
+		// event so we requeue cleanly. spawn_cron() below nudges wp-cron to
+		// actually fire (helps in environments where cron is flaky, e.g. docker).
+		if ( $force && self::REFRESH_LOCK_QUEUED === $lock ) {
+			delete_transient( self::REFRESH_LOCK );
+			wp_clear_scheduled_hook( self::REFRESH_HOOK );
 		}
 
 		$scheduled = wp_next_scheduled( self::REFRESH_HOOK );
