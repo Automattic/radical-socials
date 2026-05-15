@@ -364,9 +364,20 @@ class Radical_Socials_Settings_Page {
 				</div>
 			<?php endif; ?>
 
-			<?php if ( isset( $_GET['rs_oauth_error'] ) ) : ?>
+			<?php if ( isset( $_GET['rs_oauth_error'] ) ) :
+				$oauth_error_msgs = [
+					'broker_unreachable'    => __( 'The WP.com OAuth broker is unreachable. Try again in a minute, or set RS_WPCOM_CLIENT_ID / RS_WPCOM_CLIENT_SECRET in wp-config.php to use your own WordPress.com app instead.', 'radical-socials' ),
+					'broker_bad_response'   => __( 'The WP.com OAuth broker returned an unexpected response. Try again.', 'radical-socials' ),
+					'state_mismatch'        => __( 'Could not connect WP.com account — the connect attempt expired or didn\'t match this site. Click Connect again to start fresh.', 'radical-socials' ),
+					'no_code'               => __( 'WordPress.com didn\'t return an authorization code. Click Connect to try again.', 'radical-socials' ),
+					'token_exchange_failed' => __( 'Could not exchange the WordPress.com code for an access token. Try again.', 'radical-socials' ),
+					'no_token'              => __( 'WordPress.com returned an unexpected response (no access token). Try again.', 'radical-socials' ),
+				];
+				$oauth_error_key = sanitize_text_field( wp_unslash( $_GET['rs_oauth_error'] ) );
+				$oauth_error_msg = $oauth_error_msgs[ $oauth_error_key ] ?? __( 'Could not connect WP.com account. Please try again.', 'radical-socials' );
+				?>
 				<div class="notice notice-error is-dismissible">
-					<p><?php esc_html_e( 'Could not connect WP.com account. Please try again.', 'radical-socials' ); ?></p>
+					<p><?php echo esc_html( $oauth_error_msg ); ?></p>
 				</div>
 			<?php endif; ?>
 

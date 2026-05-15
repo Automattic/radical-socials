@@ -66,12 +66,21 @@ Terms vary per instance.
 
 = WordPress.com / WP.com Reader =
 
-When you connect a WordPress.com account in the settings page, Radical Socials uses OAuth 2 to obtain an access token from `public-api.wordpress.com` and then uses that token to read your WP.com Reader subscriptions and recent items.
+When you click "Connect WordPress.com" in the settings page, Radical Socials starts an OAuth 2 authorization-code flow against `public-api.wordpress.com`. After you authorize the connection on WordPress.com, the plugin receives an access token and uses it on every subsequent Reader request to read your subscriptions and recent items.
 
-What is sent: your OAuth credentials during the explicit "Connect WordPress.com" flow, and the access token on each subsequent Reader request.
+What is sent: an authorization request that names your site as the OAuth client, then the access token on each subsequent Reader call.
 Service: WordPress.com.
 Terms of service: https://wordpress.com/tos/.
 Privacy policy: https://automattic.com/privacy/.
+
+= WP.com OAuth broker (radicalsocials.wpcomstaging.com) =
+
+WordPress.com's OAuth requires each app's redirect URI to be pre-registered, which would force every plugin install to register its own WP.com app. To avoid that friction, Radical Socials by default routes the OAuth handshake through a small broker hosted at https://radicalsocials.wpcomstaging.com/. The broker holds the WP.com app credentials, brokers the authorize redirect, and swaps the authorization code for an access token. The token is returned to your site over HTTPS and stored only on your site — the broker does not log, persist, or have access to tokens or your WordPress.com data after the swap.
+
+What is sent: at handshake start, a random opaque state token and your site's callback URL. After authorization, the WordPress.com authorization code is exchanged via the broker once and then discarded.
+Service: Radical Socials project broker (operated by the plugin authors, hosted on WordPress.com Atomic).
+
+To opt out: define your own `RS_WPCOM_CLIENT_ID` and `RS_WPCOM_CLIENT_SECRET` in wp-config.php (after registering a WordPress.com app at https://developer.wordpress.com/apps/). The plugin then talks to WordPress.com directly without touching the broker. To use a different broker entirely, define `RS_WPCOM_PROXY_URL` with its base URL.
 
 = Arbitrary RSS / Atom feed URLs =
 
