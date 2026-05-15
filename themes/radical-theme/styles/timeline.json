@@ -1,0 +1,107 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/theme.json",
+	"version": 3,
+	"title": "Timeline",
+	"settings": {
+		"color": {
+			"palette": [
+				{
+					"color": "#f7f9f9",
+					"name": "Base",
+					"slug": "base"
+				},
+				{
+					"color": "#536471",
+					"name": "Contrast 1",
+					"slug": "contrast-1"
+				},
+				{
+					"color": "#0f1419",
+					"name": "Contrast 2",
+					"slug": "contrast-2"
+				},
+				{
+					"color": "#dfe6eb",
+					"name": "Contrast 3",
+					"slug": "contrast-3"
+				},
+				{
+					"color": "#1d9bf0",
+					"name": "Accent",
+					"slug": "accent"
+				},
+				{
+					"color": "#00ba7c",
+					"name": "Accent 2",
+					"slug": "accent-2"
+				}
+			]
+		}
+	},
+	"styles": {
+		"blocks": {
+			"core/navigation-link": {
+				"color": {
+					"text": "var(--wp--preset--color--contrast-2)"
+				},
+				"typography": {
+					"fontWeight": "700"
+				}
+			},
+			"core/post-date": {
+				"color": {
+					"text": "var(--wp--preset--color--contrast-1)"
+				}
+			},
+			"core/post-terms": {
+				"color": {
+					"text": "var(--wp--preset--color--accent)"
+				}
+			},
+			"core/read-more": {
+				"color": {
+					"text": "var(--wp--preset--color--accent)"
+				}
+			},
+			"core/search": {
+				"css": "& .wp-block-search__input{background:#eff3f4;border-color:#eff3f4;color:var(--wp--preset--color--contrast-2);} & .wp-block-search__button{background:var(--wp--preset--color--contrast-2);border-color:var(--wp--preset--color--contrast-2);color:#fff;}"
+			},
+			"core/separator": {
+				"border": {
+					"color": "var(--wp--preset--color--contrast-3)"
+				}
+			}
+		},
+		"color": {
+			"background": "var(--wp--preset--color--base)",
+			"text": "var(--wp--preset--color--contrast-1)"
+		},
+		"elements": {
+			"button": {
+				"border": {
+					"radius": "999px"
+				},
+				"color": {
+					"background": "var(--wp--preset--color--contrast-2)",
+					"text": "#ffffff"
+				}
+			},
+			"heading": {
+				"color": {
+					"text": "var(--wp--preset--color--contrast-2)"
+				},
+				"typography": {
+					"fontWeight": "800"
+				}
+			},
+			"link": {
+				"color": {
+					"text": "var(--wp--preset--color--accent)"
+				},
+				"typography": {
+					"textDecoration": "none"
+				}
+			}
+		}
+	}
+}
