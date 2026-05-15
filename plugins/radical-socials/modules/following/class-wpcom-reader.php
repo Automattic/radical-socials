@@ -116,16 +116,22 @@ class Radical_Socials_WPCOM_Reader {
 			$thumbnail = $first['URL'] ?? '';
 		}
 
+		// `content` is the full post HTML; `excerpt` is WP.com's (already
+		// truncated) summary. RSS and ActivityPub fetchers store the full body
+		// in `content`; we now do the same here so the post-content block
+		// renders complete posts instead of a 30-word teaser. Upsert applies
+		// our kses allowlist on top, so we leave the body unfiltered here.
 		return [
-			'title'        => wp_strip_all_tags( $post['title'] ?? '' ),
-			'url'          => esc_url_raw( $post['URL'] ?? '' ),
-			'excerpt'      => wp_trim_words( wp_strip_all_tags( $post['excerpt'] ?? '' ), 30 ),
-			'date'         => $post['date'] ?? current_time( 'c' ),
-			'source_name'  => wp_strip_all_tags( $post['site_name'] ?? parse_url( $post['URL'] ?? '', PHP_URL_HOST ) ),
-			'source_url'   => esc_url_raw( $post['site_URL'] ?? '' ),
+			'title'         => wp_strip_all_tags( $post['title'] ?? '' ),
+			'url'           => esc_url_raw( $post['URL'] ?? '' ),
+			'content'       => (string) ( $post['content'] ?? '' ),
+			'excerpt'       => wp_strip_all_tags( (string) ( $post['excerpt'] ?? '' ) ),
+			'date'          => $post['date'] ?? current_time( 'c' ),
+			'source_name'   => wp_strip_all_tags( $post['site_name'] ?? parse_url( $post['URL'] ?? '', PHP_URL_HOST ) ),
+			'source_url'    => esc_url_raw( $post['site_URL'] ?? '' ),
 			'thumbnail_url' => esc_url_raw( $thumbnail ),
-			'guid'         => md5( $post['URL'] ?? uniqid( 'wpcom_', true ) ),
-			'feed_type'    => 'wpcom',
+			'guid'          => md5( $post['URL'] ?? uniqid( 'wpcom_', true ) ),
+			'feed_type'     => 'wpcom',
 		];
 	}
 }
