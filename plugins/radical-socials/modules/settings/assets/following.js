@@ -422,32 +422,36 @@
 			return;
 		}
 
-		// Step 2: upsert each feed individually so we can show real progress.
-		const total   = feeds.length;
-		let done      = 0;
-		let added     = 0;
-		let updated   = 0;
-		let unchanged = 0;
-		let failed    = 0;
+		// Step 2: upsert all feeds in a single request. Per-feed POSTs raced on
+		// the rs_rss_subscriptions option (each call read, mutated, and wrote
+		// the option, so parallel writes overwrote each other and entries got
+		// silently lost). One batched request = one read + one write.
+		const total = feeds.length;
+		setProgress( 0, 1 );
 
-		setProgress( 0, total );
-
-		for ( let i = 0; i < feeds.length; i += BATCH ) {
-			const batch = feeds.slice( i, i + BATCH );
-			await Promise.all( batch.map( async feed => {
-				try {
-					const res = await apiFetch( 'POST', rsFollowing.opmlEntryUrl, feed );
-					if ( res.status === 201 )      { added++; }
-					else if ( res.status === 200 ) { updated++; }
-					else if ( res.status === 409 ) { unchanged++; }
-					else                           { failed++; }
-				} catch {
-					failed++;
-				}
-				done++;
-				setProgress( done, total );
-			} ) );
+		let added = 0, updated = 0, unchanged = 0, failed = 0;
+		try {
+			const res = await fetch( rsFollowing.opmlImportUrl, {
+				method:  'POST',
+				headers: { 'X-WP-Nonce': nonce, 'Content-Type': 'application/json' },
+				body:    JSON.stringify( { feeds } ),
+			} );
+			const data = await res.json().catch( () => ( {} ) );
+			if ( ! res.ok ) {
+				progText.textContent   = data.message || rsFollowing.i18n.importError;
+				opmlImportBtn.disabled = false;
+				return;
+			}
+			added     = data.added     || 0;
+			updated   = data.updated   || 0;
+			unchanged = data.skipped   || 0; // no-op duplicates
+			failed    = data.failed    || ( total - added - updated - unchanged );
+		} catch {
+			progText.textContent   = rsFollowing.i18n.importError;
+			opmlImportBtn.disabled = false;
+			return;
 		}
+		setProgress( 1, 1 );
 
 		opmlImportBtn.disabled = false;
 		progText.textContent   = rsFollowing.i18n.importResult

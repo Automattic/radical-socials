@@ -94,7 +94,27 @@ class Radical_Socials_OPML {
 		$subs    = (array) get_option( 'rs_rss_subscriptions', [] );
 		$added   = 0;
 		$updated = 0;
-		$skipped = 0;
+		$skipped = 0; // no-op duplicates (already present, nothing to change).
+		$failed  = 0; // rejected by safety check (bad format, private IP, etc.).
+
+		// Defensively dedupe the existing option — earlier versions of the
+		// per-entry import endpoint raced on read-modify-write of this option
+		// (parallel requests both read "url not present" and both appended),
+		// leaving duplicate rows that the UI dedupes on render but that bloat
+		// the storage. Single pass, last-occurrence wins.
+		$subs_before = count( $subs );
+		$seen        = [];
+		$deduped     = [];
+		foreach ( $subs as $sub ) {
+			$url = $sub['url'] ?? '';
+			if ( '' === $url ) {
+				continue;
+			}
+			$seen[ $url ]    = $sub;   // last write wins, in case duplicates have diverging metadata
+			$deduped[ $url ] = $sub;
+		}
+		$subs                  = array_values( $seen );
+		$subs_dedup_dropped    = $subs_before - count( $subs );
 
 		// Build a URL→index map for O(1) lookups.
 		$url_index = [];
@@ -104,7 +124,7 @@ class Radical_Socials_OPML {
 
 		foreach ( $feeds as $feed ) {
 			if ( ! Radical_Socials_RSS_Fetcher::is_safe_remote_url( $feed['url'] ) ) {
-				$skipped++;
+				$failed++;
 				continue;
 			}
 
@@ -148,11 +168,13 @@ class Radical_Socials_OPML {
 			}
 		}
 
-		if ( $added || $updated ) {
+		// Always persist if we dropped duplicate rows during the dedupe pass,
+		// even when this import didn't otherwise change anything.
+		if ( $added || $updated || $subs_dedup_dropped > 0 ) {
 			update_option( 'rs_rss_subscriptions', $subs, false );
 		}
 
-		return compact( 'added', 'updated', 'skipped' );
+		return compact( 'added', 'updated', 'skipped', 'failed' );
 	}
 
 	// ── Export ────────────────────────────────────────────────────────────────

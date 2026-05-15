@@ -93,6 +93,7 @@ class Radical_Socials_Settings_Page {
 				'importFromAccountUrl' => rest_url( 'radical-socials/v1/following/import-from-account' ),
 				'opmlParseUrl'        => rest_url( 'radical-socials/v1/following/opml/parse' ),
 				'opmlEntryUrl'  => rest_url( 'radical-socials/v1/following/opml/entry' ),
+				'opmlImportUrl' => rest_url( 'radical-socials/v1/following/opml/import' ),
 				'opmlExportUrl' => add_query_arg( '_wpnonce', $nonce, rest_url( 'radical-socials/v1/following/opml/export' ) ),
 				'nonce'         => $nonce,
 				'i18n'          => [

@@ -69,6 +69,12 @@ class Radical_Socials_Following_REST {
 			],
 		] );
 
+		register_rest_route( self::REST_NAMESPACE, self::ROUTE . '/opml/import', [
+			'methods'             => 'POST',
+			'callback'            => [ __CLASS__, 'handle_opml_import' ],
+			'permission_callback' => $auth,
+		] );
+
 		register_rest_route( self::REST_NAMESPACE, self::ROUTE . '/opml/export', [
 			'methods'             => 'GET',
 			'callback'            => [ __CLASS__, 'handle_opml_export' ],
@@ -234,6 +240,47 @@ class Radical_Socials_Following_REST {
 			return new WP_REST_Response( $result, 200 );
 		}
 		return new WP_REST_Response( $result, 409 );
+	}
+
+	/**
+	 * Upsert a full list of OPML feeds in one request. The earlier per-entry
+	 * endpoint (handle_opml_entry) is preserved for backwards-compat but isn't
+	 * safe to call concurrently — each call does a read-modify-write on the
+	 * rs_rss_subscriptions option, so parallel requests clobber each other.
+	 * This endpoint processes the entire array in a single import() call, so
+	 * one option read at the start and one write at the end.
+	 */
+	public static function handle_opml_import( WP_REST_Request $request ): WP_REST_Response {
+		$raw = $request->get_param( 'feeds' );
+		if ( ! is_array( $raw ) || empty( $raw ) ) {
+			return new WP_REST_Response( [ 'error' => 'no_feeds' ], 400 );
+		}
+
+		// Sanitise each entry before handing it to import(). Permissive on
+		// types: cast everything to string / array up front so we don't trip
+		// later if a field is missing.
+		$feeds = [];
+		foreach ( $raw as $f ) {
+			if ( ! is_array( $f ) || empty( $f['url'] ) ) {
+				continue;
+			}
+			$feeds[] = [
+				'url'        => esc_url_raw( (string) $f['url'] ),
+				'title'      => sanitize_text_field( (string) ( $f['title'] ?? '' ) ),
+				'source_url' => esc_url_raw( (string) ( $f['source_url'] ?? '' ) ),
+				'categories' => array_values( array_filter( array_map(
+					'sanitize_text_field',
+					(array) ( $f['categories'] ?? [] )
+				) ) ),
+			];
+		}
+
+		if ( empty( $feeds ) ) {
+			return new WP_REST_Response( [ 'error' => 'no_feeds' ], 400 );
+		}
+
+		$result = Radical_Socials_OPML::import( $feeds );
+		return new WP_REST_Response( $result, 200 );
 	}
 
 	public static function handle_opml_export(): void {
