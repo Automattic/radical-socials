@@ -271,8 +271,14 @@ class Radical_Socials_Settings_Page {
 					'deleteError'   => __( 'Could not remove item. Please try again.', 'radical-socials' ),
 					'colFav'        => __( 'Fav', 'radical-socials' ),
 					'colName'       => __( 'Name', 'radical-socials' ),
+					'colHealth'     => __( 'Status', 'radical-socials' ),
 					'colType'       => __( 'Type', 'radical-socials' ),
 					'colCategories' => __( 'Categories', 'radical-socials' ),
+					'healthOk'      => __( 'Healthy — replied in %ms% ms (checked %ago% ago)', 'radical-socials' ),
+					'healthSlow'    => __( 'Slow — replied in %ms% ms (checked %ago% ago). If this stays in the orange, consider removing it.', 'radical-socials' ),
+					'healthFailed'  => __( 'Failed: %error% (last attempt %ago% ago)', 'radical-socials' ),
+					'healthUntested' => __( 'Not yet checked. The status updates after the next refresh cycle reaches this feed.', 'radical-socials' ),
+					'healthUnknownError' => __( 'Unknown error', 'radical-socials' ),
 					'starLabel'     => __( 'Star this feed', 'radical-socials' ),
 					'unstarLabel'   => __( 'Unstar this feed', 'radical-socials' ),
 					'addSummary'    => __( 'Done — %added% added, %skipped% already existed, %failed% failed.', 'radical-socials' ),
@@ -729,6 +735,18 @@ class Radical_Socials_Settings_Page {
 			.rs-type-wpcom       { background: #f0fff4; color: #166534; }
 			.rs-category-tag { display: inline-block; margin: 1px 3px 1px 0; padding: 1px 7px; border-radius: 3px; font-size: 11px; background: #fef9e7; color: #7c5e00; border: 1px solid #f0d060; }
 			.rs-error { color: #dc3232; }
+
+			/* Signal-strength indicator. Three bars; CSS selects how many are active
+			   and what colour, based on the parent's status modifier class. */
+			.rs-health { display: inline-flex; cursor: help; line-height: 0; }
+			.rs-health .rs-health-bar { fill: #dcdcde; transition: fill .15s; }
+			.rs-health-ok   .rs-health-bar-1,
+			.rs-health-ok   .rs-health-bar-2,
+			.rs-health-ok   .rs-health-bar-3 { fill: #00a32a; }
+			.rs-health-slow .rs-health-bar-1,
+			.rs-health-slow .rs-health-bar-2 { fill: #dba617; }
+			.rs-health-failed .rs-health-bar-1 { fill: #d63638; }
+			.rs-health-untested .rs-health-bar { fill: #c3c4c7; }
 			</style>
 
 			<div class="rs-following-layout">

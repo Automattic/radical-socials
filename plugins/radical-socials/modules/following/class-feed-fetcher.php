@@ -88,10 +88,35 @@ class Radical_Socials_Feed_Fetcher {
 			$sub          = &$subs[ $absolute_idx ];
 
 			if ( ! Radical_Socials_RSS_Fetcher::is_safe_remote_url( $sub['url'] ) ) {
+				self::record_rss_health( $sub, [
+					'status'    => 'failed',
+					'error'     => __( 'URL is not a safe public address (private IP, localhost, or invalid format).', 'radical-socials' ),
+					'elapsed_ms' => 0,
+				] );
+				$updated = true;
 				unset( $sub );
 				continue;
 			}
+
+			$start      = microtime( true );
 			$feed_items = Radical_Socials_RSS_Fetcher::fetch( $sub['url'], 20 );
+			$elapsed_ms = (int) round( ( microtime( true ) - $start ) * 1000 );
+			$error      = Radical_Socials_RSS_Fetcher::last_error();
+
+			// Decide health bucket. Failed if the fetcher reported an error;
+			// slow if the fetch took longer than 3s (Hostinger-friendly
+			// threshold — anything above eats too much of the 300s budget);
+			// ok if items came back; "no items" is treated as ok with a note
+			// because feeds can simply be quiet.
+			if ( $error ) {
+				$health = [ 'status' => 'failed', 'error' => $error, 'elapsed_ms' => $elapsed_ms ];
+			} elseif ( $elapsed_ms > 3000 ) {
+				$health = [ 'status' => 'slow', 'error' => '', 'elapsed_ms' => $elapsed_ms ];
+			} else {
+				$health = [ 'status' => 'ok', 'error' => '', 'elapsed_ms' => $elapsed_ms ];
+			}
+			self::record_rss_health( $sub, $health );
+			$updated = true;
 
 			// Stamp each item with the canonical subscription feed URL so the
 			// prune step can match items back to their subscription reliably.
@@ -111,11 +136,9 @@ class Radical_Socials_Feed_Fetcher {
 			if ( ! empty( $feed_items[0]['source_name'] ) ) {
 				if ( empty( $sub['title'] ) ) {
 					$sub['title'] = $feed_items[0]['source_name'];
-					$updated      = true;
 				}
 				if ( empty( $sub['source_url'] ) && ! empty( $feed_items[0]['source_url'] ) ) {
 					$sub['source_url'] = $feed_items[0]['source_url'];
-					$updated           = true;
 				}
 			}
 			unset( $sub );
@@ -126,6 +149,39 @@ class Radical_Socials_Feed_Fetcher {
 		}
 
 		return $items;
+	}
+
+	/**
+	 * Stamp an RSS subscription with health info derived from the most recent
+	 * fetch. Mutates the subscription record in place so the caller's bulk
+	 * write to rs_rss_subscriptions persists it.
+	 *
+	 * @param array<string, mixed> $sub  Subscription array (by-ref).
+	 * @param array{status:string,error:string,elapsed_ms:int} $health
+	 */
+	private static function record_rss_health( array &$sub, array $health ): void {
+		$prev = is_array( $sub['health'] ?? null ) ? $sub['health'] : [];
+
+		$consecutive = (int) ( $prev['consecutive_failures'] ?? 0 );
+		if ( 'failed' === $health['status'] ) {
+			$consecutive++;
+		} else {
+			$consecutive = 0;
+		}
+
+		$last_success = (int) ( $prev['last_success'] ?? 0 );
+		if ( in_array( $health['status'], [ 'ok', 'slow' ], true ) ) {
+			$last_success = time();
+		}
+
+		$sub['health'] = [
+			'status'                => $health['status'],
+			'last_checked'          => time(),
+			'last_success'          => $last_success,
+			'last_error'            => $health['error'],
+			'response_ms'           => $health['elapsed_ms'],
+			'consecutive_failures'  => $consecutive,
+		];
 	}
 
 	/**

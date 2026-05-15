@@ -20,8 +20,23 @@ class Radical_Socials_RSS_Fetcher {
 	 *
 	 * @return array<int, array{title:string, url:string, excerpt:string, date:string, source_name:string, source_url:string, thumbnail_url:string, guid:string, feed_type:string}>
 	 */
+	/** @var string|null Most recent error from a fetch() call. */
+	private static ?string $last_error = null;
+
+	/**
+	 * Last human-readable error from fetch(), or empty string when the
+	 * last fetch succeeded. Used by Feed_Fetcher::fetch_all_rss() to record
+	 * per-subscription health.
+	 */
+	public static function last_error(): string {
+		return (string) self::$last_error;
+	}
+
 	public static function fetch( string $feed_url, int $count = 20 ): array {
+		self::$last_error = null;
+
 		if ( ! self::is_safe_remote_url( $feed_url ) ) {
+			self::$last_error = __( 'URL is not a safe public address (private IP, localhost, or invalid format).', 'radical-socials' );
 			return [];
 		}
 
@@ -47,11 +62,13 @@ class Radical_Socials_RSS_Fetcher {
 		remove_filter( 'wp_feed_cache_transient_lifetime', $ttl );
 
 		if ( is_wp_error( $feed ) ) {
+			self::$last_error = self::humanise_feed_error( $feed );
 			return [];
 		}
 
 		$items = $feed->get_items( 0, $count );
 		if ( empty( $items ) ) {
+			// Not necessarily an error — feeds can be quiet. Let the caller decide.
 			return [];
 		}
 
@@ -232,6 +249,53 @@ class Radical_Socials_RSS_Fetcher {
 	 * Checks the HTTP→HTTPS upgrade first, then parses the site homepage for
 	 * an RSS/Atom <link> tag.
 	 */
+	/**
+	 * Translate a SimplePie / WP HTTP WP_Error into a sentence a non-technical
+	 * user can act on. Falls back to the raw message when we don't recognise
+	 * the code.
+	 */
+	private static function humanise_feed_error( WP_Error $error ): string {
+		$code    = (string) $error->get_error_code();
+		$raw     = (string) $error->get_error_message();
+		$lc_raw  = strtolower( $raw );
+
+		// SimplePie surfaces HTTP status as part of its 'simplepie-error' code.
+		if ( false !== strpos( $lc_raw, 'a feed could not be found at' ) ) {
+			return __( 'The URL doesn\'t serve an RSS or Atom feed.', 'radical-socials' );
+		}
+		if ( false !== strpos( $lc_raw, '404 not found' ) || str_contains( $lc_raw, ' 404' ) ) {
+			return __( 'The feed URL returns 404 Not Found — it may have moved or been removed.', 'radical-socials' );
+		}
+		if ( false !== strpos( $lc_raw, '403 forbidden' ) || str_contains( $lc_raw, ' 403' ) ) {
+			return __( 'The feed server blocked our request (HTTP 403). The site may be rate-limiting or restricting feed access.', 'radical-socials' );
+		}
+		if ( false !== strpos( $lc_raw, '5' ) && ( str_contains( $lc_raw, '500' ) || str_contains( $lc_raw, '502' ) || str_contains( $lc_raw, '503' ) || str_contains( $lc_raw, '504' ) ) ) {
+			return __( 'The feed server returned a 5xx error. The site is probably temporarily down.', 'radical-socials' );
+		}
+		if ( false !== strpos( $lc_raw, 'ssl' ) || false !== strpos( $lc_raw, 'certificate' ) ) {
+			return __( 'The feed server\'s SSL certificate is invalid or expired.', 'radical-socials' );
+		}
+		if ( false !== strpos( $lc_raw, 'name or service not known' ) || false !== strpos( $lc_raw, 'could not resolve host' ) ) {
+			return __( 'The feed\'s domain name doesn\'t resolve — the site may no longer exist.', 'radical-socials' );
+		}
+		if ( false !== strpos( $lc_raw, 'connection refused' ) ) {
+			return __( 'The feed server refused the connection.', 'radical-socials' );
+		}
+		if ( false !== strpos( $lc_raw, 'timed out' ) || false !== strpos( $lc_raw, 'timeout' ) ) {
+			return __( 'The feed server didn\'t respond in time (timeout).', 'radical-socials' );
+		}
+		if ( 'http_request_failed' === $code ) {
+			return sprintf(
+				/* translators: %s: low-level error message */
+				__( 'Couldn\'t reach the feed server: %s', 'radical-socials' ),
+				$raw
+			);
+		}
+
+		// Last resort: pass the raw message through but at least frame it.
+		return $raw ?: __( 'Unknown feed error.', 'radical-socials' );
+	}
+
 	private static function discover_feed_url( string $old_url ): string {
 		if ( ! self::is_safe_remote_url( $old_url ) ) {
 			return '';

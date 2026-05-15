@@ -446,9 +446,33 @@ class Radical_Socials_Following_REST {
 				'title'      => $sub['title'] ?: '',
 				'source_url' => $sub['source_url'] ?? '',
 				'categories' => $sub['categories'] ?? [],
+				'health'     => self::normalise_health( $sub['health'] ?? null ),
 			];
 		}
 		return $items;
+	}
+
+	/**
+	 * Normalise the per-feed health envelope into a consistent shape regardless
+	 * of source (RSS option array vs ap_actor post meta vs no data at all).
+	 * Returns null for sources we haven't tracked health on yet, which the
+	 * frontend renders as a faded "untested" indicator.
+	 *
+	 * @param mixed $health
+	 * @return array<string, mixed>|null
+	 */
+	private static function normalise_health( $health ): ?array {
+		if ( ! is_array( $health ) || empty( $health['status'] ) ) {
+			return null;
+		}
+		return [
+			'status'                => (string) $health['status'],
+			'last_checked'          => (int) ( $health['last_checked'] ?? 0 ),
+			'last_success'          => (int) ( $health['last_success'] ?? 0 ),
+			'last_error'            => (string) ( $health['last_error'] ?? '' ),
+			'response_ms'           => (int) ( $health['response_ms'] ?? 0 ),
+			'consecutive_failures'  => (int) ( $health['consecutive_failures'] ?? 0 ),
+		];
 	}
 
 	private static function list_activitypub(): array {
@@ -459,13 +483,17 @@ class Radical_Socials_Following_REST {
 		$follows = \Activitypub\Collection\Following::query_all( $uid )['following'];
 		$items   = [];
 		foreach ( $follows as $post ) {
-			$acct    = get_post_meta( $post->ID, '_activitypub_acct', true );
+			$acct   = get_post_meta( $post->ID, '_activitypub_acct', true );
 			$display = $acct ?: $post->post_title ?: $post->guid;
+
+			$health = get_post_meta( $post->ID, '_rs_health', true );
+
 			$items[] = [
-				'id'    => (string) $post->ID,
-				'type'  => 'activitypub',
-				'url'   => $post->guid,
-				'title' => $display,
+				'id'     => (string) $post->ID,
+				'type'   => 'activitypub',
+				'url'    => $post->guid,
+				'title'  => $display,
+				'health' => self::normalise_health( is_array( $health ) ? $health : null ),
 			];
 		}
 		return $items;

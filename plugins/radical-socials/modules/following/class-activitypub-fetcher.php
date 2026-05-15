@@ -165,10 +165,12 @@ class Radical_Socials_ActivityPub_Fetcher {
 		update_option( 'rs_ap_outbox_offset', ( $offset + count( $actors ) ) % $total, false );
 
 		foreach ( $actors as $post ) {
-			$actor_url  = $post->guid;
-			$outbox_url = get_post_meta( $post->ID, '_rs_outbox_url', true );
-			$icon_url   = get_post_meta( $post->ID, '_rs_actor_icon_url', true );
-			$display    = get_post_meta( $post->ID, '_rs_actor_display_name', true );
+			$actor_url     = $post->guid;
+			$outbox_url    = get_post_meta( $post->ID, '_rs_outbox_url', true );
+			$icon_url      = get_post_meta( $post->ID, '_rs_actor_icon_url', true );
+			$display       = get_post_meta( $post->ID, '_rs_actor_display_name', true );
+			$poll_started  = microtime( true );
+			$poll_error    = '';
 
 			// Fetch actor JSON if we're missing the outbox URL, or to backfill
 			// the icon/display-name fields when we have an old cached actor.
@@ -197,11 +199,21 @@ class Radical_Socials_ActivityPub_Fetcher {
 			}
 
 			if ( ! $outbox_url ) {
+				self::record_actor_health( $post->ID, [
+					'status'     => 'failed',
+					'error'      => __( 'Could not discover the actor\'s outbox URL (account may not exist on this server).', 'radical-socials' ),
+					'elapsed_ms' => (int) round( ( microtime( true ) - $poll_started ) * 1000 ),
+				] );
 				continue;
 			}
 
 			$page = self::fetch_outbox_page( $outbox_url );
 			if ( ! $page ) {
+				self::record_actor_health( $post->ID, [
+					'status'     => 'failed',
+					'error'      => __( 'The remote server returned an empty or malformed outbox page.', 'radical-socials' ),
+					'elapsed_ms' => (int) round( ( microtime( true ) - $poll_started ) * 1000 ),
+				] );
 				continue;
 			}
 
@@ -220,9 +232,47 @@ class Radical_Socials_ActivityPub_Fetcher {
 					$items[] = $item;
 				}
 			}
+
+			// Successful poll. Bucket "slow" if it took >3s.
+			$elapsed_ms = (int) round( ( microtime( true ) - $poll_started ) * 1000 );
+			self::record_actor_health( $post->ID, [
+				'status'     => $elapsed_ms > 3000 ? 'slow' : 'ok',
+				'error'      => '',
+				'elapsed_ms' => $elapsed_ms,
+			] );
 		}
 
 		return $items;
+	}
+
+	/**
+	 * Persist outbox-poll health onto the ap_actor post. Stored as a single
+	 * serialized meta key (_rs_health) instead of one key per field so each
+	 * actor's health update is exactly one DB write, not six. Mirrors the
+	 * shape Feed_Fetcher::record_rss_health() writes for RSS subscriptions
+	 * so the REST list endpoint can expose both via the same JSON envelope.
+	 *
+	 * @param array{status:string,error:string,elapsed_ms:int} $health
+	 */
+	private static function record_actor_health( int $post_id, array $health ): void {
+		$prev = get_post_meta( $post_id, '_rs_health', true );
+		$prev = is_array( $prev ) ? $prev : [];
+
+		$consecutive = 'failed' === $health['status']
+			? (int) ( $prev['consecutive_failures'] ?? 0 ) + 1
+			: 0;
+		$last_success = in_array( $health['status'], [ 'ok', 'slow' ], true )
+			? time()
+			: (int) ( $prev['last_success'] ?? 0 );
+
+		update_post_meta( $post_id, '_rs_health', [
+			'status'                => $health['status'],
+			'last_checked'          => time(),
+			'last_success'          => $last_success,
+			'last_error'            => $health['error'],
+			'response_ms'           => (int) $health['elapsed_ms'],
+			'consecutive_failures'  => $consecutive,
+		] );
 	}
 
 	private static function fetch_outbox_page( string $outbox_url ): ?array {

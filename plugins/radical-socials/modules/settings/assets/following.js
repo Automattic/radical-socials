@@ -51,6 +51,7 @@
 			<thead>
 				<tr>
 					<th>${ rsFollowing.i18n.colFav }</th>
+					<th>${ rsFollowing.i18n.colHealth }</th>
 					<th>${ rsFollowing.i18n.colName }</th>
 					<th>${ rsFollowing.i18n.colType }</th>
 					<th>${ rsFollowing.i18n.colCategories }</th>
@@ -101,6 +102,10 @@
 		feedLink.style.cssText = 'font-size:0.85em;opacity:0.7';
 		tdName.appendChild( feedLink );
 
+		// Health (signal strength) cell
+		const tdHealth = document.createElement( 'td' );
+		tdHealth.appendChild( renderHealthIcon( item.health ) );
+
 		// Type cell
 		const tdType = document.createElement( 'td' );
 		const badge  = document.createElement( 'span' );
@@ -130,11 +135,68 @@
 		tdDel.appendChild( delBtn );
 
 		tr.appendChild( tdStar );
+		tr.appendChild( tdHealth );
 		tr.appendChild( tdName );
 		tr.appendChild( tdType );
 		tr.appendChild( tdCats );
 		tr.appendChild( tdDel );
 		return tr;
+	}
+
+	// ── Health (signal-strength) indicator ────────────────────────────────
+
+	function renderHealthIcon( health ) {
+		const wrap = document.createElement( 'span' );
+		wrap.className = 'rs-health rs-health-' + ( health?.status || 'untested' );
+
+		// Build the SVG: three bars of increasing height. `data-level` controls
+		// which of them are coloured via CSS.
+		wrap.innerHTML = `
+			<svg viewBox="0 0 14 14" width="16" height="16" aria-hidden="true">
+				<rect class="rs-health-bar rs-health-bar-1" x="0"  y="9" width="3" height="5"  rx="0.5"/>
+				<rect class="rs-health-bar rs-health-bar-2" x="5"  y="5" width="3" height="9"  rx="0.5"/>
+				<rect class="rs-health-bar rs-health-bar-3" x="10" y="0" width="3" height="14" rx="0.5"/>
+			</svg>`;
+
+		// Accessible label / hover tooltip — different copy per state.
+		wrap.title = healthTooltip( health );
+		wrap.setAttribute( 'role', 'img' );
+		wrap.setAttribute( 'aria-label', wrap.title );
+
+		return wrap;
+	}
+
+	function healthTooltip( health ) {
+		const i18n = rsFollowing.i18n;
+		if ( ! health || ! health.status ) {
+			return i18n.healthUntested;
+		}
+
+		const checkedAgo = health.last_checked ? relTime( health.last_checked ) : '';
+		switch ( health.status ) {
+			case 'ok':
+				return i18n.healthOk
+					.replace( '%ms%', String( health.response_ms || 0 ) )
+					.replace( '%ago%', checkedAgo );
+			case 'slow':
+				return i18n.healthSlow
+					.replace( '%ms%', String( health.response_ms || 0 ) )
+					.replace( '%ago%', checkedAgo );
+			case 'failed':
+				return i18n.healthFailed
+					.replace( '%error%', health.last_error || i18n.healthUnknownError )
+					.replace( '%ago%', checkedAgo );
+			default:
+				return i18n.healthUntested;
+		}
+	}
+
+	function relTime( unixSeconds ) {
+		const secs = Math.max( 1, Math.floor( Date.now() / 1000 ) - unixSeconds );
+		if ( secs < 60 )    return secs + 's';
+		if ( secs < 3600 )  return Math.floor( secs / 60 ) + 'm';
+		if ( secs < 86400 ) return Math.floor( secs / 3600 ) + 'h';
+		return Math.floor( secs / 86400 ) + 'd';
 	}
 
 	// ── Star / favourite ───────────────────────────────────────────────────
