@@ -58,13 +58,17 @@ class Radical_Socials_Feed_Fetcher {
 			}
 			$feed_items = Radical_Socials_RSS_Fetcher::fetch( $sub['url'], 20 );
 
-			// Inject subscription categories so upsert() can tag the items.
-			if ( ! empty( $sub['categories'] ) ) {
-				foreach ( $feed_items as &$fi ) {
+			// Stamp each item with the canonical subscription feed URL so the
+			// prune step can match items back to their subscription reliably.
+			// (source_url comes from SimplePie's get_permalink() — the feed's
+			// channel <link> — and rarely matches what the OPML stored.)
+			foreach ( $feed_items as &$fi ) {
+				$fi['feed_url'] = $sub['url'];
+				if ( ! empty( $sub['categories'] ) ) {
 					$fi['feed_categories'] = $sub['categories'];
 				}
-				unset( $fi );
 			}
+			unset( $fi );
 
 			$items = array_merge( $items, $feed_items );
 
@@ -152,6 +156,7 @@ class Radical_Socials_Feed_Fetcher {
 			'meta_input'   => [
 				'_rs_item_url'          => $item['url'] ?? '',
 				'_rs_item_source_url'   => $item['source_url'] ?? '',
+				'_rs_item_feed_url'     => $item['feed_url'] ?? '',
 				'_rs_item_thumbnail'    => $item['thumbnail_url'] ?? '',
 				'_rs_item_feed_type'    => $item['feed_type'] ?? 'rss',
 				'_rs_author_name'       => $item['author_name'] ?? '',
@@ -233,8 +238,7 @@ class Radical_Socials_Feed_Fetcher {
 	}
 
 	private static function prune_orphaned_rss(): void {
-		$subs  = (array) get_option( 'rs_rss_subscriptions', [] );
-		$known = array_values( array_filter( array_column( $subs, 'source_url' ) ) );
+		$subs = (array) get_option( 'rs_rss_subscriptions', [] );
 
 		if ( empty( $subs ) ) {
 			// No subscriptions at all — every RSS item is an orphan.
@@ -244,12 +248,21 @@ class Radical_Socials_Feed_Fetcher {
 			return;
 		}
 
+		// Match items against the subscription's xmlUrl (the canonical feed
+		// URL we used to fetch them), not the channel <link>. SimplePie's
+		// permalink is frequently different from the OPML's htmlUrl by
+		// trailing slash / protocol / www, and a mismatch here causes every
+		// freshly upserted item to be pruned as "orphaned" — that's what was
+		// silently emptying the feed list on import.
+		$known = array_values( array_filter( array_column( $subs, 'url' ) ) );
 		if ( empty( $known ) ) {
-			// Subscriptions exist but none have a source_url yet (e.g. first fetch
-			// hasn't completed) — skip to avoid false positives.
 			return;
 		}
 
+		// Items without the new _rs_item_feed_url meta (i.e. older items
+		// upserted before this change) are excluded from orphan deletion so
+		// the migration is non-destructive — they'll naturally rotate out via
+		// enforce_cap as new items come in.
 		$orphans = get_posts( [
 			'post_type'      => 'rs_feed_item',
 			'post_status'    => 'any',
@@ -258,8 +271,8 @@ class Radical_Socials_Feed_Fetcher {
 			'meta_query'     => [
 				'relation' => 'AND',
 				[ 'key' => '_rs_item_feed_type', 'value' => 'rss' ],
-				[ 'key' => '_rs_item_source_url', 'value' => $known, 'compare' => 'NOT IN' ],
-				[ 'key' => '_rs_item_source_url', 'value' => '', 'compare' => '!=' ],
+				[ 'key' => '_rs_item_feed_url',  'value' => $known, 'compare' => 'NOT IN' ],
+				[ 'key' => '_rs_item_feed_url',  'value' => '', 'compare' => '!=' ],
 			],
 		] );
 

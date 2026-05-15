@@ -355,6 +355,19 @@ class Radical_Socials_Following {
 		set_transient( self::REFRESH_LOCK, self::REFRESH_LOCK_QUEUED, self::REFRESH_LOCK_TTL );
 		spawn_cron();
 
+		// spawn_cron() is a no-op when DISABLE_WP_CRON is true (common on
+		// shared hosting — Hostinger, SiteGround, etc. all set it). In that
+		// case, fire a direct non-blocking POST to wp-cron.php ourselves so
+		// the user-initiated refresh actually runs. wp-cron.php itself does
+		// not honour the constant; only spawn_cron() does.
+		if ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) {
+			wp_remote_post( site_url( 'wp-cron.php?doing_wp_cron=' . sprintf( '%.22F', microtime( true ) ) ), [
+				'timeout'   => 0.01,
+				'blocking'  => false,
+				'sslverify' => apply_filters( 'https_local_ssl_verify', false ),
+			] );
+		}
+
 		return true;
 	}
 

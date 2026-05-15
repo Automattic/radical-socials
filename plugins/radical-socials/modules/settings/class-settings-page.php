@@ -20,6 +20,103 @@ class Radical_Socials_Settings_Page {
 	public static function init(): void {
 		add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue' ] );
 		add_action( 'admin_init',            [ __CLASS__, 'handle_following_privacy_save' ] );
+		add_action( 'admin_init',            [ __CLASS__, 'handle_diagnostics_action' ] );
+	}
+
+	/**
+	 * Handle Diagnostics-tab actions (POST nonce-protected). Runs on
+	 * admin_init so wp_safe_redirect() can set Location before any output.
+	 *
+	 * Supported actions (one per request):
+	 *   rs_diag=run_fetch    — runs Feed_Fetcher::run() inline (blocking,
+	 *                          up to 10 min). Last-resort when cron is dead.
+	 *   rs_diag=queue_fetch  — queues a refresh through the normal cron path
+	 *                          and clears any stuck lock.
+	 *   rs_diag=clear_lock   — manually clears rs_feed_refresh_lock.
+	 *   rs_diag=test_feed    — fetches the first RSS subscription URL with a
+	 *                          short timeout to verify outbound HTTP works.
+	 */
+	public static function handle_diagnostics_action(): void {
+		if ( ! isset( $_POST['rs_diagnostics_nonce'] ) ) {
+			return;
+		}
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		if ( ! wp_verify_nonce( wp_unslash( $_POST['rs_diagnostics_nonce'] ), 'rs_diagnostics_action' ) ) {
+			return;
+		}
+
+		$action = isset( $_POST['rs_diag'] ) ? sanitize_text_field( wp_unslash( $_POST['rs_diag'] ) ) : '';
+		$flag   = 'ok';
+
+		switch ( $action ) {
+			case 'clear_lock':
+				delete_transient( Radical_Socials_Following::REFRESH_LOCK );
+				$flag = 'lock_cleared';
+				break;
+
+			case 'queue_fetch':
+				$queued = Radical_Socials_Following::queue_refresh( true );
+				$flag   = $queued ? 'queued' : 'queue_failed';
+				break;
+
+			case 'run_fetch':
+				// Last-resort inline run for hosts where cron doesn't fire.
+				// Bump time / memory caps for this one request only; if the
+				// host enforces hard limits we'll still hit them but most
+				// shared hosts honour these soft hints.
+				if ( function_exists( 'set_time_limit' ) ) {
+					@set_time_limit( 600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				}
+				@ini_set( 'memory_limit', '512M' ); // phpcs:ignore WordPress.PHP.IniSet.memory_limit_Disallowed
+				delete_transient( Radical_Socials_Following::REFRESH_LOCK );
+				$started = microtime( true );
+				try {
+					Radical_Socials_Feed_Fetcher::run();
+					$flag = 'fetch_ran';
+					set_transient( 'rs_diag_fetch_elapsed', round( microtime( true ) - $started, 1 ), 60 );
+				} catch ( \Throwable $e ) {
+					$flag = 'fetch_error';
+					set_transient( 'rs_diag_fetch_error', $e->getMessage(), 60 );
+				}
+				break;
+
+			case 'test_feed':
+				$subs = (array) get_option( 'rs_rss_subscriptions', [] );
+				if ( empty( $subs ) ) {
+					$flag = 'no_subs';
+					break;
+				}
+				$url = $subs[0]['url'] ?? '';
+				if ( ! $url ) {
+					$flag = 'no_subs';
+					break;
+				}
+				$r = wp_safe_remote_get( $url, [ 'timeout' => 10, 'redirection' => 3 ] );
+				if ( is_wp_error( $r ) ) {
+					set_transient( 'rs_diag_test_result', [
+						'url'   => $url,
+						'ok'    => false,
+						'error' => $r->get_error_message(),
+					], 60 );
+				} else {
+					set_transient( 'rs_diag_test_result', [
+						'url'   => $url,
+						'ok'    => true,
+						'code'  => (int) wp_remote_retrieve_response_code( $r ),
+						'bytes' => strlen( (string) wp_remote_retrieve_body( $r ) ),
+					], 60 );
+				}
+				$flag = 'tested';
+				break;
+
+			default:
+				return;
+		}
+
+		wp_safe_redirect( admin_url( 'admin.php?page=radical-socials-settings&tab=diagnostics&rs_diag_result=' . rawurlencode( $flag ) ) );
+		exit;
 	}
 
 	/**
@@ -50,7 +147,7 @@ class Radical_Socials_Settings_Page {
 	private static function active_tab(): string {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'profile';
-		return in_array( $tab, [ 'profile', 'following' ], true ) ? $tab : 'profile';
+		return in_array( $tab, [ 'profile', 'following', 'diagnostics' ], true ) ? $tab : 'profile';
 	}
 
 	public static function enqueue( string $hook ): void {
@@ -281,6 +378,10 @@ class Radical_Socials_Settings_Page {
 				<a href="<?php echo esc_url( $tab_url( 'following' ) ); ?>"
 				   class="nav-tab <?php echo 'following' === $active_tab ? 'nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'Following', 'radical-socials' ); ?>
+				</a>
+				<a href="<?php echo esc_url( $tab_url( 'diagnostics' ) ); ?>"
+				   class="nav-tab <?php echo 'diagnostics' === $active_tab ? 'nav-tab-active' : ''; ?>">
+					<?php esc_html_e( 'Diagnostics', 'radical-socials' ); ?>
 				</a>
 			</nav>
 
@@ -656,9 +757,261 @@ class Radical_Socials_Settings_Page {
 
 			</div>
 
+			<?php elseif ( 'diagnostics' === $active_tab ) : ?>
+				<?php self::render_diagnostics_tab(); ?>
 			<?php endif; ?>
 		</div>
 		<?php
+	}
+
+	private static function render_diagnostics_tab(): void {
+		$lock          = get_transient( Radical_Socials_Following::REFRESH_LOCK );
+		$last          = (int) get_option( 'rs_last_feed_fetch', 0 );
+		$next_ts       = wp_next_scheduled( Radical_Socials_Following::FETCH_HOOK );
+		$schedule_name = $next_ts ? wp_get_schedule( Radical_Socials_Following::FETCH_HOOK ) : '';
+		$rss_count     = count( (array) get_option( 'rs_rss_subscriptions', [] ) );
+		$ap_count      = count( get_posts( [ 'post_type' => 'ap_actor', 'numberposts' => -1, 'fields' => 'ids', 'post_status' => 'any' ] ) );
+		$item_total    = (int) wp_count_posts( 'rs_feed_item' )->publish;
+
+		$cron_disabled = defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON;
+		$mem_bytes     = wp_convert_hr_to_bytes( (string) ini_get( 'memory_limit' ) );
+		$exec_time     = (int) ini_get( 'max_execution_time' );
+
+		// Surface single-shot post-action messages stored in short-lived transients.
+		$result   = isset( $_GET['rs_diag_result'] ) ? sanitize_text_field( wp_unslash( $_GET['rs_diag_result'] ) ) : '';
+		$elapsed  = get_transient( 'rs_diag_fetch_elapsed' );
+		$err_msg  = get_transient( 'rs_diag_fetch_error' );
+		$test     = get_transient( 'rs_diag_test_result' );
+		if ( $elapsed !== false ) delete_transient( 'rs_diag_fetch_elapsed' );
+		if ( $err_msg !== false ) delete_transient( 'rs_diag_fetch_error' );
+		if ( $test    !== false ) delete_transient( 'rs_diag_test_result' );
+
+		// Build the warning list.
+		$warnings = [];
+		if ( $last === 0 && ( $rss_count + $ap_count ) > 0 ) {
+			$warnings[] = [ 'level' => 'error', 'msg' => __( 'Feeds have never refreshed despite having active subscriptions. Use "Run fetch now" below to do a one-time inline run.', 'radical-socials' ) ];
+		} elseif ( $last > 0 && ( time() - $last ) > HOUR_IN_SECONDS ) {
+			$warnings[] = [ 'level' => 'warning', 'msg' => __( 'The last successful refresh was over an hour ago. Cron may not be running on your host.', 'radical-socials' ) ];
+		}
+		if ( $cron_disabled ) {
+			$warnings[] = [
+				'level' => 'info',
+				'msg'   => __( 'WordPress\'s built-in cron is disabled on this site (DISABLE_WP_CRON = true). The 15-minute background refresh only runs if your host has a real cron job configured to hit wp-cron.php. Hostinger users: set this up in hPanel → Cron Jobs with the command shown below.', 'radical-socials' ),
+			];
+		}
+		if ( Radical_Socials_Following::REFRESH_LOCK_QUEUED === $lock ) {
+			$warnings[] = [ 'level' => 'warning', 'msg' => __( 'A refresh is currently queued. If this state persists for more than a couple of minutes, cron isn\'t firing — clear the lock and try "Run fetch now".', 'radical-socials' ) ];
+		}
+		if ( $mem_bytes > 0 && $mem_bytes < 128 * MB_IN_BYTES ) {
+			$warnings[] = [ 'level' => 'warning', 'msg' => sprintf( __( 'PHP memory_limit is %s. Polling 100+ feeds may run out of memory. Raise it to at least 128M.', 'radical-socials' ), ini_get( 'memory_limit' ) ) ];
+		}
+		if ( $exec_time > 0 && $exec_time < 60 ) {
+			$warnings[] = [ 'level' => 'warning', 'msg' => sprintf( __( 'PHP max_execution_time is %ds. A full refresh of many feeds may not finish before the host kills it.', 'radical-socials' ), $exec_time ) ];
+		}
+		if ( ! function_exists( 'Activitypub\follow' ) ) {
+			$warnings[] = [ 'level' => 'error', 'msg' => __( 'The ActivityPub plugin is not active. Fediverse follows will not be fetched.', 'radical-socials' ) ];
+		}
+
+		// Action result notice.
+		$result_notice = self::diagnostics_result_notice( $result, $elapsed, $err_msg, $test );
+
+		$nonce = wp_create_nonce( 'rs_diagnostics_action' );
+		?>
+		<div style="margin-top:20px;max-width:840px">
+			<?php echo $result_notice; // already escaped inside the helper ?>
+
+			<?php if ( ! empty( $warnings ) ) : ?>
+				<div style="margin:16px 0">
+					<?php foreach ( $warnings as $w ) :
+						$colour = [
+							'error'   => '#dc3232',
+							'warning' => '#dba617',
+							'info'    => '#2271b1',
+						][ $w['level'] ];
+						?>
+						<div style="border-left:4px solid <?php echo esc_attr( $colour ); ?>;background:#fff;padding:10px 14px;margin:6px 0;box-shadow:0 1px 1px rgba(0,0,0,.04)">
+							<?php echo esc_html( $w['msg'] ); ?>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+
+			<h2 style="margin-top:24px"><?php esc_html_e( 'Feed refresh status', 'radical-socials' ); ?></h2>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Last successful refresh', 'radical-socials' ); ?></th>
+					<td><?php
+						if ( $last === 0 ) {
+							esc_html_e( 'Never', 'radical-socials' );
+						} else {
+							echo esc_html( sprintf(
+								/* translators: 1: date 2: time-diff */
+								__( '%1$s (%2$s ago)', 'radical-socials' ),
+								wp_date( 'Y-m-d H:i:s', $last ),
+								human_time_diff( $last, time() )
+							) );
+						}
+					?></td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Refresh lock', 'radical-socials' ); ?></th>
+					<td><code><?php echo $lock === false ? esc_html__( '(none)', 'radical-socials' ) : esc_html( (string) $lock ); ?></code></td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Next scheduled refresh', 'radical-socials' ); ?></th>
+					<td><?php
+						if ( ! $next_ts ) {
+							esc_html_e( 'Not scheduled', 'radical-socials' );
+						} else {
+							echo esc_html( sprintf(
+								/* translators: 1: date 2: schedule 3: diff */
+								__( '%1$s — schedule %2$s (in %3$s)', 'radical-socials' ),
+								wp_date( 'Y-m-d H:i:s', $next_ts ),
+								$schedule_name,
+								human_time_diff( time(), $next_ts )
+							) );
+						}
+					?></td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Subscriptions', 'radical-socials' ); ?></th>
+					<td><?php echo esc_html( sprintf(
+						/* translators: 1: RSS count 2: AP count */
+						__( '%1$d RSS, %2$d ActivityPub', 'radical-socials' ),
+						$rss_count,
+						$ap_count
+					) ); ?></td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Feed items stored', 'radical-socials' ); ?></th>
+					<td><?php echo esc_html( (string) $item_total ); ?></td>
+				</tr>
+			</table>
+
+			<h2 style="margin-top:24px"><?php esc_html_e( 'Actions', 'radical-socials' ); ?></h2>
+			<p class="description"><?php esc_html_e( 'When cron isn\'t firing, use these manually.', 'radical-socials' ); ?></p>
+
+			<form method="post" style="display:inline-block;margin-right:8px">
+				<input type="hidden" name="rs_diagnostics_nonce" value="<?php echo esc_attr( $nonce ); ?>" />
+				<input type="hidden" name="rs_diag" value="queue_fetch" />
+				<button type="submit" class="button button-secondary"><?php esc_html_e( 'Queue a refresh', 'radical-socials' ); ?></button>
+			</form>
+
+			<form method="post" style="display:inline-block;margin-right:8px"
+				  onsubmit="this.querySelector('button').disabled = true; this.querySelector('button').textContent = <?php echo wp_json_encode( __( 'Fetching… this may take up to 10 minutes', 'radical-socials' ) ); ?>;">
+				<input type="hidden" name="rs_diagnostics_nonce" value="<?php echo esc_attr( $nonce ); ?>" />
+				<input type="hidden" name="rs_diag" value="run_fetch" />
+				<button type="submit" class="button button-primary"><?php esc_html_e( 'Run fetch now (inline)', 'radical-socials' ); ?></button>
+			</form>
+
+			<form method="post" style="display:inline-block;margin-right:8px">
+				<input type="hidden" name="rs_diagnostics_nonce" value="<?php echo esc_attr( $nonce ); ?>" />
+				<input type="hidden" name="rs_diag" value="clear_lock" />
+				<button type="submit" class="button button-secondary"<?php disabled( $lock === false ); ?>><?php esc_html_e( 'Clear refresh lock', 'radical-socials' ); ?></button>
+			</form>
+
+			<form method="post" style="display:inline-block">
+				<input type="hidden" name="rs_diagnostics_nonce" value="<?php echo esc_attr( $nonce ); ?>" />
+				<input type="hidden" name="rs_diag" value="test_feed" />
+				<button type="submit" class="button button-secondary"<?php disabled( 0 === $rss_count ); ?>><?php esc_html_e( 'Test one feed', 'radical-socials' ); ?></button>
+			</form>
+
+			<h2 style="margin-top:32px"><?php esc_html_e( 'Hosting', 'radical-socials' ); ?></h2>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row">DISABLE_WP_CRON</th>
+					<td><code><?php echo $cron_disabled ? 'true' : 'false'; ?></code>
+						<?php if ( $cron_disabled ) : ?>
+							<p class="description"><?php esc_html_e( 'WordPress will not auto-fire scheduled events on page visits. A real cron job on your host must call wp-cron.php instead. Recommended command:', 'radical-socials' ); ?></p>
+							<p><code style="display:block;padding:8px;background:#f6f7f7;border:1px solid #dcdcde;border-radius:3px">wget -q -O - <?php echo esc_url( site_url( 'wp-cron.php?doing_wp_cron' ) ); ?> &gt;/dev/null 2&gt;&amp;1</code></p>
+							<p class="description"><?php esc_html_e( 'Schedule this every 15 minutes (cron expression: */15 * * * *).', 'radical-socials' ); ?></p>
+						<?php endif; ?>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row">memory_limit</th>
+					<td><code><?php echo esc_html( ini_get( 'memory_limit' ) ); ?></code></td>
+				</tr>
+				<tr>
+					<th scope="row">max_execution_time</th>
+					<td><code><?php echo esc_html( (string) $exec_time ); ?>s</code></td>
+				</tr>
+				<tr>
+					<th scope="row">PHP version</th>
+					<td><code><?php echo esc_html( PHP_VERSION ); ?></code></td>
+				</tr>
+				<tr>
+					<th scope="row">WP version</th>
+					<td><code><?php echo esc_html( get_bloginfo( 'version' ) ); ?></code></td>
+				</tr>
+				<tr>
+					<th scope="row">ActivityPub plugin</th>
+					<td><?php echo function_exists( 'Activitypub\follow' ) ? '<span style="color:#0a7b3f">✓ ' . esc_html__( 'active', 'radical-socials' ) . '</span>' : '<span style="color:#dc3232">✘ ' . esc_html__( 'not active', 'radical-socials' ) . '</span>'; ?></td>
+				</tr>
+			</table>
+		</div>
+		<?php
+	}
+
+	private static function diagnostics_result_notice( string $result, $elapsed, $err_msg, $test ): string {
+		if ( '' === $result ) {
+			return '';
+		}
+
+		$class = 'notice notice-success is-dismissible';
+		$body  = '';
+
+		switch ( $result ) {
+			case 'fetch_ran':
+				$body = sprintf(
+					/* translators: %s: elapsed seconds */
+					esc_html__( 'Refresh completed in %ss.', 'radical-socials' ),
+					esc_html( (string) $elapsed )
+				);
+				break;
+			case 'fetch_error':
+				$class = 'notice notice-error is-dismissible';
+				$body  = esc_html__( 'Inline refresh threw an exception:', 'radical-socials' ) . ' <code>' . esc_html( (string) $err_msg ) . '</code>';
+				break;
+			case 'queued':
+				$body = esc_html__( 'Refresh queued. Watch the "Last successful refresh" timestamp — it should update within a minute or two.', 'radical-socials' );
+				break;
+			case 'queue_failed':
+				$class = 'notice notice-warning is-dismissible';
+				$body  = esc_html__( 'Refresh could not be queued (another fetch is already running).', 'radical-socials' );
+				break;
+			case 'lock_cleared':
+				$body = esc_html__( 'Refresh lock cleared.', 'radical-socials' );
+				break;
+			case 'no_subs':
+				$class = 'notice notice-warning is-dismissible';
+				$body  = esc_html__( 'No RSS subscriptions to test against.', 'radical-socials' );
+				break;
+			case 'tested':
+				if ( is_array( $test ) && ! empty( $test['ok'] ) ) {
+					$body = sprintf(
+						/* translators: 1: URL 2: HTTP code 3: bytes */
+						esc_html__( 'Fetched %1$s — HTTP %2$d, %3$d bytes.', 'radical-socials' ),
+						'<code>' . esc_html( $test['url'] ) . '</code>',
+						(int) $test['code'],
+						(int) $test['bytes']
+					);
+				} else {
+					$class = 'notice notice-error is-dismissible';
+					$body  = sprintf(
+						/* translators: 1: URL 2: error message */
+						esc_html__( 'Could not fetch %1$s — %2$s', 'radical-socials' ),
+						'<code>' . esc_html( (string) ( $test['url'] ?? '' ) ) . '</code>',
+						'<code>' . esc_html( (string) ( $test['error'] ?? '' ) ) . '</code>'
+					);
+				}
+				break;
+		}
+
+		if ( '' === $body ) {
+			return '';
+		}
+		return '<div class="' . esc_attr( $class ) . '"><p>' . $body . '</p></div>';
 	}
 
 	private static function get_profile_handle( WP_User $user ): string {
