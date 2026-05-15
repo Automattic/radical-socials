@@ -150,6 +150,9 @@ class Radical_Socials_Feed_Fetcher {
 				'_rs_item_source_url'   => $item['source_url'] ?? '',
 				'_rs_item_thumbnail'    => $item['thumbnail_url'] ?? '',
 				'_rs_item_feed_type'    => $item['feed_type'] ?? 'rss',
+				'_rs_author_name'       => $item['author_name'] ?? '',
+				'_rs_author_icon_url'   => $item['author_icon_url'] ?? '',
+				'_rs_author_url'        => $item['author_url'] ?? '',
 			],
 		];
 
@@ -208,8 +211,8 @@ class Radical_Socials_Feed_Fetcher {
 			'tr'   => $common,
 			'th'   => array_merge( $common, [ 'scope' => true, 'colspan' => true, 'rowspan' => true ] ),
 			'td'   => array_merge( $common, [ 'colspan' => true, 'rowspan' => true ] ),
-			'video'  => array_merge( $common, [ 'src' => true, 'poster' => true, 'width' => true, 'height' => true ] ),
-			'audio'  => array_merge( $common, [ 'src' => true ] ),
+			'video'  => array_merge( $common, [ 'src' => true, 'poster' => true, 'width' => true, 'height' => true, 'controls' => true, 'playsinline' => true, 'preload' => true, 'autoplay' => true, 'loop' => true, 'muted' => true ] ),
+			'audio'  => array_merge( $common, [ 'src' => true, 'controls' => true, 'preload' => true, 'autoplay' => true, 'loop' => true, 'muted' => true ] ),
 			'source' => [ 'src' => true, 'type' => true, 'srcset' => true, 'media' => true ],
 		];
 		return $list;

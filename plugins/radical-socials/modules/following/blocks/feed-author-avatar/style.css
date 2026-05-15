@@ -1,0 +1,28 @@
+.wp-block-radical-socials-feed-author-avatar {
+	display: inline-block;
+	overflow: hidden;
+	line-height: 0;
+	vertical-align: middle;
+}
+
+.wp-block-radical-socials-feed-author-avatar a {
+	display: inline-block;
+	line-height: 0;
+}
+
+.wp-block-radical-socials-feed-author-avatar__img {
+	display: block;
+	width:  var(--rs-author-avatar-size, 48px);
+	height: var(--rs-author-avatar-size, 48px);
+	object-fit: cover;
+	border-radius: inherit;
+}
+
+/* Quick rounded toggle — overrides whatever border-radius was set by the
+ * border panel. Apply 50% to both wrapper and inner img so the link wrapper
+ * (when present) also gets clipped. */
+.wp-block-radical-socials-feed-author-avatar.is-rounded,
+.wp-block-radical-socials-feed-author-avatar.is-rounded a,
+.wp-block-radical-socials-feed-author-avatar.is-rounded .wp-block-radical-socials-feed-author-avatar__img {
+	border-radius: 50%;
+}

@@ -88,6 +88,8 @@ class Radical_Socials_Following {
 		register_block_type( __DIR__ . '/blocks/following-link' );
 		register_block_type( __DIR__ . '/blocks/favorites-link' );
 		register_block_type( __DIR__ . '/blocks/like-button' );
+		register_block_type( __DIR__ . '/blocks/feed-author-name' );
+		register_block_type( __DIR__ . '/blocks/feed-author-avatar' );
 		add_filter( 'hooked_block_types', [ __CLASS__, 'hook_following_link' ], 10, 3 );
 		add_filter( 'hooked_block_types', [ __CLASS__, 'hook_favorites_link' ], 10, 3 );
 		add_filter( 'hooked_block_types', [ __CLASS__, 'hook_like_button'    ], 10, 3 );

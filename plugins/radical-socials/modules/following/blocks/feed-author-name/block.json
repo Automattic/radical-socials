@@ -1,0 +1,37 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "radical-socials/feed-author-name",
+	"title": "Feed Author Name",
+	"category": "theme",
+	"description": "Displays the display name of a feed item's author (e.g. ActivityPub actor), linking to their profile.",
+	"textdomain": "radical-socials",
+	"render": "file:./render.php",
+	"editorScript": "file:./editor.js",
+	"usesContext": [ "postId" ],
+	"attributes": {
+		"isLink": { "type": "boolean", "default": true }
+	},
+	"supports": {
+		"html": false,
+		"interactivity": { "clientNavigation": true },
+		"color": {
+			"text": true,
+			"link": true,
+			"defaultControls": { "text": true, "link": true }
+		},
+		"spacing": {
+			"margin": true,
+			"padding": true,
+			"defaultControls": { "margin": false, "padding": false }
+		},
+		"typography": {
+			"fontSize": true,
+			"lineHeight": true,
+			"fontFamily": true,
+			"fontStyle": true,
+			"fontWeight": true,
+			"defaultControls": { "fontSize": true }
+		}
+	}
+}

@@ -96,17 +96,32 @@ class Radical_Socials_ActivityPub_Fetcher {
 		$image = $object['image'] ?? '';
 		$thumbnail = is_array( $image ) ? esc_url_raw( $image['url'] ?? '' ) : esc_url_raw( (string) $image );
 
+		// Append attachments to content as block-style HTML.
+		if ( is_array( $object ) ) {
+			$attachments_html = self::render_attachments( $object['attachment'] ?? [] );
+			if ( $attachments_html ) {
+				$content .= $attachments_html;
+			}
+		}
+
+		// Look up cached author info from the ap_actor post that has this
+		// actor URL as its guid.
+		[ $author_name, $author_icon_url ] = self::lookup_author_by_actor_url( (string) $actor_url );
+
 		return [
-			'title'         => wp_strip_all_tags( $name ?: $actor_name . ' posted' ),
-			'url'           => $object_url,
-			'content'       => wp_kses_post( $content ),
-			'excerpt'       => wp_trim_words( wp_strip_all_tags( $content ), 30 ),
-			'date'          => get_the_date( 'c', $post_id ),
-			'source_name'   => $actor_name,
-			'source_url'    => esc_url_raw( (string) $actor_url ),
-			'thumbnail_url' => $thumbnail,
-			'guid'          => md5( $object_url ),
-			'feed_type'     => 'activitypub',
+			'title'           => wp_strip_all_tags( $name ?: $actor_name . ' posted' ),
+			'url'             => $object_url,
+			'content'         => wp_kses_post( $content ),
+			'excerpt'         => wp_trim_words( wp_strip_all_tags( $content ), 30 ),
+			'date'            => get_the_date( 'c', $post_id ),
+			'source_name'     => $actor_name,
+			'source_url'      => esc_url_raw( (string) $actor_url ),
+			'thumbnail_url'   => $thumbnail,
+			'guid'            => md5( $object_url ),
+			'feed_type'       => 'activitypub',
+			'author_name'     => $author_name,
+			'author_icon_url' => $author_icon_url,
+			'author_url'      => esc_url_raw( (string) $actor_url ),
 		];
 	}
 
@@ -150,14 +165,37 @@ class Radical_Socials_ActivityPub_Fetcher {
 		foreach ( $actors as $post ) {
 			$actor_url  = $post->guid;
 			$outbox_url = get_post_meta( $post->ID, '_rs_outbox_url', true );
+			$icon_url   = get_post_meta( $post->ID, '_rs_actor_icon_url', true );
+			$display    = get_post_meta( $post->ID, '_rs_actor_display_name', true );
+
+			// Fetch actor JSON if we're missing the outbox URL, or to backfill
+			// the icon/display-name fields when we have an old cached actor.
+			if ( ! $outbox_url || ! $icon_url || '' === $display ) {
+				$actor_json = self::fetch_json( $actor_url );
+				if ( $actor_json ) {
+					if ( ! $outbox_url && ! empty( $actor_json['outbox'] ) ) {
+						$outbox_url = $actor_json['outbox'];
+						update_post_meta( $post->ID, '_rs_outbox_url', $outbox_url );
+					}
+					$new_icon = isset( $actor_json['icon']['url'] )
+						? esc_url_raw( $actor_json['icon']['url'] )
+						: '';
+					if ( $new_icon && $new_icon !== $icon_url ) {
+						$icon_url = $new_icon;
+						update_post_meta( $post->ID, '_rs_actor_icon_url', $icon_url );
+					}
+					$new_display = isset( $actor_json['name'] )
+						? wp_strip_all_tags( (string) $actor_json['name'] )
+						: '';
+					if ( $new_display && $new_display !== $display ) {
+						$display = $new_display;
+						update_post_meta( $post->ID, '_rs_actor_display_name', $display );
+					}
+				}
+			}
 
 			if ( ! $outbox_url ) {
-				$actor_json = self::fetch_json( $actor_url );
-				if ( ! $actor_json || empty( $actor_json['outbox'] ) ) {
-					continue;
-				}
-				$outbox_url = $actor_json['outbox'];
-				update_post_meta( $post->ID, '_rs_outbox_url', $outbox_url );
+				continue;
 			}
 
 			$page = self::fetch_outbox_page( $outbox_url );
@@ -165,12 +203,17 @@ class Radical_Socials_ActivityPub_Fetcher {
 				continue;
 			}
 
+			$author = [
+				'name'     => $display,
+				'icon_url' => $icon_url,
+			];
+
 			$activities = $page['orderedItems'] ?? [];
 			foreach ( array_slice( $activities, 0, $per_actor ) as $activity ) {
 				if ( ( $activity['type'] ?? '' ) !== 'Create' ) {
 					continue;
 				}
-				$item = self::normalize_outbox_activity( $activity, $actor_url );
+				$item = self::normalize_outbox_activity( $activity, $actor_url, $author );
 				if ( $item ) {
 					$items[] = $item;
 				}
@@ -221,7 +264,7 @@ class Radical_Socials_ActivityPub_Fetcher {
 		return is_array( $data ) ? $data : null;
 	}
 
-	private static function normalize_outbox_activity( array $activity, string $actor_url ): ?array {
+	private static function normalize_outbox_activity( array $activity, string $actor_url, array $author = [] ): ?array {
 		$object = $activity['object'] ?? [];
 		if ( is_string( $object ) ) {
 			return null;
@@ -246,18 +289,95 @@ class Radical_Socials_ActivityPub_Fetcher {
 
 		$published = $object['published'] ?? $activity['published'] ?? '';
 
+		// Append attachments to content as block-style HTML (images, video, audio).
+		$attachments_html = self::render_attachments( $object['attachment'] ?? [] );
+		if ( $attachments_html ) {
+			$content .= $attachments_html;
+		}
+
 		return [
-			'title'         => wp_strip_all_tags( $name ?: $actor_name . ' posted' ),
-			'url'           => $object_url,
-			'content'       => wp_kses_post( $content ),
-			'excerpt'       => wp_trim_words( wp_strip_all_tags( $content ), 30 ),
-			'date'          => $published ?: current_time( 'c' ),
-			'source_name'   => $actor_name,
-			'source_url'    => esc_url_raw( $actor_url ),
-			'thumbnail_url' => $thumbnail,
-			'guid'          => md5( $object_url ),
-			'feed_type'     => 'activitypub',
+			'title'           => wp_strip_all_tags( $name ?: $actor_name . ' posted' ),
+			'url'             => $object_url,
+			'content'         => wp_kses_post( $content ),
+			'excerpt'         => wp_trim_words( wp_strip_all_tags( $content ), 30 ),
+			'date'            => $published ?: current_time( 'c' ),
+			'source_name'     => $actor_name,
+			'source_url'      => esc_url_raw( $actor_url ),
+			'thumbnail_url'   => $thumbnail,
+			'guid'            => md5( $object_url ),
+			'feed_type'       => 'activitypub',
+			'author_name'     => $author['name'] ?? '',
+			'author_icon_url' => $author['icon_url'] ?? '',
+			'author_url'      => esc_url_raw( $actor_url ),
 		];
+	}
+
+	/**
+	 * Find the ap_actor post for a given actor URL (matched against the
+	 * post's guid) and return [display_name, icon_url].
+	 *
+	 * @return array{0:string,1:string}
+	 */
+	private static function lookup_author_by_actor_url( string $actor_url ): array {
+		if ( ! $actor_url ) {
+			return [ '', '' ];
+		}
+		global $wpdb;
+		$actor_id = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'ap_actor' AND guid = %s LIMIT 1",
+			$actor_url
+		) );
+		if ( ! $actor_id ) {
+			return [ '', '' ];
+		}
+		return [
+			(string) get_post_meta( $actor_id, '_rs_actor_display_name', true ),
+			(string) get_post_meta( $actor_id, '_rs_actor_icon_url', true ),
+		];
+	}
+
+	/**
+	 * Render an AP attachment array as core/image, core/video, or core/audio
+	 * block-equivalent HTML. Block comments are skipped — these posts are
+	 * display-only, so we only need the rendered markup.
+	 */
+	private static function render_attachments( $attachments ): string {
+		if ( ! is_array( $attachments ) || empty( $attachments ) ) {
+			return '';
+		}
+
+		$html = '';
+		foreach ( $attachments as $att ) {
+			if ( ! is_array( $att ) ) {
+				continue;
+			}
+			$url = esc_url_raw( $att['url'] ?? '' );
+			if ( ! $url ) {
+				continue;
+			}
+			$mime = strtolower( (string) ( $att['mediaType'] ?? '' ) );
+			$alt  = wp_strip_all_tags( (string) ( $att['name'] ?? '' ) );
+
+			if ( str_starts_with( $mime, 'image/' ) ) {
+				$html .= sprintf(
+					'<figure class="wp-block-image size-large"><img src="%s" alt="%s"/></figure>',
+					esc_url( $url ),
+					esc_attr( $alt )
+				);
+			} elseif ( str_starts_with( $mime, 'video/' ) ) {
+				$html .= sprintf(
+					'<figure class="wp-block-video"><video controls playsinline src="%s"></video></figure>',
+					esc_url( $url )
+				);
+			} elseif ( str_starts_with( $mime, 'audio/' ) ) {
+				$html .= sprintf(
+					'<figure class="wp-block-audio"><audio controls src="%s"></audio></figure>',
+					esc_url( $url )
+				);
+			}
+		}
+
+		return $html;
 	}
 
 	public static function is_available(): bool {

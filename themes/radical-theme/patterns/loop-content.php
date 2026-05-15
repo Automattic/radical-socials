@@ -14,6 +14,11 @@
 <!-- wp:post-title {"isLink":true,"style":{"spacing":{"margin":{"bottom":"0"}}}} /-->
 <!-- wp:post-date {"metadata":{"bindings":{"datetime":{"source":"core/post-data","args":{"field":"date"}}}},"style":{"typography":{"fontStyle":"normal","fontWeight":"300"}},"fontSize":"small"} /-->
 
+<!-- wp:group {"layout":{"type":"flex","flexWrap":"nowrap"}} -->
+<div class="wp-block-group"><!-- wp:radical-socials/feed-author-avatar /-->
+<!-- wp:radical-socials/feed-author-name /--></div>
+<!-- /wp:group -->
+ 
 <!-- wp:spacer {"height":"var:preset|spacing|40"} -->
 <div style="height:var(--wp--preset--spacing--40)" aria-hidden="true" class="wp-block-spacer"></div>
 <!-- /wp:spacer -->
