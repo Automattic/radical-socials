@@ -8,6 +8,12 @@
  * @package RadicalSocials
  */
 
+// Hide the link entirely when the current viewer can't see the following
+// page (logged-out visitor + the "public following" toggle is off).
+if ( ! Radical_Socials_Following::can_view_following() ) {
+	return;
+}
+
 $following_page = get_page_by_path( 'following', OBJECT, 'page' );
 $url            = $following_page ? get_permalink( $following_page->ID ) : home_url( '/following/' );
 

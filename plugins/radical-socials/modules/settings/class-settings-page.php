@@ -19,6 +19,32 @@ class Radical_Socials_Settings_Page {
 
 	public static function init(): void {
 		add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue' ] );
+		add_action( 'admin_init',            [ __CLASS__, 'handle_following_privacy_save' ] );
+	}
+
+	/**
+	 * Handle the Following-tab privacy toggle POST. Lives on admin_init so we
+	 * can wp_safe_redirect() before WP outputs the admin header — putting this
+	 * inside render() would trigger "headers already sent" and leave the user
+	 * staring at an empty admin page.
+	 */
+	public static function handle_following_privacy_save(): void {
+		if ( ! isset( $_POST['rs_following_privacy_nonce'] ) ) {
+			return;
+		}
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		if ( ! wp_verify_nonce( wp_unslash( $_POST['rs_following_privacy_nonce'] ), 'rs_following_privacy_save' ) ) {
+			return;
+		}
+		update_option(
+			Radical_Socials_Following::PUBLIC_OPTION,
+			! empty( $_POST['rs_following_public'] ),
+			false
+		);
+		wp_safe_redirect( admin_url( 'admin.php?page=radical-socials-settings&tab=following&rs_settings=updated' ) );
+		exit;
 	}
 
 	private static function active_tab(): string {
@@ -528,14 +554,31 @@ class Radical_Socials_Settings_Page {
 				<!-- Left column: controls -->
 				<div>
 					<?php
-					$following_page = get_page_by_path( 'following', OBJECT, 'page' );
-					$following_url  = $following_page ? get_permalink( $following_page->ID ) : home_url( '/following/' );
+					$following_page  = get_page_by_path( 'following', OBJECT, 'page' );
+					$following_url   = $following_page ? get_permalink( $following_page->ID ) : home_url( '/following/' );
+					$following_public = (bool) get_option( Radical_Socials_Following::PUBLIC_OPTION, false );
 					?>
 					<p class="description"><?php printf(
 						/* translators: %s: link to the /following page */
 						esc_html__( 'Configure what appears at %s. Each source type stacks on top of the last — connect more to see more.', 'radical-socials' ),
 						'<a href="' . esc_url( $following_url ) . '" target="_blank" rel="noopener">' . esc_html( $following_url ) . '</a>'
 					); ?></p>
+
+					<form method="post" style="margin:16px 0 24px;padding:12px 14px;border:1px solid #dcdcde;border-radius:4px;background:#f6f7f7">
+						<?php wp_nonce_field( 'rs_following_privacy_save', 'rs_following_privacy_nonce' ); ?>
+						<strong style="display:block;margin-bottom:6px"><?php esc_html_e( 'Privacy', 'radical-socials' ); ?></strong>
+						<label style="display:flex;gap:8px;align-items:flex-start">
+							<input type="checkbox" name="rs_following_public" value="1" <?php checked( $following_public ); ?> />
+							<span>
+								<?php esc_html_e( 'Allow logged-out visitors to see the Following page', 'radical-socials' ); ?>
+								<br>
+								<span class="description"><?php esc_html_e( 'When off, /following/ and its items return 404 for logged-out visitors, and the Following menu link is hidden for them.', 'radical-socials' ); ?></span>
+							</span>
+						</label>
+						<p style="margin:10px 0 0">
+							<button type="submit" class="button button-secondary"><?php esc_html_e( 'Save', 'radical-socials' ); ?></button>
+						</p>
+					</form>
 
 					<?php if ( class_exists( 'Radical_Socials_WPCOM_OAuth' ) && Radical_Socials_WPCOM_OAuth::is_configured() ) : ?>
 					<p style="margin-top:12px">

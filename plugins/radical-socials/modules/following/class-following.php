@@ -75,6 +75,10 @@ class Radical_Socials_Following {
 		// titles) and for any feed item whose title is empty.
 		add_filter( 'render_block_core/post-title', [ __CLASS__, 'hide_empty_or_activitypub_titles' ], 10, 2 );
 
+		// Gate /following/ and rs_feed_item single views for logged-out users
+		// when the site owner hasn't opted into a public following page.
+		add_action( 'template_redirect', [ __CLASS__, 'gate_following_access' ], 0 );
+
 		// Infinite scroll on feed archive pages.
 		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'enqueue_infinite_scroll' ] );
 		add_action( 'template_redirect',  [ __CLASS__, 'maybe_add_block_filter'  ] );
@@ -396,6 +400,52 @@ class Radical_Socials_Following {
 		}
 
 		return false;
+	}
+
+	/** Option name for the "let logged-out visitors see the following page" toggle. */
+	const PUBLIC_OPTION = 'rs_following_public';
+
+	/**
+	 * Whether the current viewer is allowed to see the following feed and its
+	 * items. Logged-in users always can; logged-out visitors only when the
+	 * site owner opted in.
+	 */
+	public static function can_view_following(): bool {
+		return is_user_logged_in() || (bool) get_option( self::PUBLIC_OPTION, false );
+	}
+
+	/**
+	 * 404 every URL that surfaces rs_feed_item content for logged-out
+	 * visitors when the public-following option is off. Covers:
+	 *   - the /following/ archive
+	 *   - any rs_feed_item single view
+	 *   - the home page filtered by one of our taxonomies
+	 *     (e.g. /?rs_feed_type=activitypub) — these aren't proper tax
+	 *     archives because we don't register a rewrite for the taxonomies,
+	 *     but they still expose feed items via the main query.
+	 *
+	 * Runs at priority 0 on template_redirect so it short-circuits before
+	 * our own block filter and the visit-triggered refresh hook fire.
+	 */
+	public static function gate_following_access(): void {
+		if ( self::can_view_following() ) {
+			return;
+		}
+
+		$is_following_view = is_post_type_archive( 'rs_feed_item' )
+			|| is_singular( 'rs_feed_item' )
+			|| (bool) get_query_var( 'rs_source' )
+			|| (bool) get_query_var( 'rs_feed_type' )
+			|| (bool) get_query_var( 'rs_feed_category' );
+
+		if ( ! $is_following_view ) {
+			return;
+		}
+
+		global $wp_query;
+		$wp_query->set_404();
+		status_header( 404 );
+		nocache_headers();
 	}
 
 	/**
