@@ -357,22 +357,45 @@ class Radical_Socials_Following {
 	// ── Frontend ──────────────────────────────────────────────────────────────
 
 	public static function enqueue_infinite_scroll(): void {
-		if ( ! is_post_type_archive( [ 'rs_feed_item', 'rs_favorite' ] ) ) {
+		if ( ! self::is_feed_archive_view() ) {
 			return;
 		}
+
 		$plugin_url = plugin_dir_url( dirname( dirname( __DIR__ ) ) . '/radical-socials.php' );
-		wp_enqueue_script_module(
-			'radical-socials/following',
-			$plugin_url . 'modules/following/assets/infinite-scroll.js',
-			[ '@wordpress/interactivity' ],
-			filemtime( __DIR__ . '/assets/infinite-scroll.js' ) ?: '1'
-		);
+
+		if ( is_post_type_archive( [ 'rs_feed_item', 'rs_favorite' ] ) ) {
+			wp_enqueue_script_module(
+				'radical-socials/following',
+				$plugin_url . 'modules/following/assets/infinite-scroll.js',
+				[ '@wordpress/interactivity' ],
+				filemtime( __DIR__ . '/assets/infinite-scroll.js' ) ?: '1'
+			);
+		}
+
 		wp_enqueue_style(
 			'radical-socials/following',
 			$plugin_url . 'modules/following/assets/following.css',
 			[],
 			filemtime( __DIR__ . '/assets/following.css' ) ?: '1'
 		);
+	}
+
+	private static function is_feed_archive_view(): bool {
+		if ( is_post_type_archive( [ 'rs_feed_item', 'rs_favorite' ] ) ) {
+			return true;
+		}
+
+		if ( is_tax( [ 'rs_source', 'rs_feed_type', 'rs_feed_category' ] ) ) {
+			return true;
+		}
+
+		foreach ( [ 'rs_source', 'rs_feed_type', 'rs_feed_category' ] as $tax ) {
+			if ( get_query_var( $tax ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**

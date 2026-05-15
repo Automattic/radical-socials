@@ -1,11 +1,9 @@
-.rs-following-feed .wp-block-post-content figure,
-.rs-following-feed .wp-block-post-content img,
-.rs-following-feed .wp-block-post-featured-image img {
+.rs-following-feed figure,
+.rs-following-feed img {
 	max-width: 100%;
 }
 
-.rs-following-feed .wp-block-post-content img,
-.rs-following-feed .wp-block-post-featured-image img {
+.rs-following-feed img {
 	height: auto;
 }
 
