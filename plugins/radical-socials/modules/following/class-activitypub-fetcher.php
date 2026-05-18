@@ -97,8 +97,12 @@ class Radical_Socials_ActivityPub_Fetcher {
 		$image = $object['image'] ?? '';
 		$thumbnail = is_array( $image ) ? esc_url_raw( $image['url'] ?? '' ) : esc_url_raw( (string) $image );
 
-		// Append attachments to content as block-style HTML.
+		// Prepend reply-context line + append attachments to content as block-style HTML.
 		if ( is_array( $object ) ) {
+			$reply_context = self::render_reply_context( $object );
+			if ( $reply_context ) {
+				$content = $reply_context . $content;
+			}
 			$attachments_html = self::render_attachments( $object['attachment'] ?? [] );
 			if ( $attachments_html ) {
 				$content .= $attachments_html;
@@ -359,6 +363,12 @@ class Radical_Socials_ActivityPub_Fetcher {
 
 		$published = $object['published'] ?? $activity['published'] ?? '';
 
+		// Prepend a "↩ In reply to @handle" line for replies.
+		$reply_context = self::render_reply_context( $object );
+		if ( $reply_context ) {
+			$content = $reply_context . $content;
+		}
+
 		// Append attachments to content as block-style HTML (images, video, audio).
 		$attachments_html = self::render_attachments( $object['attachment'] ?? [] );
 		if ( $attachments_html ) {
@@ -406,6 +416,63 @@ class Radical_Socials_ActivityPub_Fetcher {
 			(string) get_post_meta( $actor_id, '_rs_actor_display_name', true ),
 			(string) get_post_meta( $actor_id, '_rs_actor_icon_url', true ),
 		];
+	}
+
+	/**
+	 * Render an "↩ In reply to @handle" line for posts that have an
+	 * inReplyTo. We don't fetch the parent (that'd be one extra HTTP request
+	 * per reply, sometimes many — see threading discussion); we just label
+	 * the post and link to the original on the remote server so readers
+	 * have somewhere to go for context.
+	 *
+	 * The display handle comes from the first Mention in `tag[]`, which is
+	 * the AP convention for "this is who I'm replying to". Falls back to
+	 * parsing the parent URL's host/path, and finally to a generic label.
+	 */
+	private static function render_reply_context( array $object ): string {
+		$in_reply_to = $object['inReplyTo'] ?? '';
+		if ( ! is_string( $in_reply_to ) || '' === $in_reply_to ) {
+			return '';
+		}
+		$parent_url = esc_url_raw( $in_reply_to );
+		if ( ! $parent_url ) {
+			return '';
+		}
+
+		// Look for the first Mention tag — usually the author of the parent.
+		$display = '';
+		foreach ( (array) ( $object['tag'] ?? [] ) as $tag ) {
+			if ( ! is_array( $tag ) ) {
+				continue;
+			}
+			if ( ( $tag['type'] ?? '' ) === 'Mention' && ! empty( $tag['name'] ) ) {
+				$display = wp_strip_all_tags( (string) $tag['name'] );
+				break;
+			}
+		}
+
+		// Fallback: parse "user@host" from the parent URL (Mastodon-style).
+		if ( '' === $display ) {
+			$host = parse_url( $parent_url, PHP_URL_HOST ) ?: '';
+			$path = ltrim( parse_url( $parent_url, PHP_URL_PATH ) ?: '', '/' );
+			if ( $host && preg_match( '~^(?:@|users/)([^/]+)~', $path, $m ) ) {
+				$display = '@' . $m[1] . '@' . $host;
+			}
+		}
+
+		$label = '' !== $display
+			? sprintf(
+				/* translators: %s: actor handle the post replies to (e.g. @bob@mastodon.social) */
+				__( '↩ In reply to %s', 'radical-socials' ),
+				'<code>' . esc_html( $display ) . '</code>'
+			)
+			: esc_html__( '↩ In reply to a post', 'radical-socials' );
+
+		return sprintf(
+			'<p class="rs-reply-context"><a href="%s" target="_blank" rel="noopener noreferrer nofollow">%s</a></p>',
+			esc_url( $parent_url ),
+			$label // already escaped above; sprintf placeholder is %s
+		);
 	}
 
 	/**
