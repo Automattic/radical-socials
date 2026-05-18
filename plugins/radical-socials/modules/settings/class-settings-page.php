@@ -145,10 +145,13 @@ class Radical_Socials_Settings_Page {
 
 				foreach ( $batch as $target ) {
 					$start = microtime( true );
-					$args  = [ 'timeout' => 8, 'redirection' => 3 ];
-					if ( 'activitypub' === $target['type'] ) {
-						$args['headers'] = [ 'Accept' => 'application/activity+json, application/ld+json' ];
-					}
+					$args  = 'activitypub' === $target['type']
+						? Radical_Socials_ActivityPub_Fetcher::http_args( 8 )
+						: [
+							'timeout'            => 8,
+							'redirection'        => Radical_Socials_RSS_Fetcher::HTTP_REDIRECTION,
+							'reject_unsafe_urls' => true,
+						];
 					$response = wp_safe_remote_get( $target['url'], $args );
 					$elapsed  = (int) round( ( microtime( true ) - $start ) * 1000 );
 

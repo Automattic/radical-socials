@@ -337,19 +337,23 @@ class Radical_Socials_Following_REST {
 		}
 
 		// Each item is either a URL string or an actor object — normalise to URL strings.
-		$actor_urls = array_values( array_filter( array_map(
-			fn( $item ) => is_array( $item ) ? ( $item['id'] ?? null ) : ( is_string( $item ) ? $item : null ),
-			$actors
-		) ) );
+		$actor_urls = array_values( array_filter(
+			array_map(
+				fn( $item ) => is_array( $item ) ? ( $item['id'] ?? null ) : ( is_string( $item ) ? $item : null ),
+				$actors
+			),
+			static fn( $url ) => is_string( $url ) && Radical_Socials_ActivityPub_Fetcher::is_safe_remote_url( $url )
+		) );
 
 		return new WP_REST_Response( [ 'actors' => $actor_urls, 'total' => count( $actor_urls ) ], 200 );
 	}
 
 	private static function fetch_ap_json( string $url ): ?array {
-		$response = wp_remote_get( $url, [
-			'timeout' => 10,
-			'headers' => [ 'Accept' => 'application/activity+json, application/ld+json; profile="https://www.w3.org/ns/activitystreams"' ],
-		] );
+		if ( ! Radical_Socials_ActivityPub_Fetcher::is_safe_remote_url( $url ) ) {
+			return null;
+		}
+
+		$response = wp_safe_remote_get( $url, Radical_Socials_ActivityPub_Fetcher::http_args() );
 		if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) {
 			return null;
 		}

@@ -19,6 +19,7 @@ defined( 'ABSPATH' ) || exit;
 class Radical_Socials_ActivityPub_Fetcher {
 
 	const POST_TYPE = 'ap_inbox';
+	const ACCEPT_HEADER = 'application/activity+json, application/ld+json; profile="https://www.w3.org/ns/activitystreams"';
 
 	/**
 	 * Fetch up to $count recent Create activities from the ActivityPub inbox.
@@ -178,8 +179,11 @@ class Radical_Socials_ActivityPub_Fetcher {
 				$actor_json = self::fetch_json( $actor_url );
 				if ( $actor_json ) {
 					if ( ! $outbox_url && ! empty( $actor_json['outbox'] ) ) {
-						$outbox_url = $actor_json['outbox'];
-						update_post_meta( $post->ID, '_rs_outbox_url', $outbox_url );
+						$candidate_outbox_url = esc_url_raw( (string) $actor_json['outbox'] );
+						if ( self::is_safe_remote_url( $candidate_outbox_url ) ) {
+							$outbox_url = $candidate_outbox_url;
+							update_post_meta( $post->ID, '_rs_outbox_url', $outbox_url );
+						}
 					}
 					$new_icon = isset( $actor_json['icon']['url'] )
 						? esc_url_raw( $actor_json['icon']['url'] )
@@ -301,12 +305,11 @@ class Radical_Socials_ActivityPub_Fetcher {
 	}
 
 	private static function fetch_json( string $url ): ?array {
-		$response = wp_remote_get( $url, [
-			'timeout' => 10,
-			'headers' => [
-				'Accept' => 'application/activity+json, application/ld+json; profile="https://www.w3.org/ns/activitystreams"',
-			],
-		] );
+		if ( ! self::is_safe_remote_url( $url ) ) {
+			return null;
+		}
+
+		$response = wp_safe_remote_get( $url, self::http_args() );
 
 		if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) {
 			return null;
@@ -314,6 +317,21 @@ class Radical_Socials_ActivityPub_Fetcher {
 
 		$data = json_decode( wp_remote_retrieve_body( $response ), true );
 		return is_array( $data ) ? $data : null;
+	}
+
+	public static function is_safe_remote_url( string $url ): bool {
+		return Radical_Socials_RSS_Fetcher::is_safe_remote_url( $url );
+	}
+
+	public static function http_args( int $timeout = 10 ): array {
+		return [
+			'timeout'            => $timeout,
+			'redirection'        => Radical_Socials_RSS_Fetcher::HTTP_REDIRECTION,
+			'reject_unsafe_urls' => true,
+			'headers'           => [
+				'Accept' => self::ACCEPT_HEADER,
+			],
+		];
 	}
 
 	private static function normalize_outbox_activity( array $activity, string $actor_url, array $author = [] ): ?array {
