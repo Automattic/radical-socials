@@ -34,7 +34,7 @@ This plugin is the product. The default theme (Radical Theme) is an optional des
 
 = Do I need a Mastodon account or my own ActivityPub server? =
 
-No. The bundled ActivityPub plugin turns your WordPress site itself into a Fediverse identity. You can follow people from Mastodon, Pixelfed, PeerTube, etc., without joining any other server.
+No. The required ActivityPub plugin turns your WordPress site itself into a Fediverse identity. You can follow people from Mastodon, Pixelfed, PeerTube, etc., without joining any other server.
 
 = Why does it require the ActivityPub plugin? =
 
