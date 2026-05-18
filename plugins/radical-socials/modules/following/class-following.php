@@ -59,6 +59,10 @@ class Radical_Socials_Following {
 		// Make all permalink references point to the original article URL.
 		add_filter( 'post_type_link', [ __CLASS__, 'external_permalink' ], 10, 2 );
 
+		// Stamp each rs_feed_item wrapper with `rs-feed-type-{rss|activitypub|wpcom}`
+		// so theme CSS can style posts by source.
+		add_filter( 'post_class', [ __CLASS__, 'add_feed_type_post_class' ], 10, 3 );
+
 		// Force rs_feed_item as the queried post type when one of our taxonomies
 		// is in play — rs_feed_item has exclude_from_search=true, so WP's tax
 		// archive fallback would otherwise pick post/page/attachment and find 0
@@ -161,6 +165,26 @@ class Radical_Socials_Following {
 		}
 		$external = get_post_meta( $post->ID, '_rs_item_url', true );
 		return $external ?: $url;
+	}
+
+	/**
+	 * Append `rs-feed-type-{rss|activitypub|wpcom}` to each rs_feed_item's
+	 * post_class output so themes can style posts by source — e.g. hide the
+	 * author avatar on RSS items where we don't have one, give AP notes a
+	 * tighter typography, mark WP.com posts with a Reader badge, etc.
+	 *
+	 * @param string[] $classes
+	 * @param string[] $css_class
+	 */
+	public static function add_feed_type_post_class( array $classes, $css_class, int $post_id ): array {
+		if ( 'rs_feed_item' !== get_post_type( $post_id ) ) {
+			return $classes;
+		}
+		$feed_type = (string) get_post_meta( $post_id, '_rs_item_feed_type', true );
+		if ( '' !== $feed_type ) {
+			$classes[] = 'rs-feed-type-' . sanitize_html_class( $feed_type );
+		}
+		return $classes;
 	}
 
 	public static function register_cpt(): void {
