@@ -401,6 +401,9 @@ class Radical_Socials_Settings_Page {
 		$logo_id     = (int) get_theme_mod( 'custom_logo' );
 		$logo_url    = $logo_id ? wp_get_attachment_image_url( $logo_id, 'medium' ) : '';
 		$has_logo    = (bool) $logo_url;
+		$classes_for_preview = 'site-icon-preview wp-clearfix settings-page-preview' . ( $has_logo ? ' has-site-icon' : ' hidden' );
+		$classes_for_button  = $has_logo ? 'button' : 'upload-button button-add-media button-add-site-icon';
+		$classes_for_alt     = $has_logo ? 'upload-button button-add-media button-add-site-icon' : 'button';
 		$display     = $user->display_name ?: $user->user_login;
 		$handle      = self::get_profile_handle( $user );
 		$bio         = get_user_meta( $user->ID, 'description', true );
