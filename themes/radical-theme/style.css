@@ -8,3 +8,12 @@ License:     GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Text Domain: radical-theme
 */
+
+.wp-block-post-terms.rs-feed-type-badge a {
+	border: 1px solid currentColor;
+	padding: 0.25em 0.5em;
+	border-radius: 9999px;
+	font-size: 0.75em;
+	font-weight: 600;
+	text-transform: uppercase;
+}

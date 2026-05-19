@@ -25,6 +25,11 @@
 					"color": "#2c3a4e",
 					"name": "Contrast 3",
 					"slug": "contrast-3"
+				},
+				{
+					"color": "#a5abfd",
+					"name": "Contrast 4",
+					"slug": "contrast-4"
 				}
 			]
 		},
@@ -173,7 +178,7 @@
 		},
 		"color": {
 			"background": "var(--wp--preset--color--base)",
-			"text": "var(--wp--preset--color--contrast-1)"
+			"text": "var(--wp--preset--color--contrast-2)"
 		},
 		"elements": {
 			"heading": {
@@ -183,7 +188,7 @@
 			},
 			"link": {
 				"color": {
-					"text": "var(--wp--preset--color--contrast-2)"
+					"text": "var(--wp--preset--color--contrast-4)"
 				},
 				"typography": {
 					"textDecoration": "none"

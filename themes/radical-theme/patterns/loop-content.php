@@ -9,6 +9,11 @@
 
 <!-- wp:group {"style":{"spacing":{"padding":{"right":"var:preset|spacing|30","left":"var:preset|spacing|30"}}},"layout":{"type":"constrained"}} -->
 <div class="wp-block-group" style="padding-right:var(--wp--preset--spacing--30);padding-left:var(--wp--preset--spacing--30)">
+
+<!-- wp:group {"layout":{"type":"flex","flexWrap":"nowrap","justifyContent":"space-between"}} -->
+<div class="wp-block-group">
+<!-- wp:post-terms {"term":"rs_feed_type","className":"rs-feed-type-badge"} /--><!-- wp:radical-socials/like-button /--></div>
+<!-- /wp:group -->
 	
 <!-- wp:post-featured-image {"isLink":true,"style":{"spacing":{"margin":{"bottom":"var:preset|spacing|50"}}}} /-->
 <!-- wp:post-title {"isLink":true,"style":{"spacing":{"margin":{"bottom":"0"}}}} /-->
@@ -18,23 +23,14 @@
 <div class="wp-block-group"><!-- wp:radical-socials/feed-author-avatar /-->
 <!-- wp:radical-socials/feed-author-name /--></div>
 <!-- /wp:group -->
- 
-<!-- wp:spacer {"height":"var:preset|spacing|40"} -->
-<div style="height:var(--wp--preset--spacing--40)" aria-hidden="true" class="wp-block-spacer"></div>
-<!-- /wp:spacer -->
+
+<!-- wp:group {"layout":{"type":"flex","orientation":"vertical"}} --><div class="wp-block-group">
 
 <!-- wp:post-content {"metadata":{"ignoredHookedBlocks":["activitypub/reactions"]}} /-->
 
-<!-- wp:spacer {"height":"var:preset|spacing|40"} -->
-<div style="height:var(--wp--preset--spacing--40)" aria-hidden="true" class="wp-block-spacer"></div>
-<!-- /wp:spacer -->
-
 <!-- wp:read-more {"content":"Read more"} /-->
 
-<!-- wp:group {"style":{"spacing":{"blockGap":"0.5em"}},"layout":{"type":"flex","orientation":"vertical"}} -->
-<div class="wp-block-group"><!-- wp:post-terms {"term":"rs_feed_type","prefix":"Origin: ","className":"rs-feed-type-badge"} /-->
-
-<!-- wp:post-terms {"term":"rs_source","prefix":"Author: ","className":"rs-feed-source-label"} /--></div>
+</div>
 <!-- /wp:group -->
 
 <!-- wp:activitypub/reactions {"className":"is-style-facepile"} -->
@@ -47,7 +43,7 @@
 <div class="wp-block-group"><!-- wp:post-comments-link /--></div>
 <!-- /wp:group -->
 
-<!-- wp:radical-socials/like-button /--></div>
+</div>
 <!-- /wp:group -->
 
 <!-- wp:separator {"className":"is-style-default","style":{"spacing":{"margin":{"top":"var:preset|spacing|50","bottom":"var:preset|spacing|50"}}}} -->
