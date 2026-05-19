@@ -18,6 +18,18 @@
 	height: auto;
 }
 
+/*
+ * Code blocks. WPcom Reader items frequently embed long-line code snippets
+ * (raw HTML, PHP, etc.); <pre> defaults to white-space: pre which never
+ * wraps, so a single long line widens the column. core/code's stylesheet
+ * normally fixes this with overflow-wrap, but it isn't enqueued here for
+ * the same reason image/video styles aren't (no real block is parsed).
+ */
+.rs_feed_item pre {
+	max-width: 100%;
+	overflow-x: auto;
+}
+
 .rs-refresh-bar {
 	display: flex;
 	align-items: center;
