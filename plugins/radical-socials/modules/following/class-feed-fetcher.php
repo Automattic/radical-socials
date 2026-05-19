@@ -271,7 +271,10 @@ class Radical_Socials_Feed_Fetcher {
 				wp_set_post_terms( $post_id, [ $source_name ], 'rs_source' );
 			}
 			if ( ! empty( $item['feed_type'] ) ) {
-				wp_set_post_terms( $post_id, [ $item['feed_type'] ], 'rs_feed_type' );
+				$term_id = self::resolve_feed_type_term( (string) $item['feed_type'] );
+				if ( $term_id ) {
+					wp_set_post_terms( $post_id, [ $term_id ], 'rs_feed_type' );
+				}
 			}
 			if ( ! empty( $item['feed_categories'] ) ) {
 				wp_set_post_terms( $post_id, (array) $item['feed_categories'], 'rs_feed_category' );
@@ -316,6 +319,44 @@ class Radical_Socials_Feed_Fetcher {
 			'source' => [ 'src' => true, 'type' => true, 'srcset' => true, 'media' => true ],
 		];
 		return $list;
+	}
+
+	/**
+	 * Display names for the three known rs_feed_type slugs. Brand names —
+	 * intentionally not translated. The slug stays the machine identifier
+	 * used everywhere else (URL filters, meta `_rs_item_feed_type`, CSS
+	 * classes); only the human-readable label lives here.
+	 */
+	private const FEED_TYPE_NAMES = [
+		'rss'         => 'RSS',
+		'activitypub' => 'ActivityPub',
+		'wpcom'       => 'WordPress.com',
+	];
+
+	/**
+	 * Return the term_id for a given feed_type slug, creating the term with
+	 * the proper display name if it doesn't exist. Heals terms created by
+	 * an older version of this fetcher that left name = slug (lowercase).
+	 */
+	private static function resolve_feed_type_term( string $slug ): ?int {
+		if ( '' === $slug ) {
+			return null;
+		}
+		$desired_name = self::FEED_TYPE_NAMES[ $slug ] ?? $slug;
+		$term         = get_term_by( 'slug', $slug, 'rs_feed_type' );
+
+		if ( $term ) {
+			if ( isset( self::FEED_TYPE_NAMES[ $slug ] ) && $term->name !== $desired_name ) {
+				wp_update_term( $term->term_id, 'rs_feed_type', [ 'name' => $desired_name ] );
+			}
+			return (int) $term->term_id;
+		}
+
+		$inserted = wp_insert_term( $desired_name, 'rs_feed_type', [ 'slug' => $slug ] );
+		if ( is_wp_error( $inserted ) ) {
+			return null;
+		}
+		return (int) $inserted['term_id'];
 	}
 
 	/**
