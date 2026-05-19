@@ -1,9 +1,20 @@
-.rs-following-feed figure,
-.rs-following-feed img {
+/*
+ * Constrain raw media in feed item content. The fetcher emits
+ * <figure class="wp-block-image|video"> wrappers around <img>/<video>
+ * tags, but those core block stylesheets are only enqueued when a real
+ * core/image|video block is parsed on the page — which never happens for
+ * our injected HTML. Scope on .rs_feed_item (added by post_class) so the
+ * rule applies on every surface a feed item renders on: post-type
+ * archive, home-with-?rs_feed_type=X filter, and single views.
+ */
+.rs_feed_item figure,
+.rs_feed_item img,
+.rs_feed_item video {
 	max-width: 100%;
 }
 
-.rs-following-feed img {
+.rs_feed_item img,
+.rs_feed_item video {
 	height: auto;
 }
 
