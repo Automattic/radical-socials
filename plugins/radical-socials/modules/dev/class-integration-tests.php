@@ -90,6 +90,12 @@ class Radical_Socials_Integration_Tests {
 
 			$this->test_concurrent_runs_are_locked_out();
 			$this->pass( 'A second run() while one is RUNNING refuses to proceed' );
+
+			$this->test_inbox_announce_dereferences_target();
+			$this->pass( 'Inbox Announce surfaces the boosted note with a "Boosted by" badge' );
+
+			$this->test_outbox_announce_dedupes_target_fetch();
+			$this->pass( 'Outbox Announce dereferences target once and dedupes across boosters' );
 		} finally {
 			$this->restore_options( $restore );
 			wp_set_current_user( $original_user_id );
@@ -745,6 +751,130 @@ class Radical_Socials_Integration_Tests {
 		$this->assert_same( Radical_Socials_Following::REFRESH_LOCK_RUNNING, get_transient( Radical_Socials_Following::REFRESH_LOCK ), 'The original RUNNING lock must remain in place.' );
 
 		delete_transient( Radical_Socials_Following::REFRESH_LOCK );
+	}
+
+	/**
+	 * An inbox Announce (boost) where the object is a URL string must
+	 * dereference the boosted note and surface it as a feed item, with a
+	 * "Boosted by" badge and the original author as author_*.
+	 *
+	 * source_url must be the booster's actor URL (so the prune step, which
+	 * matches items against the follow list, doesn't reap boosted items
+	 * as orphans).
+	 */
+	private function test_inbox_announce_dereferences_target(): void {
+		if ( ! post_type_exists( 'ap_inbox' ) ) {
+			$this->pass( 'Skipped (ActivityPub plugin not active in this env)' );
+			return;
+		}
+
+		$booster_url = 'https://booster.test/users/alice';
+		$target_url  = 'https://origin.test/users/bob/statuses/42';
+		$author_url  = 'https://origin.test/users/bob';
+
+		$announce = wp_json_encode( [
+			'type'   => 'Announce',
+			'actor'  => $booster_url,
+			'object' => $target_url,
+		] );
+
+		$inbox_id = wp_insert_post( [
+			'post_type'    => 'ap_inbox',
+			'post_status'  => 'publish',
+			'post_content' => $announce,
+		] );
+		$this->assert_true( $inbox_id > 0, 'Should have created an ap_inbox post.' );
+		$this->created_posts[] = (int) $inbox_id;
+
+		update_post_meta( $inbox_id, '_activitypub_activity_type', 'Announce' );
+		update_post_meta( $inbox_id, '_activitypub_activity_remote_actor', $booster_url );
+		update_post_meta( $inbox_id, '_activitypub_object_id', $target_url );
+
+		$target_object = wp_json_encode( [
+			'type'         => 'Note',
+			'id'           => $target_url,
+			'url'          => $target_url,
+			'attributedTo' => $author_url,
+			'content'      => '<p>boosted body</p>',
+			'published'    => '2026-05-10T08:00:00Z',
+		] );
+
+		// Clear the static dereference cache between tests.
+		$reset = \Closure::bind( static function () { Radical_Socials_ActivityPub_Fetcher::$object_cache = []; }, null, Radical_Socials_ActivityPub_Fetcher::class );
+		$reset();
+
+		$this->with_http_mocks(
+			[ 'GET ' . $target_url => $this->http_response( $target_object, 200, [ 'content-type' => 'application/activity+json' ] ) ],
+			function () use ( $inbox_id, $booster_url, $target_url, $author_url ): void {
+				$item = Radical_Socials_ActivityPub_Fetcher::normalize_activity( (int) $inbox_id );
+
+				$this->assert_true( is_array( $item ), 'normalize_activity should return an array for an Announce.' );
+				$this->assert_same( $target_url, $item['url'], 'Announce should be keyed to the boosted note URL.' );
+				$this->assert_same( md5( $target_url ), $item['guid'], 'guid must hash the boosted note URL so multiple boosters dedupe to one item.' );
+				$this->assert_same( $booster_url, $item['source_url'], 'source_url must be the booster — otherwise prune removes boosted items.' );
+				$this->assert_same( $author_url, $item['author_url'], 'author_url must be the original poster.' );
+				$this->assert_true( str_contains( $item['content'], 'rs-boost-context' ), 'Boost badge HTML must be prepended to content.' );
+				$this->assert_true( str_contains( $item['content'], 'boosted body' ), 'Boosted note body must be present in content.' );
+			}
+		);
+	}
+
+	/**
+	 * Two followed actors both boosting the same post: the target URL must
+	 * be fetched exactly once (in-request cache), and both boosters produce
+	 * items with identical guid so the upsert collapses them.
+	 */
+	private function test_outbox_announce_dedupes_target_fetch(): void {
+		$booster_a   = 'https://a.example/users/aaa';
+		$booster_b   = 'https://b.example/users/bbb';
+		$target_url  = 'https://origin.example/users/cee/statuses/777';
+
+		$target_object = wp_json_encode( [
+			'type'         => 'Note',
+			'id'           => $target_url,
+			'url'          => $target_url,
+			'attributedTo' => 'https://origin.example/users/cee',
+			'content'      => '<p>once-fetched boosted body</p>',
+			'published'    => '2026-05-11T09:00:00Z',
+		] );
+
+		// Reset the dereference cache so this test starts clean.
+		$reset = \Closure::bind( static function () { Radical_Socials_ActivityPub_Fetcher::$object_cache = []; }, null, Radical_Socials_ActivityPub_Fetcher::class );
+		$reset();
+
+		$target_hits = 0;
+		$counter     = function ( $preempt, $args, $url ) use ( $target_url, &$target_hits ) {
+			if ( $url === $target_url ) {
+				$target_hits++;
+			}
+			return $preempt;
+		};
+		add_filter( 'pre_http_request', $counter, 5, 3 );
+
+		try {
+			$this->with_http_mocks(
+				[ 'GET ' . $target_url => $this->http_response( $target_object, 200, [ 'content-type' => 'application/activity+json' ] ) ],
+				function () use ( $booster_a, $booster_b, $target_url ): void {
+					$activity_a = [ 'type' => 'Announce', 'actor' => $booster_a, 'object' => $target_url, 'published' => '2026-05-11T09:01:00Z' ];
+					$activity_b = [ 'type' => 'Announce', 'actor' => $booster_b, 'object' => $target_url, 'published' => '2026-05-11T09:02:00Z' ];
+
+					$method = new ReflectionMethod( Radical_Socials_ActivityPub_Fetcher::class, 'normalize_outbox_announce' );
+					$method->setAccessible( true );
+
+					$item_a = $method->invoke( null, $activity_a, $booster_a );
+					$item_b = $method->invoke( null, $activity_b, $booster_b );
+
+					$this->assert_true( is_array( $item_a ) && is_array( $item_b ), 'Both Announces should normalize.' );
+					$this->assert_same( $item_a['guid'], $item_b['guid'], 'guid collapses boosts of the same post across boosters.' );
+					$this->assert_same( $booster_a, $item_a['source_url'], 'First item attributes source to booster A.' );
+					$this->assert_same( $booster_b, $item_b['source_url'], 'Second item attributes source to booster B.' );
+				}
+			);
+		} finally {
+			remove_filter( 'pre_http_request', $counter, 5 );
+		}
+
+		$this->assert_same( 1, $target_hits, 'Target object must be dereferenced exactly once across multiple boosters in the same run.' );
 	}
 
 	/**

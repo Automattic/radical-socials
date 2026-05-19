@@ -22,7 +22,18 @@ class Radical_Socials_ActivityPub_Fetcher {
 	const ACCEPT_HEADER = 'application/activity+json, application/ld+json; profile="https://www.w3.org/ns/activitystreams"';
 
 	/**
-	 * Fetch up to $count recent Create activities from the ActivityPub inbox.
+	 * In-request cache for dereferenced AP objects (boost targets).
+	 * Keyed by absolute URL. A `null` entry means the fetch was attempted
+	 * and failed — we don't retry within the same request, since a boosted
+	 * post is read-only and won't suddenly come back to life mid-run.
+	 *
+	 * @var array<string, array<string, mixed>|null>
+	 */
+	private static array $object_cache = [];
+
+	/**
+	 * Fetch up to $count recent Create or Announce activities from the
+	 * ActivityPub inbox.
 	 *
 	 * @return array<int, array>
 	 */
@@ -40,8 +51,9 @@ class Radical_Socials_ActivityPub_Fetcher {
 				'order'          => 'DESC',
 				'meta_query'     => [
 					[
-						'key'   => '_activitypub_activity_type',
-						'value' => 'Create',
+						'key'     => '_activitypub_activity_type',
+						'value'   => [ 'Create', 'Announce' ],
+						'compare' => 'IN',
 					],
 				],
 			]
@@ -65,15 +77,24 @@ class Radical_Socials_ActivityPub_Fetcher {
 			return null;
 		}
 
-		$actor_url = get_post_meta( $post_id, '_activitypub_activity_remote_actor', true );
-		$object_id = get_post_meta( $post_id, '_activitypub_object_id', true );
+		$actor_url     = (string) get_post_meta( $post_id, '_activitypub_activity_remote_actor', true );
+		$object_id     = (string) get_post_meta( $post_id, '_activitypub_object_id', true );
+		$activity_type = (string) get_post_meta( $post_id, '_activitypub_activity_type', true );
+		$activity      = json_decode( $post->post_content, true );
 
-		// Parse the full activity JSON for richer object data.
-		$activity = json_decode( $post->post_content, true );
-		$object   = $activity['object'] ?? [];
+		if ( 'Announce' === $activity_type ) {
+			return self::normalize_announce(
+				is_array( $activity ) ? ( $activity['object'] ?? null ) : null,
+				$object_id,
+				$actor_url,
+				get_the_date( 'c', $post_id )
+			);
+		}
+
+		// Create activity — the object is the new note itself.
+		$object = is_array( $activity ) ? ( $activity['object'] ?? [] ) : [];
 
 		if ( is_string( $object ) ) {
-			// Some activities store only the object URL as a string.
 			$object_url = esc_url_raw( $object );
 			$content    = '';
 			$name       = '';
@@ -87,17 +108,9 @@ class Radical_Socials_ActivityPub_Fetcher {
 			return null;
 		}
 
-		// Derive actor display name from the stored actor URL (best we have without a separate lookup).
-		$actor_name = parse_url( (string) $actor_url, PHP_URL_HOST ) ?? '';
-		$actor_path = ltrim( parse_url( (string) $actor_url, PHP_URL_PATH ) ?? '', '/' );
-		if ( $actor_path ) {
-			$actor_name = $actor_path . '@' . $actor_name;
-		}
-
-		$image = $object['image'] ?? '';
+		$image     = is_array( $object ) ? ( $object['image'] ?? '' ) : '';
 		$thumbnail = is_array( $image ) ? esc_url_raw( $image['url'] ?? '' ) : esc_url_raw( (string) $image );
 
-		// Prepend reply-context line + append attachments to content as block-style HTML.
 		if ( is_array( $object ) ) {
 			$reply_context = self::render_reply_context( $object );
 			if ( $reply_context ) {
@@ -109,9 +122,7 @@ class Radical_Socials_ActivityPub_Fetcher {
 			}
 		}
 
-		// Look up cached author info from the ap_actor post that has this
-		// actor URL as its guid.
-		[ $author_name, $author_icon_url ] = self::lookup_author_by_actor_url( (string) $actor_url );
+		[ $author_name, $author_icon_url ] = self::lookup_author_by_actor_url( $actor_url );
 
 		return [
 			// AP notes don't have a meaningful title — only use object.name if
@@ -121,14 +132,104 @@ class Radical_Socials_ActivityPub_Fetcher {
 			'content'         => wp_kses_post( $content ),
 			'excerpt'         => wp_trim_words( wp_strip_all_tags( $content ), 30 ),
 			'date'            => get_the_date( 'c', $post_id ),
-			'source_name'     => $actor_name,
-			'source_url'      => esc_url_raw( (string) $actor_url ),
+			'source_name'     => self::actor_handle_from_url( $actor_url ),
+			'source_url'      => esc_url_raw( $actor_url ),
 			'thumbnail_url'   => $thumbnail,
 			'guid'            => md5( $object_url ),
 			'feed_type'       => 'activitypub',
 			'author_name'     => $author_name,
 			'author_icon_url' => $author_icon_url,
-			'author_url'      => esc_url_raw( (string) $actor_url ),
+			'author_url'      => esc_url_raw( $actor_url ),
+		];
+	}
+
+	/**
+	 * Normalize an Announce (boost) into a feed item.
+	 *
+	 * The boosted note may be embedded as a full object inside the activity,
+	 * or referenced by URL only. In the URL-only case we dereference it once
+	 * per request via $object_cache so the same post boosted by several
+	 * followed actors costs one HTTP call, not N.
+	 *
+	 * Feed-item attribution: source is the booster (so the existing prune
+	 * logic — which matches _rs_item_source_url against the following list —
+	 * doesn't sweep boosted items as orphans). The original author surfaces
+	 * via the author_* fields and a "Boosted by" badge prepended to content.
+	 *
+	 * guid = md5(target object URL) so multiple boosters of the same post
+	 * collapse to one upserted item.
+	 *
+	 * @param mixed  $activity_object Inline object dict, URL string, or null.
+	 * @param string $object_id_meta  Fallback target URL from _activitypub_object_id.
+	 * @param string $booster_url     Actor URL of the booster (we follow them).
+	 * @param string $fallback_date   ISO-8601 date if the target lacks `published`.
+	 */
+	private static function normalize_announce( $activity_object, string $object_id_meta, string $booster_url, string $fallback_date ): ?array {
+		if ( is_array( $activity_object ) ) {
+			$target = $activity_object;
+		} else {
+			$target_url = is_string( $activity_object ) ? esc_url_raw( $activity_object ) : '';
+			if ( ! $target_url && $object_id_meta ) {
+				$target_url = esc_url_raw( $object_id_meta );
+			}
+			if ( ! $target_url ) {
+				return null;
+			}
+			$target = self::dereference_object( $target_url );
+			if ( ! $target ) {
+				return null;
+			}
+		}
+
+		$object_url = esc_url_raw( $target['url'] ?? $target['id'] ?? '' );
+		if ( ! $object_url ) {
+			return null;
+		}
+
+		$author_url      = is_string( $target['attributedTo'] ?? null )
+			? esc_url_raw( $target['attributedTo'] )
+			: '';
+		$booster_display = self::actor_handle_from_url( $booster_url );
+
+		$content = (string) ( $target['content'] ?? $target['summary'] ?? '' );
+
+		$boost_badge = self::render_boost_context( $booster_url, $booster_display );
+		if ( $boost_badge ) {
+			$content = $boost_badge . $content;
+		}
+
+		$reply_context = self::render_reply_context( $target );
+		if ( $reply_context ) {
+			$content .= $reply_context;
+		}
+
+		$attachments_html = self::render_attachments( $target['attachment'] ?? [] );
+		if ( $attachments_html ) {
+			$content .= $attachments_html;
+		}
+
+		[ $author_name, $author_icon_url ] = $author_url
+			? self::lookup_author_by_actor_url( $author_url )
+			: [ '', '' ];
+
+		$published = (string) ( $target['published'] ?? '' );
+
+		return [
+			'title'           => wp_strip_all_tags( (string) ( $target['name'] ?? '' ) ),
+			'url'             => $object_url,
+			'content'         => wp_kses_post( $content ),
+			'excerpt'         => wp_trim_words( wp_strip_all_tags( $content ), 30 ),
+			'date'            => $published ?: $fallback_date,
+			// source = booster so prune keeps the item alive while we follow them.
+			'source_name'     => $booster_display,
+			'source_url'      => esc_url_raw( $booster_url ),
+			'thumbnail_url'   => '',
+			'guid'            => md5( $object_url ),
+			'feed_type'       => 'activitypub',
+			// author = original poster.
+			'author_name'     => $author_name ?: self::actor_handle_from_url( $author_url ),
+			'author_icon_url' => $author_icon_url,
+			'author_url'      => $author_url,
 		];
 	}
 
@@ -232,10 +333,14 @@ class Radical_Socials_ActivityPub_Fetcher {
 
 			$activities = $page['orderedItems'] ?? [];
 			foreach ( array_slice( $activities, 0, $per_actor ) as $activity ) {
-				if ( ( $activity['type'] ?? '' ) !== 'Create' ) {
+				$type = $activity['type'] ?? '';
+				if ( 'Create' === $type ) {
+					$item = self::normalize_outbox_activity( $activity, $actor_url, $author );
+				} elseif ( 'Announce' === $type ) {
+					$item = self::normalize_outbox_announce( $activity, $actor_url );
+				} else {
 					continue;
 				}
-				$item = self::normalize_outbox_activity( $activity, $actor_url, $author );
 				if ( $item ) {
 					$items[] = $item;
 				}
@@ -395,6 +500,126 @@ class Radical_Socials_ActivityPub_Fetcher {
 	}
 
 	/**
+	 * Normalize an outbox Announce (boost). Dereferences the target object
+	 * once per request via $object_cache so multiple followed actors boosting
+	 * the same note share a single HTTP call.
+	 *
+	 * @param array  $activity   The Announce activity from the outbox.
+	 * @param string $actor_url  Actor URL of the booster (we follow them).
+	 */
+	private static function normalize_outbox_announce( array $activity, string $actor_url ): ?array {
+		$object = $activity['object'] ?? null;
+
+		if ( is_array( $object ) ) {
+			$target = $object;
+		} else {
+			$target_url = is_string( $object ) ? esc_url_raw( $object ) : '';
+			if ( ! $target_url ) {
+				return null;
+			}
+			$target = self::dereference_object( $target_url );
+			if ( ! $target ) {
+				return null;
+			}
+		}
+
+		$object_url = esc_url_raw( $target['url'] ?? $target['id'] ?? '' );
+		if ( ! $object_url ) {
+			return null;
+		}
+
+		$author_url      = is_string( $target['attributedTo'] ?? null )
+			? esc_url_raw( $target['attributedTo'] )
+			: '';
+		$booster_display = self::actor_handle_from_url( $actor_url );
+
+		$content = (string) ( $target['content'] ?? $target['summary'] ?? '' );
+
+		$boost_badge = self::render_boost_context( $actor_url, $booster_display );
+		if ( $boost_badge ) {
+			$content = $boost_badge . $content;
+		}
+
+		$reply_context = self::render_reply_context( $target );
+		if ( $reply_context ) {
+			$content .= $reply_context;
+		}
+
+		$attachments_html = self::render_attachments( $target['attachment'] ?? [] );
+		if ( $attachments_html ) {
+			$content .= $attachments_html;
+		}
+
+		$published = (string) ( $target['published'] ?? $activity['published'] ?? '' );
+
+		return [
+			'title'           => wp_strip_all_tags( (string) ( $target['name'] ?? '' ) ),
+			'url'             => $object_url,
+			'content'         => wp_kses_post( $content ),
+			'excerpt'         => wp_trim_words( wp_strip_all_tags( $content ), 30 ),
+			'date'            => $published ?: current_time( 'c' ),
+			'source_name'     => $booster_display,
+			'source_url'      => esc_url_raw( $actor_url ),
+			'thumbnail_url'   => '',
+			'guid'            => md5( $object_url ),
+			'feed_type'       => 'activitypub',
+			'author_name'     => self::actor_handle_from_url( $author_url ),
+			'author_icon_url' => '',
+			'author_url'      => $author_url,
+		];
+	}
+
+	/**
+	 * Fetch an AP object by URL, caching the result (success or failure)
+	 * for the lifetime of the request. A boosted note is read-only, so the
+	 * same target URL is never refetched within a single fetcher run.
+	 */
+	private static function dereference_object( string $url ): ?array {
+		if ( array_key_exists( $url, self::$object_cache ) ) {
+			return self::$object_cache[ $url ];
+		}
+		$data = self::fetch_json( $url );
+		self::$object_cache[ $url ] = $data;
+		return $data;
+	}
+
+	/**
+	 * Build a "user@host" handle from an actor URL. Mirrors the legacy
+	 * inline logic that was duplicated in both inbox and outbox normalizers.
+	 */
+	private static function actor_handle_from_url( string $actor_url ): string {
+		$host = parse_url( $actor_url, PHP_URL_HOST ) ?? '';
+		$path = ltrim( parse_url( $actor_url, PHP_URL_PATH ) ?? '', '/' );
+		return $path ? $path . '@' . $host : $host;
+	}
+
+	/**
+	 * Render a "Boosted by @handle" badge prepended to a boosted note's
+	 * content. Plain text only — no unicode arrow glyph, because WP's
+	 * client-side emoji JS rewrites a number of arrow characters as <img>
+	 * tags pointing at s.w.org. The visual icon, if any, should come from
+	 * CSS (::before on .rs-boost-context) so it can't be substituted.
+	 */
+	private static function render_boost_context( string $booster_actor_url, string $booster_display ): string {
+		if ( '' === $booster_actor_url ) {
+			return '';
+		}
+		$label = '' !== $booster_display
+			? sprintf(
+				/* translators: %s: actor handle that boosted the post (e.g. @bob@mastodon.social) */
+				__( 'Boosted by %s', 'radical-socials' ),
+				'<code>@' . esc_html( $booster_display ) . '</code>'
+			)
+			: esc_html__( 'Boosted', 'radical-socials' );
+
+		return sprintf(
+			'<p class="rs-boost-context"><a href="%s" target="_blank" rel="noopener noreferrer nofollow">%s</a></p>',
+			esc_url( $booster_actor_url ),
+			$label
+		);
+	}
+
+	/**
 	 * Find the ap_actor post for a given actor URL (matched against the
 	 * post's guid) and return [display_name, icon_url].
 	 *
@@ -463,10 +688,10 @@ class Radical_Socials_ActivityPub_Fetcher {
 		$label = '' !== $display
 			? sprintf(
 				/* translators: %s: actor handle the post replies to (e.g. @bob@mastodon.social) */
-				__( '↩ In reply to %s', 'radical-socials' ),
+				__( '↪️ In reply to %s', 'radical-socials' ),
 				'<code>' . esc_html( $display ) . '</code>'
 			)
-			: esc_html__( '↩ In reply to a post', 'radical-socials' );
+			: esc_html__( '↪️ In reply to a post', 'radical-socials' );
 
 		return sprintf(
 			'<p class="rs-reply-context"><a href="%s" target="_blank" rel="noopener noreferrer nofollow">%s</a></p>',
