@@ -68,6 +68,21 @@ function radical_socials_register_rewrite_objects(): void {
 
 function radical_socials_activate(): void {
 	radical_socials_register_rewrite_objects();
+
+	// Pretty permalinks are required for WebFinger (/.well-known/webfinger),
+	// the ActivityPub actor JSON, and our own /following/ + /favorites/ URLs
+	// to resolve. If the site is still on the WP default ("Plain"), pick a
+	// sensible structure for the user. Never override an existing choice —
+	// site owners who have deliberately set a different structure keep it.
+	if ( '' === (string) get_option( 'permalink_structure', '' ) ) {
+		global $wp_rewrite;
+		if ( $wp_rewrite instanceof WP_Rewrite ) {
+			$wp_rewrite->set_permalink_structure( '/%postname%/' );
+		} else {
+			update_option( 'permalink_structure', '/%postname%/' );
+		}
+	}
+
 	flush_rewrite_rules();
 	update_option( 'radical_socials_rewrite_version', RADICAL_SOCIALS_REWRITE_VERSION, false );
 
