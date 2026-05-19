@@ -68,6 +68,13 @@ function radical_socials_register_rewrite_objects(): void {
 function radical_socials_activate(): void {
 	radical_socials_register_rewrite_objects();
 
+	// Trigger a one-shot redirect to our onboarding wizard on the next
+	// admin page load. Transient (not option) so it auto-expires if the
+	// user closes the tab before being redirected, and `for_blog` so the
+	// flag is per-user — a network admin bulk-activating across many
+	// sites doesn't get hijacked to every Welcome page in turn.
+	set_transient( 'rs_welcome_redirect_' . get_current_user_id(), 1, MINUTE_IN_SECONDS );
+
 	// Pretty permalinks are required for WebFinger (/.well-known/webfinger),
 	// the ActivityPub actor JSON, and our own /following/ + /favorites/ URLs
 	// to resolve. If the site is still on the WP default ("Plain"), pick a
@@ -113,6 +120,58 @@ function radical_socials_apply_ap_defaults_when_ready(): void {
 	update_option( 'radical_socials_ap_defaults_applied', 1, false );
 }
 add_action( 'plugins_loaded', 'radical_socials_apply_ap_defaults_when_ready', 30 );
+
+/**
+ * One-shot redirect to the Welcome wizard right after the user activates
+ * Radical Socials. Skips when WP is bulk-activating multiple plugins or
+ * when the user landed via an AJAX/CLI/cron context. The flag is per-user
+ * so other admins activating later don't inherit the redirect.
+ */
+function radical_socials_maybe_redirect_to_welcome(): void {
+	if ( wp_doing_ajax() || wp_doing_cron() || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
+		return;
+	}
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only check on a WP-supplied URL param.
+	if ( isset( $_GET['activate-multi'] ) ) {
+		return;
+	}
+	$user_id = get_current_user_id();
+	if ( ! $user_id || ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
+	$key = 'rs_welcome_redirect_' . $user_id;
+	if ( ! get_transient( $key ) ) {
+		return;
+	}
+	delete_transient( $key );
+	wp_safe_redirect( admin_url( 'admin.php?page=radical-socials-settings&tab=welcome' ) );
+	exit;
+}
+add_action( 'admin_init', 'radical_socials_maybe_redirect_to_welcome' );
+
+/**
+ * Add a "Settings" link to our row on the Plugins page. While the
+ * onboarding wizard still has incomplete steps, the link points at the
+ * Welcome tab so a returning user lands on whatever's left to do; once
+ * every step is checked off, it points at the main Profile tab.
+ *
+ * @param string[] $links Existing action links (rendered as <a> nodes).
+ * @return string[]
+ */
+function radical_socials_plugin_action_links( array $links ): array {
+	if ( ! class_exists( 'Radical_Socials_Settings_Page' ) ) {
+		return $links;
+	}
+	$status = Radical_Socials_Settings_Page::wizard_status();
+	$tab    = $status['all'] ? 'profile' : 'welcome';
+	$url    = admin_url( 'admin.php?page=radical-socials-settings&tab=' . $tab );
+	array_unshift(
+		$links,
+		'<a href="' . esc_url( $url ) . '">' . esc_html__( 'Settings', 'radical-socials' ) . '</a>'
+	);
+	return $links;
+}
+add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'radical_socials_plugin_action_links' );
 
 function radical_socials_maybe_flush_rewrite_rules(): void {
 	if ( RADICAL_SOCIALS_REWRITE_VERSION === get_option( 'radical_socials_rewrite_version' ) ) {

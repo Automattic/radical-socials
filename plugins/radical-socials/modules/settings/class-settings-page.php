@@ -21,6 +21,8 @@ class Radical_Socials_Settings_Page {
 		add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue' ] );
 		add_action( 'admin_init',            [ __CLASS__, 'handle_following_privacy_save' ] );
 		add_action( 'admin_init',            [ __CLASS__, 'handle_diagnostics_action' ] );
+		add_action( 'admin_post_rs_install_activitypub', [ __CLASS__, 'handle_install_activitypub' ] );
+		add_action( 'admin_post_rs_save_handle',         [ __CLASS__, 'handle_save_handle' ] );
 	}
 
 	/**
@@ -219,7 +221,7 @@ class Radical_Socials_Settings_Page {
 	private static function active_tab(): string {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'profile';
-		return in_array( $tab, [ 'profile', 'following', 'diagnostics' ], true ) ? $tab : 'profile';
+		return in_array( $tab, [ 'welcome', 'profile', 'following', 'diagnostics' ], true ) ? $tab : 'profile';
 	}
 
 	public static function enqueue( string $hook ): void {
@@ -227,17 +229,19 @@ class Radical_Socials_Settings_Page {
 			return;
 		}
 
+		// Tab styling + welcome wizard cards live in settings.css — load it
+		// on every tab so the header/tab bar is consistent everywhere.
+		wp_enqueue_style(
+			'rs-settings-page',
+			plugin_dir_url( __FILE__ ) . 'assets/settings.css',
+			[],
+			filemtime( __DIR__ . '/assets/settings.css' ) ?: '1'
+		);
+
 		if ( 'profile' === self::active_tab() ) {
 			wp_enqueue_media();
 			wp_enqueue_script( 'site-icon' );
 			wp_enqueue_style( 'site-icon' );
-
-			wp_enqueue_style(
-				'rs-settings-page',
-				plugin_dir_url( __FILE__ ) . 'assets/settings.css',
-				[],
-				filemtime( __DIR__ . '/assets/settings.css' ) ?: '1'
-			);
 
 			wp_enqueue_script(
 				'rs-settings-page',
@@ -248,7 +252,9 @@ class Radical_Socials_Settings_Page {
 			);
 		}
 
-		if ( 'following' === self::active_tab() ) {
+		// The Welcome wizard re-uses the Following tab's add-feed widgets
+		// in Step 2, so enqueue the same JS + localized config there too.
+		if ( in_array( self::active_tab(), [ 'following', 'welcome' ], true ) ) {
 			wp_enqueue_script(
 				'rs-following-settings',
 				plugin_dir_url( __FILE__ ) . 'assets/following.js',
@@ -426,7 +432,29 @@ class Radical_Socials_Settings_Page {
 		$tab_url = fn( string $tab ) => admin_url( 'admin.php?page=radical-socials-settings&tab=' . $tab );
 		?>
 		<div class="wrap rs-settings-wrap">
-			<h1><?php esc_html_e( 'Radical Socials', 'radical-socials' ); ?></h1>
+			<div class="rs-settings-header">
+				<div class="rs-settings-title-section">
+					<h1><?php esc_html_e( 'Radical Socials', 'radical-socials' ); ?></h1>
+				</div>
+				<div class="rs-settings-tabs-scroller">
+					<nav class="rs-settings-tabs-wrapper" aria-label="<?php esc_attr_e( 'Settings sections', 'radical-socials' ); ?>">
+						<?php
+						$tabs = [
+							'welcome'     => __( 'Welcome', 'radical-socials' ),
+							'profile'     => __( 'Profile', 'radical-socials' ),
+							'following'   => __( 'Following', 'radical-socials' ),
+							'diagnostics' => __( 'Diagnostics', 'radical-socials' ),
+						];
+						foreach ( $tabs as $slug => $label ) :
+							$class = 'rs-settings-tab' . ( $slug === $active_tab ? ' active' : '' );
+							?>
+							<a href="<?php echo esc_url( $tab_url( $slug ) ); ?>" class="<?php echo esc_attr( $class ); ?>"><?php echo esc_html( $label ); ?></a>
+						<?php endforeach; ?>
+					</nav>
+				</div>
+			</div>
+
+			<hr class="wp-header-end">
 
 			<?php if ( isset( $_GET['rs_settings'] ) && 'updated' === $_GET['rs_settings'] ) : ?>
 				<div class="notice notice-success is-dismissible">
@@ -463,22 +491,14 @@ class Radical_Socials_Settings_Page {
 				</div>
 			<?php endif; ?>
 
-			<nav class="nav-tab-wrapper" aria-label="<?php esc_attr_e( 'Settings sections', 'radical-socials' ); ?>">
-				<a href="<?php echo esc_url( $tab_url( 'profile' ) ); ?>"
-				   class="nav-tab <?php echo 'profile' === $active_tab ? 'nav-tab-active' : ''; ?>">
-					<?php esc_html_e( 'Profile', 'radical-socials' ); ?>
-				</a>
-				<a href="<?php echo esc_url( $tab_url( 'following' ) ); ?>"
-				   class="nav-tab <?php echo 'following' === $active_tab ? 'nav-tab-active' : ''; ?>">
-					<?php esc_html_e( 'Following', 'radical-socials' ); ?>
-				</a>
-				<a href="<?php echo esc_url( $tab_url( 'diagnostics' ) ); ?>"
-				   class="nav-tab <?php echo 'diagnostics' === $active_tab ? 'nav-tab-active' : ''; ?>">
-					<?php esc_html_e( 'Diagnostics', 'radical-socials' ); ?>
-				</a>
-			</nav>
-
-			<?php if ( 'profile' === $active_tab ) : ?>
+			<?php
+			$wide_tab        = in_array( $active_tab, [ 'following', 'diagnostics' ], true );
+			$settings_class  = 'rs-settings' . ( $wide_tab ? ' rs-settings--wide' : '' );
+			?>
+			<div class="<?php echo esc_attr( $settings_class ); ?>">
+			<?php if ( 'welcome' === $active_tab ) : ?>
+				<?php self::render_welcome_tab(); ?>
+			<?php elseif ( 'profile' === $active_tab ) : ?>
 
 			<form method="post" class="rs-settings-form">
 				<?php wp_nonce_field( 'rs_settings_save', 'rs_settings_nonce' ); ?>
@@ -879,8 +899,326 @@ class Radical_Socials_Settings_Page {
 			<?php elseif ( 'diagnostics' === $active_tab ) : ?>
 				<?php self::render_diagnostics_tab(); ?>
 			<?php endif; ?>
+			</div><!-- .rs-settings -->
 		</div>
 		<?php
+	}
+
+	/**
+	 * Return per-step completion flags for the onboarding wizard. Shared
+	 * between render_welcome_tab() and the Plugins-page action link so the
+	 * "is the user done?" check has exactly one definition.
+	 *
+	 * @return array{ap:bool, subs:bool, post:bool, all:bool}
+	 */
+	public static function wizard_status(): array {
+		$ap_active = class_exists( '\\Activitypub\\Collection\\Following' );
+
+		$rss_count   = count( (array) get_option( 'rs_rss_subscriptions', [] ) );
+		$ap_count    = $ap_active
+			? (int) ( new WP_Query( [ 'post_type' => 'ap_actor', 'fields' => 'ids', 'posts_per_page' => 1, 'no_found_rows' => false ] ) )->found_posts
+			: 0;
+		$wpcom_conn  = class_exists( 'Radical_Socials_WPCOM_OAuth' ) && Radical_Socials_WPCOM_OAuth::is_connected();
+		$sub_count   = $rss_count + $ap_count + ( $wpcom_conn ? 1 : 0 );
+
+		$post_count = (int) count_user_posts( get_current_user_id(), 'post', true );
+
+		return [
+			'ap'   => $ap_active,
+			'subs' => $sub_count > 0,
+			'post' => $post_count > 0,
+			'all'  => $ap_active && $sub_count > 0 && $post_count > 0,
+		];
+	}
+
+	/**
+	 * Onboarding wizard. Three sequential steps: install ActivityPub +
+	 * confirm handle, add accounts to follow, publish first post. Each
+	 * step's status is derived from real state (plugin presence, current
+	 * subscription counts, user's published post count), so admins can
+	 * leave and return mid-flow and the wizard reflects what's left.
+	 */
+	private static function render_welcome_tab(): void {
+		$status     = self::wizard_status();
+		$ap_active  = $status['ap'];
+		$step1_done = $status['ap'];
+		$step2_done = $status['subs'];
+		$step3_done = $status['post'];
+
+		// The currently "active" step is the first incomplete one. Used to
+		// colour its marker blue so the user knows where to look next.
+		$active_step = ! $step1_done ? 1 : ( ! $step2_done ? 2 : ( ! $step3_done ? 3 : 0 ) );
+
+		$step_class = function ( int $n ) use ( $active_step, $step1_done, $step2_done, $step3_done ): string {
+			$done = [ 1 => $step1_done, 2 => $step2_done, 3 => $step3_done ][ $n ];
+			if ( $done ) {
+				return 'rs-welcome-step is-done';
+			}
+			if ( $active_step === $n ) {
+				return 'rs-welcome-step is-active';
+			}
+			return 'rs-welcome-step';
+		};
+
+		$step_marker = function ( int $n ) use ( $step1_done, $step2_done, $step3_done ): string {
+			$done = [ 1 => $step1_done, 2 => $step2_done, 3 => $step3_done ][ $n ];
+			return $done ? '✓' : (string) $n;
+		};
+
+		// Surface admin-post handler results.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$ap_installed   = isset( $_GET['rs_ap_installed'] );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$ap_error       = isset( $_GET['rs_ap_install_error'] ) ? sanitize_text_field( wp_unslash( $_GET['rs_ap_install_error'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$handle_saved   = isset( $_GET['rs_handle_saved'] );
+		?>
+		<p class="rs-welcome-intro">
+			<?php esc_html_e( 'A few quick steps and your site is ready to read, post, and federate. You can come back to this tab any time — completed steps will stay checked.', 'radical-socials' ); ?>
+		</p>
+
+		<?php if ( $ap_installed ) : ?>
+			<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'ActivityPub installed and activated.', 'radical-socials' ); ?></p></div>
+		<?php endif; ?>
+		<?php if ( $ap_error ) : ?>
+			<div class="notice notice-error is-dismissible"><p><?php
+				printf(
+					/* translators: %s: error message from the WP plugin installer */
+					esc_html__( 'Could not install ActivityPub: %s', 'radical-socials' ),
+					esc_html( $ap_error )
+				);
+			?></p></div>
+		<?php endif; ?>
+		<?php if ( $handle_saved ) : ?>
+			<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Handle saved.', 'radical-socials' ); ?></p></div>
+		<?php endif; ?>
+
+		<ol class="rs-welcome-steps">
+
+			<!-- Step 1: Install ActivityPub + handle -->
+			<li class="<?php echo esc_attr( $step_class( 1 ) ); ?>">
+				<div class="rs-welcome-step__marker"><?php echo esc_html( $step_marker( 1 ) ); ?></div>
+				<div class="rs-welcome-step__body">
+					<h2><?php esc_html_e( 'Connect to the Fediverse', 'radical-socials' ); ?></h2>
+					<?php if ( ! $ap_active ) : ?>
+						<p><?php esc_html_e( 'Install the ActivityPub plugin so you can follow Mastodon / Pixelfed / Peertube accounts and so your own posts reach the Fediverse. This is one click — we\'ll install it and bring you right back here.', 'radical-socials' ); ?></p>
+						<p class="description" style="margin:-4px 0 12px">
+							<a href="https://en.wikipedia.org/wiki/Fediverse" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'What is the Fediverse?', 'radical-socials' ); ?></a>
+						</p>
+						<div class="rs-welcome-step__actions">
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;margin:0">
+								<input type="hidden" name="action" value="rs_install_activitypub" />
+								<?php wp_nonce_field( 'rs_install_activitypub' ); ?>
+								<button type="submit" class="button button-primary"><?php esc_html_e( 'Install &amp; activate ActivityPub', 'radical-socials' ); ?></button>
+							</form>
+						</div>
+					<?php else :
+						$blog_identifier = get_option( 'activitypub_blog_identifier', '' );
+						if ( '' === $blog_identifier ) {
+							$blog_identifier = sanitize_title( get_bloginfo( 'name' ) ) ?: 'site';
+						}
+						$host = wp_parse_url( home_url(), PHP_URL_HOST );
+						?>
+						<p><?php esc_html_e( 'ActivityPub is active. This is the @handle that other Fediverse accounts will use to follow you:', 'radical-socials' ); ?></p>
+						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="rs-welcome-step__actions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+							<input type="hidden" name="action" value="rs_save_handle" />
+							<?php wp_nonce_field( 'rs_save_handle' ); ?>
+							<span class="rs-welcome-handle-preview">@<input
+								type="text"
+								name="rs_blog_identifier"
+								value="<?php echo esc_attr( $blog_identifier ); ?>"
+								pattern="[A-Za-z0-9_\-]+"
+								maxlength="40"
+								style="border:0;background:transparent;width:8em;font-family:inherit"
+							/>@<?php echo esc_html( $host ); ?></span>
+							<button type="submit" class="button button-secondary"><?php esc_html_e( 'Save handle', 'radical-socials' ); ?></button>
+						</form>
+					<?php endif; ?>
+				</div>
+			</li>
+
+			<!-- Step 2: Add accounts to follow -->
+			<li class="<?php echo esc_attr( $step_class( 2 ) ); ?>">
+				<div class="rs-welcome-step__marker"><?php echo esc_html( $step_marker( 2 ) ); ?></div>
+				<div class="rs-welcome-step__body">
+					<h2><?php esc_html_e( 'Add accounts to follow', 'radical-socials' ); ?></h2>
+					<p><?php esc_html_e( 'Pick whichever path matches your existing feeds. You can use more than one — they all land in the same unified timeline.', 'radical-socials' ); ?></p>
+
+					<div class="rs-welcome-step__addbox">
+						<strong><?php esc_html_e( 'Paste feeds or handles', 'radical-socials' ); ?></strong>
+						<p class="description" style="margin:4px 0 8px">
+							<?php if ( $ap_active ) : ?>
+								<?php esc_html_e( 'One per line. RSS/Atom URLs or ActivityPub handles (e.g. @someone@mastodon.social).', 'radical-socials' ); ?>
+							<?php else : ?>
+								<?php esc_html_e( 'One per line. RSS/Atom feed URLs.', 'radical-socials' ); ?>
+							<?php endif; ?>
+						</p>
+						<textarea id="rs-add-input" rows="4" class="large-text" placeholder="<?php echo esc_attr( $ap_active ? "https://example.com/feed\n@someone@mastodon.social" : 'https://example.com/feed' ); ?>"></textarea>
+						<p style="margin-top:6px">
+							<button id="rs-add-btn" type="button" class="button button-primary"><?php esc_html_e( 'Add', 'radical-socials' ); ?></button>
+						</p>
+						<div id="rs-add-progress" hidden style="margin-top:8px">
+							<progress id="rs-add-progress-bar" value="0" max="100" style="width:100%;max-width:100%;display:block"></progress>
+							<span id="rs-add-progress-text"></span>
+						</div>
+						<div id="rs-add-failures" hidden style="margin-top:8px"></div>
+					</div>
+
+					<?php if ( $ap_active ) : ?>
+					<div class="rs-welcome-step__addbox">
+						<strong><?php esc_html_e( 'Import from a Mastodon (or any ActivityPub) account', 'radical-socials' ); ?></strong>
+						<p class="description" style="margin:4px 0 8px">
+							<?php esc_html_e( 'Pulls the account\'s public following list and adds each one as a feed. The account\'s "Show following" privacy setting must be on.', 'radical-socials' ); ?>
+						</p>
+						<input type="text" id="rs-import-account-input" class="regular-text" placeholder="@you@mastodon.social" />
+						<button id="rs-import-account-btn" type="button" class="button button-secondary"><?php esc_html_e( 'Import follows', 'radical-socials' ); ?></button>
+						<div id="rs-import-account-progress" hidden style="margin-top:8px">
+							<progress id="rs-import-account-bar" value="0" max="100" style="width:100%;max-width:100%;display:block"></progress>
+							<span id="rs-import-account-text"></span>
+						</div>
+					</div>
+					<?php endif; ?>
+
+					<div class="rs-welcome-step__addbox">
+						<strong><?php esc_html_e( 'Import an OPML file', 'radical-socials' ); ?></strong>
+						<p class="description" style="margin:4px 0 8px">
+							<?php esc_html_e( 'If you\'re moving from another feed reader, export your subscriptions there and drop the file here.', 'radical-socials' ); ?>
+						</p>
+						<input type="file" id="rs-opml-file" accept=".opml,.xml" style="margin-bottom:8px;display:block" />
+						<button id="rs-opml-import-btn" type="button" class="button button-secondary"><?php esc_html_e( 'Import OPML', 'radical-socials' ); ?></button>
+					</div>
+
+					<?php if ( class_exists( 'Radical_Socials_WPCOM_OAuth' ) && Radical_Socials_WPCOM_OAuth::is_configured() ) : ?>
+					<div class="rs-welcome-step__addbox">
+						<strong><?php esc_html_e( 'Connect your WordPress.com account', 'radical-socials' ); ?></strong>
+						<p class="description" style="margin:4px 0 8px">
+							<?php esc_html_e( 'We\'ll pull the sites you follow in the WP.com Reader and add them as feeds. Tokens stay on this site only.', 'radical-socials' ); ?>
+						</p>
+						<?php if ( Radical_Socials_WPCOM_OAuth::is_connected() ) : ?>
+							<span style="color:#00a32a">✓ <?php esc_html_e( 'Connected.', 'radical-socials' ); ?></span>
+						<?php else : ?>
+							<a href="<?php echo esc_url( Radical_Socials_WPCOM_OAuth::connect_url() ); ?>" class="button button-secondary"><?php esc_html_e( 'Connect WordPress.com', 'radical-socials' ); ?></a>
+						<?php endif; ?>
+					</div>
+					<?php endif; ?>
+
+					<div class="rs-welcome-step__actions" style="margin-top:14px">
+						<a href="#rs-welcome-step-3" class="button button-link"><?php esc_html_e( 'Skip for now', 'radical-socials' ); ?></a>
+					</div>
+				</div>
+			</li>
+
+			<!-- Step 3: First post -->
+			<li id="rs-welcome-step-3" class="<?php echo esc_attr( $step_class( 3 ) ); ?>">
+				<div class="rs-welcome-step__marker"><?php echo esc_html( $step_marker( 3 ) ); ?></div>
+				<div class="rs-welcome-step__body">
+					<h2><?php esc_html_e( 'Post your first post', 'radical-socials' ); ?></h2>
+					<p><?php esc_html_e( 'Your home page is also your editor — there\'s a composer right at the top. Write anything; once you publish, it appears in your own timeline and (with ActivityPub on) lands in your Fediverse followers\' feeds.', 'radical-socials' ); ?></p>
+					<div class="rs-welcome-step__actions">
+						<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="button button-primary"><?php esc_html_e( 'Go to my home page', 'radical-socials' ); ?></a>
+					</div>
+				</div>
+			</li>
+
+		</ol>
+		<?php
+	}
+
+	/**
+	 * admin-post handler: install + activate the ActivityPub plugin, then
+	 * redirect back to our Welcome wizard. Capability + nonce gated.
+	 */
+	public static function handle_install_activitypub(): void {
+		if ( ! current_user_can( 'install_plugins' ) ) {
+			wp_die( esc_html__( 'You do not have permission to install plugins.', 'radical-socials' ) );
+		}
+		check_admin_referer( 'rs_install_activitypub' );
+
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/misc.php';
+		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+		require_once ABSPATH . 'wp-admin/includes/plugin-install.php';
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+
+		$back = static function ( string $err = '' ): void {
+			$url = admin_url( 'admin.php?page=radical-socials-settings&tab=welcome' );
+			if ( $err ) {
+				$url = add_query_arg( 'rs_ap_install_error', rawurlencode( $err ), $url );
+			} else {
+				$url = add_query_arg( 'rs_ap_installed', 1, $url );
+			}
+			wp_safe_redirect( $url );
+			exit;
+		};
+
+		$plugin_file = 'activitypub/activitypub.php';
+
+		// Already installed? Just activate.
+		if ( ! file_exists( WP_PLUGIN_DIR . '/' . $plugin_file ) ) {
+			$api = plugins_api( 'plugin_information', [
+				'slug'   => 'activitypub',
+				'fields' => [ 'sections' => false, 'banners' => false, 'reviews' => false ],
+			] );
+			if ( is_wp_error( $api ) ) {
+				$back( $api->get_error_message() );
+			}
+
+			$skin     = new WP_Ajax_Upgrader_Skin();
+			$upgrader = new Plugin_Upgrader( $skin );
+			$result   = $upgrader->install( $api->download_link );
+
+			if ( is_wp_error( $result ) ) {
+				$back( $result->get_error_message() );
+			}
+			if ( ! $result ) {
+				$messages = $skin->get_error_messages();
+				$back( $messages ? implode( '; ', $messages ) : __( 'Installer returned no result.', 'radical-socials' ) );
+			}
+		}
+
+		if ( ! is_plugin_active( $plugin_file ) ) {
+			// ActivityPub adds its own `activated_plugin` hook
+			// (`Activitypub\activation_redirect`) that wp_safe_redirect()s to
+			// its own welcome page and exits — which would short-circuit
+			// our own redirect back to the wizard. AP's main file is
+			// `include_once`'d inside activate_plugin() before any actions
+			// fire, so by the time `activated_plugin` runs, AP's hook is
+			// already registered. Race ahead at priority 1 and pull AP's
+			// callback off the action list before it gets a chance to run.
+			$strip_ap_redirect = static function ( $activated_plugin ) use ( $plugin_file ): void {
+				if ( $activated_plugin === $plugin_file ) {
+					remove_action( 'activated_plugin', 'Activitypub\\activation_redirect' );
+				}
+			};
+			add_action( 'activated_plugin', $strip_ap_redirect, 1 );
+
+			$activated = activate_plugin( $plugin_file );
+
+			remove_action( 'activated_plugin', $strip_ap_redirect, 1 );
+
+			if ( is_wp_error( $activated ) ) {
+				$back( $activated->get_error_message() );
+			}
+		}
+
+		$back();
+	}
+
+	/**
+	 * admin-post handler: save the AP blog actor handle from step 1.
+	 */
+	public static function handle_save_handle(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to do that.', 'radical-socials' ) );
+		}
+		check_admin_referer( 'rs_save_handle' );
+
+		$candidate = isset( $_POST['rs_blog_identifier'] ) ? sanitize_user( wp_unslash( $_POST['rs_blog_identifier'] ), true ) : '';
+		if ( '' !== $candidate ) {
+			update_option( 'activitypub_blog_identifier', $candidate );
+		}
+		wp_safe_redirect( admin_url( 'admin.php?page=radical-socials-settings&tab=welcome&rs_handle_saved=1' ) );
+		exit;
 	}
 
 	private static function render_diagnostics_tab(): void {
