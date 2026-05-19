@@ -78,6 +78,7 @@ class Radical_Socials_Following {
 		// Suppress core/post-title for ActivityPub feed items (notes don't have
 		// titles) and for any feed item whose title is empty.
 		add_filter( 'render_block_core/post-title', [ __CLASS__, 'hide_empty_or_activitypub_titles' ], 10, 2 );
+		add_filter( 'render_block', [ __CLASS__, 'gate_activitypub_blocks' ], 10, 2 );
 
 		// Gate /following/ and rs_feed_item single views for logged-out users
 		// when the site owner hasn't opted into a public following page.
@@ -508,6 +509,46 @@ class Radical_Socials_Following {
 		}
 
 		return $block_content;
+	}
+
+	/**
+	 * When the ActivityPub plugin isn't installed/active, blocks under the
+	 * `activitypub/*` namespace can't render — their classes don't exist.
+	 * WordPress falls back to whatever innerHTML the template baked in, which
+	 * is empty markers or stale placeholders. Suppress those to nothing for
+	 * visitors (the bundled theme uses them on single feed items, the author
+	 * archive, and favorite archives — none of those should display an empty
+	 * reactions box), and inline an admin-only nudge so the site owner knows
+	 * the affected blocks need the AP plugin to come to life.
+	 *
+	 * AP is detected by a class shipped by the plugin since v1.x — cheap
+	 * check, no extra option lookups.
+	 *
+	 * @param string $block_content
+	 * @param array  $block
+	 */
+	public static function gate_activitypub_blocks( string $block_content, array $block ): string {
+		$name = (string) ( $block['blockName'] ?? '' );
+		if ( ! str_starts_with( $name, 'activitypub/' ) ) {
+			return $block_content;
+		}
+		if ( class_exists( '\\Activitypub\\Collection\\Following' ) ) {
+			return $block_content;
+		}
+
+		// Visitors: render nothing. Site owners get a one-line install nudge
+		// inline so it's obvious which blocks went dark. `manage_options` is
+		// the right cap — only admins can install plugins anyway.
+		if ( current_user_can( 'manage_options' ) ) {
+			$install_url = self_admin_url( 'plugin-install.php?s=activitypub&tab=search&type=term' );
+			return sprintf(
+				'<p class="rs-activitypub-missing-notice" style="opacity:.7;font-size:.85em"><em>%s</em> <a href="%s">%s</a></p>',
+				esc_html( sprintf( /* translators: %s: block name (e.g. activitypub/reactions) */ __( '%s needs the ActivityPub plugin.', 'radical-socials' ), $name ) ),
+				esc_url( $install_url ),
+				esc_html__( 'Install it', 'radical-socials' )
+			);
+		}
+		return '';
 	}
 
 	public static function maybe_add_block_filter(): void {

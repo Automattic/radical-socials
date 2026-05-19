@@ -258,6 +258,7 @@ class Radical_Socials_Settings_Page {
 			);
 			$nonce = wp_create_nonce( 'wp_rest' );
 			wp_localize_script( 'rs-following-settings', 'rsFollowing', [
+				'activitypubAvailable' => class_exists( '\\Activitypub\\Collection\\Following' ),
 				'apiUrl'              => rest_url( 'radical-socials/v1/following' ),
 				'importFromAccountUrl' => rest_url( 'radical-socials/v1/following/import-from-account' ),
 				'opmlParseUrl'        => rest_url( 'radical-socials/v1/following/opml/parse' ),
@@ -291,7 +292,7 @@ class Radical_Socials_Settings_Page {
 					'errors'        => [
 						'invalid_url'                   => __( 'Invalid URL — make sure it starts with https://', 'radical-socials' ),
 						'unsafe_url'                    => __( 'URL must be a public HTTP(S) address', 'radical-socials' ),
-						'activitypub_unavailable'       => __( 'ActivityPub plugin is not active', 'radical-socials' ),
+						'activitypub_unavailable'       => __( 'ActivityPub plugin is not active — install it to follow Fediverse accounts', 'radical-socials' ),
 						'activitypub_user_not_found'    => __( 'Account not found — check the handle or URL', 'radical-socials' ),
 						'activitypub_already_following' => __( 'Already following', 'radical-socials' ),
 						'already_exists'                => __( 'Already following', 'radical-socials' ),
@@ -798,13 +799,25 @@ class Radical_Socials_Settings_Page {
 					</p>
 					<?php endif; ?>
 
+					<?php $ap_active = class_exists( '\\Activitypub\\Collection\\Following' ); ?>
 					<div style="margin-top:16px">
 						<label for="rs-add-input"><strong><?php esc_html_e( 'Add feeds or accounts', 'radical-socials' ); ?></strong></label>
 						<p class="description" style="margin-bottom:8px">
-							<?php esc_html_e( 'One per line. RSS/Atom URLs or ActivityPub handles (e.g. @someone@mastodon.social).', 'radical-socials' ); ?><br>
-							<?php esc_html_e( 'ActivityPub supports: Mastodon, Pixelfed, Misskey, Pleroma, Peertube, Lemmy, Friendica, Hubzilla, and any ActivityPub-compatible account.', 'radical-socials' ); ?>
+							<?php if ( $ap_active ) : ?>
+								<?php esc_html_e( 'One per line. RSS/Atom URLs or ActivityPub handles (e.g. @someone@mastodon.social).', 'radical-socials' ); ?><br>
+								<?php esc_html_e( 'ActivityPub supports: Mastodon, Pixelfed, Misskey, Pleroma, Peertube, Lemmy, Friendica, Hubzilla, and any ActivityPub-compatible account.', 'radical-socials' ); ?>
+							<?php else : ?>
+								<?php esc_html_e( 'One per line. RSS/Atom feed URLs.', 'radical-socials' ); ?><br>
+								<?php
+								printf(
+									/* translators: %s: link to the ActivityPub plugin install screen */
+									esc_html__( 'Install the %s to also follow Mastodon, Pixelfed, and other Fediverse accounts.', 'radical-socials' ),
+									'<a href="' . esc_url( self_admin_url( 'plugin-install.php?s=activitypub&tab=search&type=term' ) ) . '">' . esc_html__( 'ActivityPub plugin', 'radical-socials' ) . '</a>'
+								);
+								?>
+							<?php endif; ?>
 						</p>
-						<textarea id="rs-add-input" rows="5" class="large-text" placeholder="https://example.com/feed&#10;@someone@mastodon.social"></textarea>
+						<textarea id="rs-add-input" rows="5" class="large-text" placeholder="<?php echo esc_attr( $ap_active ? "https://example.com/feed\n@someone@mastodon.social" : 'https://example.com/feed' ); ?>"></textarea>
 						<p>
 							<button id="rs-add-btn" type="button" class="button button-primary"><?php esc_html_e( 'Add', 'radical-socials' ); ?></button>
 						</p>
@@ -815,6 +828,7 @@ class Radical_Socials_Settings_Page {
 						<div id="rs-add-failures" hidden style="margin-top:8px"></div>
 					</div>
 
+					<?php if ( $ap_active ) : ?>
 					<div style="margin-top:24px">
 						<strong><?php esc_html_e( 'Import follows from an account', 'radical-socials' ); ?></strong>
 						<p class="description" style="margin:4px 0 8px">
@@ -830,6 +844,7 @@ class Radical_Socials_Settings_Page {
 							<span id="rs-import-account-text"></span>
 						</div>
 					</div>
+					<?php endif; ?>
 
 					<div style="margin-top:24px">
 						<strong><?php esc_html_e( 'Import OPML', 'radical-socials' ); ?></strong>
@@ -913,7 +928,14 @@ class Radical_Socials_Settings_Page {
 			$warnings[] = [ 'level' => 'warning', 'msg' => sprintf( __( 'PHP max_execution_time is %ds. A full refresh of many feeds may not finish before the host kills it.', 'radical-socials' ), $exec_time ) ];
 		}
 		if ( ! function_exists( 'Activitypub\follow' ) ) {
-			$warnings[] = [ 'level' => 'error', 'msg' => __( 'The ActivityPub plugin is not active. Fediverse follows will not be fetched.', 'radical-socials' ) ];
+			$warnings[] = [
+				'level' => 'info',
+				'msg'   => sprintf(
+					/* translators: %s: link to the ActivityPub plugin install screen */
+					__( 'The ActivityPub plugin is not active. RSS and WP.com Reader follows work without it; install %s to also follow Fediverse accounts and federate your own posts.', 'radical-socials' ),
+					'<a href="' . esc_url( self_admin_url( 'plugin-install.php?s=activitypub&tab=search&type=term' ) ) . '">' . esc_html__( 'ActivityPub', 'radical-socials' ) . '</a>'
+				),
+			];
 		}
 
 		// Action result notice.
@@ -934,7 +956,7 @@ class Radical_Socials_Settings_Page {
 						][ $w['level'] ];
 						?>
 						<div style="border-left:4px solid <?php echo esc_attr( $colour ); ?>;background:#fff;padding:10px 14px;margin:6px 0;box-shadow:0 1px 1px rgba(0,0,0,.04)">
-							<?php echo esc_html( $w['msg'] ); ?>
+							<?php echo wp_kses( $w['msg'], [ 'a' => [ 'href' => true ], 'strong' => [], 'em' => [], 'code' => [] ] ); ?>
 						</div>
 					<?php endforeach; ?>
 				</div>
@@ -979,12 +1001,22 @@ class Radical_Socials_Settings_Page {
 				</tr>
 				<tr>
 					<th scope="row"><?php esc_html_e( 'Subscriptions', 'radical-socials' ); ?></th>
-					<td><?php echo esc_html( sprintf(
-						/* translators: 1: RSS count 2: AP count */
-						__( '%1$d RSS, %2$d ActivityPub', 'radical-socials' ),
-						$rss_count,
-						$ap_count
-					) ); ?></td>
+					<td><?php
+						if ( function_exists( 'Activitypub\\follow' ) ) {
+							echo esc_html( sprintf(
+								/* translators: 1: RSS count 2: AP count */
+								__( '%1$d RSS, %2$d ActivityPub', 'radical-socials' ),
+								$rss_count,
+								$ap_count
+							) );
+						} else {
+							echo esc_html( sprintf(
+								/* translators: %d: RSS count */
+								_n( '%d RSS feed', '%d RSS feeds', $rss_count, 'radical-socials' ),
+								$rss_count
+							) );
+						}
+					?></td>
 				</tr>
 				<tr>
 					<th scope="row"><?php esc_html_e( 'Feed items stored', 'radical-socials' ); ?></th>

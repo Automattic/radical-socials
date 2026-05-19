@@ -26,19 +26,19 @@ This plugin is the product. The default theme (Radical Theme) is an optional des
 
 == Installation ==
 
-1. Install and activate the [ActivityPub plugin](https://wordpress.org/plugins/activitypub/) — Radical Socials depends on it for following Fediverse accounts. (WordPress 6.5+ will prompt you and offer a one-click install.)
-2. Install and activate Radical Socials.
+1. Install and activate Radical Socials.
+2. (Optional, recommended) Install and activate the [ActivityPub plugin](https://wordpress.org/plugins/activitypub/) so you can follow Fediverse accounts and let your own posts federate.
 3. Visit *Radical Socials* in the admin sidebar to set up your profile, connect feeds, and import an archive.
 
 == Frequently Asked Questions ==
 
 = Do I need a Mastodon account or my own ActivityPub server? =
 
-No. The required ActivityPub plugin turns your WordPress site itself into a Fediverse identity. You can follow people from Mastodon, Pixelfed, PeerTube, etc., without joining any other server.
+No. With the optional ActivityPub plugin installed, your WordPress site itself becomes a Fediverse identity. You can follow people from Mastodon, Pixelfed, PeerTube, etc., without joining any other server.
 
-= Why does it require the ActivityPub plugin? =
+= Is the ActivityPub plugin required? =
 
-All Fediverse follow / unfollow / inbox handling is delegated to the ActivityPub plugin so we don't reinvent the protocol layer. WordPress 6.5+ uses the `Requires Plugins` header to enforce this — Radical Socials will not activate without ActivityPub installed and active.
+No, it's optional. Radical Socials works without it — you can still follow RSS feeds and WordPress.com Reader subscriptions, import archives, manage favorites, and use the unified timeline. Without ActivityPub, the only thing you lose is Fediverse follows (and the ability to federate your own posts outward). If you later install the ActivityPub plugin, Fediverse functionality lights up automatically.
 
 = Does it support feeds without ActivityPub? =
 

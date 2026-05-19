@@ -7,7 +7,6 @@
  * Requires at least: 6.5
  * Tested up to:      6.9
  * Requires PHP:      8.0
- * Requires Plugins:  activitypub
  * Author:            Automattic
  * Author URI:        https://automattic.com
  * License:           GPL-2.0-or-later
@@ -92,6 +91,28 @@ function radical_socials_activate(): void {
 	}
 }
 register_activation_hook( __FILE__, 'radical_socials_activate' );
+
+/**
+ * Apply our ActivityPub onboarding defaults (single blog-wide actor) the
+ * first time AP is loaded. The `radical_socials_activate()` hook also
+ * applies these, but only fires if AP happens to already be active at the
+ * moment our plugin is activated. With AP now optional, users routinely
+ * install us first and AP later — this catches that ordering. Idempotent
+ * via the `radical_socials_ap_defaults_applied` flag.
+ */
+function radical_socials_apply_ap_defaults_when_ready(): void {
+	if ( get_option( 'radical_socials_ap_defaults_applied' ) ) {
+		return;
+	}
+	if ( ! defined( 'ACTIVITYPUB_BLOG_MODE' ) ) {
+		return;
+	}
+	if ( ! get_option( 'activitypub_actor_mode' ) ) {
+		update_option( 'activitypub_actor_mode', ACTIVITYPUB_BLOG_MODE );
+	}
+	update_option( 'radical_socials_ap_defaults_applied', 1, false );
+}
+add_action( 'plugins_loaded', 'radical_socials_apply_ap_defaults_when_ready', 30 );
 
 function radical_socials_maybe_flush_rewrite_rules(): void {
 	if ( RADICAL_SOCIALS_REWRITE_VERSION === get_option( 'radical_socials_rewrite_version' ) ) {
