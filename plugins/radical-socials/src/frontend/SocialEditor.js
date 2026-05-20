@@ -50,7 +50,15 @@ function EditorFocusManager( { children } ) {
 		}
 	}, [ firstClientId, selectBlock ] );
 
-	function handleMouseDown() {
+	function handleMouseDown( e ) {
+		// Only catch clicks on empty whitespace inside the writing area —
+		// the "click anywhere on the card to start typing" affordance.
+		// If the click landed inside a block (e.g. an image-block's Upload
+		// button), let Gutenberg's own selection / focus logic handle it.
+		// Otherwise we steal selection from the image block back to the
+		// paragraph, which triggers MediaPlaceholder's `.has-illustration`
+		// state — hiding the Upload / Insert-from-URL buttons.
+		if ( e.target !== e.currentTarget ) return;
 		if ( ! selectedClientId && firstClientId ) {
 			selectBlock( firstClientId );
 		}
