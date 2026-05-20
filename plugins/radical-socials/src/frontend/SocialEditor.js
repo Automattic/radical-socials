@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from '@wordpress/element';
 import { Icon, image, video, audio, link } from '@wordpress/icons';
-import { useSelect, useDispatch } from '@wordpress/data';
+import { useDispatch } from '@wordpress/data';
 import {
 	BlockEditorProvider,
 	BlockList,
@@ -8,6 +8,8 @@ import {
 	WritingFlow,
 	ObserveTyping,
 } from '@wordpress/block-editor';
+import { SlotFillProvider, Popover } from '@wordpress/components';
+import { ShortcutProvider } from '@wordpress/keyboard-shortcuts';
 import { createBlock, serialize } from '@wordpress/blocks';
 import { registerEditorBlocks, getEditorSettings } from './editor-settings';
 
@@ -21,51 +23,24 @@ const MEDIA_BLOCKS = [
 ];
 
 function EditorFocusManager( { children } ) {
-	const containerRef    = useRef( null );
-	const hasAutoFocused  = useRef( false );
+	const containerRef = useRef( null );
 
-	const firstClientId = useSelect(
-		( select ) => select( 'core/block-editor' ).getBlockOrder()[ 0 ],
-		[]
-	);
-	const selectedClientId = useSelect(
-		( select ) => select( 'core/block-editor' ).getSelectedBlockClientId(),
-		[]
-	);
-	const { selectBlock } = useDispatch( 'core/block-editor' );
-
-	function focusEditable() {
-		requestAnimationFrame( () => {
+	// One-shot focus on mount: drop the cursor into the first contenteditable
+	// so the user can start typing without a click. Block *selection* is
+	// intentionally NOT managed here — BlockList already runs
+	// `useBlockSelectionClearer` via `useBlockProps`, and any competing
+	// mousedown handler on this wrapper steals focus away from media-block
+	// placeholders (which then trip MediaPlaceholder's `has-illustration`
+	// state and hide their Upload / Insert-from-URL buttons).
+	useEffect( () => {
+		const id = requestAnimationFrame( () => {
 			const el = containerRef.current?.querySelector( '[contenteditable="true"]' );
 			if ( el && el !== document.activeElement ) el.focus();
 		} );
-	}
+		return () => cancelAnimationFrame( id );
+	}, [] );
 
-	// Auto-focus first block on mount.
-	useEffect( () => {
-		if ( firstClientId && ! hasAutoFocused.current ) {
-			hasAutoFocused.current = true;
-			selectBlock( firstClientId );
-			focusEditable();
-		}
-	}, [ firstClientId, selectBlock ] );
-
-	function handleMouseDown( e ) {
-		// Only catch clicks on empty whitespace inside the writing area —
-		// the "click anywhere on the card to start typing" affordance.
-		// If the click landed inside a block (e.g. an image-block's Upload
-		// button), let Gutenberg's own selection / focus logic handle it.
-		// Otherwise we steal selection from the image block back to the
-		// paragraph, which triggers MediaPlaceholder's `.has-illustration`
-		// state — hiding the Upload / Insert-from-URL buttons.
-		if ( e.target !== e.currentTarget ) return;
-		if ( ! selectedClientId && firstClientId ) {
-			selectBlock( firstClientId );
-		}
-		focusEditable();
-	}
-
-	return <div ref={ containerRef } className="rs-editor-writing-area" onMouseDown={ handleMouseDown }>{ children }</div>;
+	return <div ref={ containerRef } className="rs-editor-writing-area">{ children }</div>;
 }
 
 function MediaBar() {
@@ -92,23 +67,58 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 	const [ blocks, setBlocks ] = useState( () => [ createBlock( 'core/paragraph', { placeholder: "What's on your mind?" } ) ] );
 	const [ hashtags, setHashtags ]         = useState( '' );
 	const [ isSubmitting, setIsSubmitting ] = useState( false );
-	const [ error, setError ]             = useState( null );
+	const [ error, setError ]               = useState( null );
 
-	const mediaUpload = useCallback( ( { filesList, onFileChange, onError } ) => {
-		const file = filesList[ 0 ];
-		const body = new FormData();
-		body.append( 'file', file );
-		fetch( `${ window.radicalSocials.restUrl }wp/v2/media`, {
-			method:  'POST',
-			headers: { 'X-WP-Nonce': window.radicalSocials.nonce },
-			body,
-		} )
-			.then( ( r ) => r.json() )
-			.then( ( attachment ) =>
-				onFileChange( [ { id: attachment.id, url: attachment.source_url } ] )
-			)
-			.catch( ( err ) => onError( err instanceof Error ? err : new Error( err.message ) ) );
-	}, [] );
+	// Documented MediaUpload contract: ({ additionalData, filesList, onError, onFileChange }) => void.
+	// Upload all files in parallel so drag-dropping multi-file selections
+	// don't silently drop everything past index 0, and return each
+	// attachment in the documented media-object shape (id/url/alt/caption/
+	// title/mime) so blocks have valid attrs and don't re-parse as
+	// "invalid block" on next edit.
+	const mediaUpload = useCallback(
+		( { filesList, onFileChange, onError, additionalData = {} } ) => {
+			const uploads = Array.from( filesList ).map( ( file ) => {
+				const body = new FormData();
+				body.append( 'file', file );
+				Object.entries( additionalData ).forEach( ( [ k, v ] ) => body.append( k, v ) );
+
+				return fetch( `${ window.radicalSocials.restUrl }wp/v2/media`, {
+					method:  'POST',
+					headers: { 'X-WP-Nonce': window.radicalSocials.nonce },
+					body,
+				} )
+					.then( ( r ) => {
+						if ( ! r.ok ) throw new Error( `Upload failed (${ r.status })` );
+						return r.json();
+					} )
+					.then( ( a ) => ( {
+						id:      a.id,
+						url:     a.source_url,
+						alt:     a.alt_text ?? '',
+						caption: a.caption?.rendered ?? '',
+						title:   a.title?.rendered ?? '',
+						mime:    a.mime_type,
+					} ) )
+					.catch( ( err ) => {
+						// Documented error shape: { code, message, file }.
+						// Keeps the file ref intact so the block's error UI
+						// can render a "Retry" affordance.
+						onError( {
+							code:    'UPLOAD_FAILED',
+							message: err?.message ?? String( err ),
+							file,
+						} );
+						return null;
+					} );
+			} );
+
+			Promise.all( uploads ).then( ( results ) => {
+				const ok = results.filter( Boolean );
+				if ( ok.length ) onFileChange( ok );
+			} );
+		},
+		[]
+	);
 
 	const editorSettings = useMemo( () => getEditorSettings( mediaUpload ), [ mediaUpload ] );
 
@@ -151,13 +161,27 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 		setIsSubmitting( true );
 		setError( null );
 		try {
-			// If the first image becomes the featured image, drop that block
-			// from the content. Otherwise single-post templates render it
-			// twice — once as the featured image header and again inline.
-			// Video/audio/embed don't have this problem because they're
-			// never auto-promoted to featured media.
+			// `parse(serialize(blocks))` is only round-trip-safe when every
+			// block is valid. Refuse to POST junk that re-parses as the
+			// yellow "this block contains unexpected or invalid content"
+			// recovery UI.
+			if ( blocks.some( ( b ) => b.isValid === false ) ) {
+				throw new Error( 'One of the blocks has invalid content. Fix it before posting.' );
+			}
+
+			// Auto-promote the first image to featured_media so single-post
+			// templates don't render it twice (featured + inline). Skip
+			// promotion when the image carries inline content that would be
+			// lost on the featured-image surface: caption text, a custom
+			// link destination, or a non-default alignment.
 			const firstImageIdx = blocks.findIndex( ( b ) => b.name === 'core/image' );
-			const featuredMedia = firstImageIdx >= 0 ? blocks[ firstImageIdx ].attributes?.id : undefined;
+			const firstImage    = firstImageIdx >= 0 ? blocks[ firstImageIdx ] : null;
+			const imgAttrs      = firstImage?.attributes ?? {};
+			const isBareImage   = !! firstImage
+				&& ! imgAttrs.caption
+				&& ! imgAttrs.linkDestination
+				&& ( ! imgAttrs.align || imgAttrs.align === 'center' );
+			const featuredMedia = isBareImage ? imgAttrs.id : undefined;
 			const contentBlocks = featuredMedia
 				? blocks.filter( ( _b, i ) => i !== firstImageIdx )
 				: blocks;
@@ -175,8 +199,8 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 					body: JSON.stringify( {
 						status:  'publish',
 						content,
-						...( featuredMedia          && { featured_media: featuredMedia } ),
-						...( tagIds.length          && { tags: tagIds } ),
+						...( featuredMedia && { featured_media: featuredMedia } ),
+						...( tagIds.length && { tags: tagIds } ),
 					} ),
 				}
 			);
@@ -196,48 +220,59 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 		( b ) => b.name === 'core/paragraph' && ! b.attributes?.content
 	);
 
+	// ShortcutProvider wires Cmd-Z / Cmd-Shift-Z and block keyboard
+	// shortcuts (BlockTools uses __unstableUseShortcutEventMatch which
+	// silently no-ops outside this provider). SlotFillProvider + the
+	// trailing Popover.Slot give BlockControls / InspectorControls / the
+	// RichText format toolbar a sink — without it those popovers either
+	// render in an ancestor slot (theme/site-wide) or vanish.
 	return (
-		<form className="rs-social-editor" onSubmit={ handleSubmit }>
-			<BlockEditorProvider
-				value={ blocks }
-				onInput={ setBlocks }
-				onChange={ setBlocks }
-				settings={ editorSettings }
-				useSubRegistry={ true }
-			>
-				<EditorFocusManager>
-					<BlockTools>
-						<WritingFlow>
-							<ObserveTyping>
-								<BlockList renderAppender={ false } />
-							</ObserveTyping>
-						</WritingFlow>
-					</BlockTools>
-				</EditorFocusManager>
-				<MediaBar />
-			</BlockEditorProvider>
+		<ShortcutProvider>
+			<SlotFillProvider>
+				<form className="rs-social-editor" onSubmit={ handleSubmit }>
+					<BlockEditorProvider
+						value={ blocks }
+						onInput={ setBlocks }
+						onChange={ setBlocks }
+						settings={ editorSettings }
+					>
+						<EditorFocusManager>
+							<BlockTools>
+								<WritingFlow>
+									<ObserveTyping>
+										<BlockList renderAppender={ false } />
+									</ObserveTyping>
+								</WritingFlow>
+							</BlockTools>
+						</EditorFocusManager>
+						<MediaBar />
+					</BlockEditorProvider>
 
-			<div className="rs-editor-meta">
-				<input
-					type="text"
-					placeholder="#tags"
-					value={ hashtags }
-					onChange={ ( e ) => setHashtags( e.target.value ) }
-				/>
-			</div>
+					<div className="rs-editor-meta">
+						<input
+							type="text"
+							placeholder="#tags"
+							value={ hashtags }
+							onChange={ ( e ) => setHashtags( e.target.value ) }
+						/>
+					</div>
 
-			{ error && <p className="rs-editor-error">{ error }</p> }
+					{ error && <p className="rs-editor-error">{ error }</p> }
 
-			<div className="rs-editor-actions">
-				{ onCancel && (
-					<button type="button" onClick={ onCancel }>
-						Cancel
-					</button>
-				) }
-				<button type="submit" disabled={ isSubmitting || isEmpty }>
-					{ isSubmitting ? 'Posting\u2026' : 'Post' }
-				</button>
-			</div>
-		</form>
+					<div className="rs-editor-actions">
+						{ onCancel && (
+							<button type="button" onClick={ onCancel }>
+								Cancel
+							</button>
+						) }
+						<button type="submit" disabled={ isSubmitting || isEmpty }>
+							{ isSubmitting ? 'Posting…' : 'Post' }
+						</button>
+					</div>
+
+					<Popover.Slot />
+				</form>
+			</SlotFillProvider>
+		</ShortcutProvider>
 	);
 }

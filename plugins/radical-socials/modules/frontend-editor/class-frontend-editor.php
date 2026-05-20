@@ -2,10 +2,18 @@
 /**
  * Frontend Editor
  *
- * Enqueues the React-based inline post composer for users who can publish
- * social posts on the front end. Also outputs a `radicalSocials` JS object
- * with the REST nonce and root URL so the editor can make authenticated API
- * calls.
+ * Registers the `radical-socials/frontend-editor` block and the
+ * `radical-socials-frontend` script/style handles. The block.json
+ * references those handles as `viewScript`/`viewStyle`, so WordPress
+ * auto-enqueues them only when the block is actually rendered on the
+ * front end. That matters: the style depends on `wp-edit-blocks` and
+ * `wp-format-library`, both of which carry broad block-editor
+ * selectors — global enqueue would bleed editor chrome onto every
+ * front-end page.
+ *
+ * The handles are only registered when the current user can publish
+ * posts. For everyone else the view-* references in block.json resolve
+ * to nothing, WP silently skips them, and no heavy CSS lands.
  *
  * @package RadicalSocials
  */
@@ -14,13 +22,72 @@ defined( 'ABSPATH' ) || exit;
 
 class Radical_Socials_Frontend_Editor {
 
+	const SCRIPT_HANDLE = 'radical-socials-frontend';
+	const STYLE_HANDLE  = 'radical-socials-frontend';
+
 	public static function init(): void {
-		add_action( 'init',               [ self::class, 'register_block' ] );
-		add_action( 'wp_enqueue_scripts', [ self::class, 'enqueue' ] );
+		// Both registration and block setup live on `init`. Asset
+		// registration runs at priority 9 so it happens BEFORE the
+		// `register_block_type()` call at priority 10 reads block.json
+		// and tries to resolve viewScript/viewStyle handles.
+		add_action( 'init', [ self::class, 'register_assets' ], 9 );
+		add_action( 'init', [ self::class, 'register_block' ] );
 	}
 
 	private static function current_user_can_publish(): bool {
 		return is_user_logged_in() && current_user_can( 'publish_posts' );
+	}
+
+	public static function register_assets(): void {
+		// No publish cap → don't register. The viewScript/viewStyle
+		// handles in block.json then resolve to nothing on render and
+		// WP skips the enqueue entirely — keeping logged-out / reader
+		// page weights down.
+		if ( ! self::current_user_can_publish() ) {
+			return;
+		}
+
+		$asset_file = plugin_dir_path( __FILE__ ) . '../../build/frontend.asset.php';
+		if ( ! file_exists( $asset_file ) ) {
+			return;
+		}
+
+		$asset = include $asset_file;
+
+		wp_register_script(
+			self::SCRIPT_HANDLE,
+			plugin_dir_url( __FILE__ ) . '../../build/frontend.js',
+			$asset['dependencies'],
+			$asset['version'],
+			true
+		);
+
+		wp_register_style(
+			self::STYLE_HANDLE,
+			plugin_dir_url( __FILE__ ) . '../../build/frontend.css',
+			// Three deps only — verified minimum. We intentionally do
+			// NOT pull in `wp-edit-blocks` (2.8k lines of admin block
+			// chrome with hundreds of font-size declarations on broad
+			// selectors) or `wp-format-library` (`:root` custom-prop
+			// declarations that redefine theme typography vars). They
+			// were suggested by a docs review but a runtime check
+			// showed neither is needed for our composer — the
+			// MediaPlaceholder, DropZone, and RichText toolbar all
+			// render correctly with just wp-block-editor + wp-components.
+			// Adding them bleeds editor typography into the surrounding
+			// frontend page (which on the home page is the entire feed).
+			[ 'wp-components', 'wp-block-editor', 'wp-block-library' ],
+			$asset['version']
+		);
+
+		wp_localize_script(
+			self::SCRIPT_HANDLE,
+			'radicalSocials',
+			[
+				'nonce'   => wp_create_nonce( 'wp_rest' ),
+				'restUrl' => rest_url(),
+			]
+		);
 	}
 
 	public static function register_block(): void {
@@ -35,44 +102,6 @@ class Radical_Socials_Frontend_Editor {
 			return '';
 		}
 		return '<div id="radical-socials-editor"></div>';
-	}
-
-	public static function enqueue(): void {
-		if ( ! self::current_user_can_publish() ) {
-			return;
-		}
-
-		$asset_file = plugin_dir_path( __FILE__ ) . '../../build/frontend.asset.php';
-
-		if ( ! file_exists( $asset_file ) ) {
-			return;
-		}
-
-		$asset = include $asset_file;
-
-		wp_enqueue_script(
-			'radical-socials-frontend',
-			plugin_dir_url( __FILE__ ) . '../../build/frontend.js',
-			$asset['dependencies'],
-			$asset['version'],
-			true
-		);
-
-		wp_enqueue_style(
-			'radical-socials-frontend',
-			plugin_dir_url( __FILE__ ) . '../../build/frontend.css',
-			[ 'wp-block-library', 'wp-components', 'wp-block-editor' ],
-			$asset['version']
-		);
-
-		wp_localize_script(
-			'radical-socials-frontend',
-			'radicalSocials',
-			[
-				'nonce'   => wp_create_nonce( 'wp_rest' ),
-				'restUrl' => rest_url(),
-			]
-		);
 	}
 }
 

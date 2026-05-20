@@ -6,5 +6,7 @@
 	"category": "widgets",
 	"description": "Front end social post composer, only visible to logged-in users.",
 	"textdomain": "radical-socials",
-	"editorScript": "file:../../build/frontend-editor-block.js"
+	"editorScript": "file:../../build/frontend-editor-block.js",
+	"viewScript": "radical-socials-frontend",
+	"viewStyle": "radical-socials-frontend"
 }

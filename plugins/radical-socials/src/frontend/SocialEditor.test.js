@@ -12,6 +12,19 @@ jest.mock( '@wordpress/block-editor', () => ( {
 	ObserveTyping: ( { children } ) => <>{ children }</>,
 } ), { virtual: true } );
 
+jest.mock( '@wordpress/components', () => {
+	const Popover = () => null;
+	Popover.Slot  = () => null;
+	return {
+		SlotFillProvider: ( { children } ) => <>{ children }</>,
+		Popover,
+	};
+}, { virtual: true } );
+
+jest.mock( '@wordpress/keyboard-shortcuts', () => ( {
+	ShortcutProvider: ( { children } ) => <>{ children }</>,
+} ), { virtual: true } );
+
 jest.mock( '@wordpress/data', () => ( {
 	useSelect: jest.fn( ( mapSelect ) => mapSelect( ( storeName ) => {
 		if ( storeName === 'core/block-editor' ) {
