@@ -34,6 +34,24 @@
 	border-radius: 12px;
 	padding: 1rem 1.125rem 0.875rem;
 	color: var( --wp--preset--color--contrast-2, #ffffff );
+	animation: rs-editor-appear 0.18s ease-out;
+}
+
+@keyframes rs-editor-appear {
+	from {
+		opacity: 0;
+		transform: translateY( -4px );
+	}
+	to {
+		opacity: 1;
+		transform: translateY( 0 );
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.rs-social-editor {
+		animation: none;
+	}
 }
 
 /* ─── Writing area panel ──────────────────────────────────────────── */

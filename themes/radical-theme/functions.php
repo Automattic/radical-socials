@@ -1,10 +1,16 @@
 <?php
 
-if ( ! function_exists( 'radical_theme_editor_style' ) ) :
+if ( ! function_exists( 'radical_theme_style' ) ) :
 	/**
-	 * Enqueues editor-style.css in the editors.
+	 * Enqueues the theme's style.css on the front end.
 	 *
-	 * @since Radical Theme 0.1.0
+	 * Hooked on wp_enqueue_scripts (not after_setup_theme) — calling
+	 * wp_enqueue_style any earlier triggers WP's "called incorrectly"
+	 * notice and the stylesheet never actually lands in the page.
+	 *
+	 * Priority 20 (after the default 10) so it loads after Radical
+	 * Socials' frontend bundle, letting same-specificity theme overrides
+	 * win against plugin defaults.
 	 *
 	 * @return void
 	 */
@@ -22,4 +28,4 @@ if ( ! function_exists( 'radical_theme_editor_style' ) ) :
 		);
 	}
 endif;
-add_action( 'after_setup_theme', 'radical_theme_style' );
+add_action( 'wp_enqueue_scripts', 'radical_theme_style', 20 );

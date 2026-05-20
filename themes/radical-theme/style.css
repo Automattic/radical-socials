@@ -17,3 +17,50 @@ Text Domain: radical-theme
 	font-weight: 600;
 	text-transform: uppercase;
 }
+
+/* ─── RS editor custom styles ─── */
+
+.wp-site-blocks .rs-frontend-editor {
+	margin: 0;
+	max-width: 100%;
+}
+
+.wp-site-blocks .rs-editor-prompt {
+	border-top: none;
+	border-left: none;
+	border-right: none;
+	border-radius: 0;
+	padding: 2rem 1.125rem
+}
+
+.wp-site-blocks .rs-editor-prompt:hover {
+	border-color: var( --wp--preset--color--contrast-3, rgba( 255, 255, 255, 0.12 ) );
+}
+
+.wp-site-blocks .rs-social-editor {
+	border-top: none;
+	border-left: none;
+	border-right: none;
+	background: rgba( 255, 255, 255, 0.04 );
+	border-radius: 0;
+}
+
+.wp-site-blocks .rs-editor-writing-area {
+	background: none;
+	border: none;
+	padding: 0;
+}
+
+.wp-site-blocks .rs-media-bar {
+	margin-top: 0;
+}
+
+.rs-modal-dialog .components-modal__content {
+	padding: 0;
+	margin-top: 2rem;
+}
+
+.rs-modal-dialog .rs-social-editor {
+	border: none;
+	padding: 0;
+}
