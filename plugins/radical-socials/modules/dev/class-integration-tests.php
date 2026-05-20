@@ -96,6 +96,9 @@ class Radical_Socials_Integration_Tests {
 
 			$this->test_outbox_announce_dedupes_target_fetch();
 			$this->pass( 'Outbox Announce dereferences target once and dedupes across boosters' );
+
+			$this->test_hooked_block_insertions();
+			$this->pass( 'Hooked-block insertions: 1× like-button in post-template, 1× following-link & 1× favorites-link in navigation' );
 		} finally {
 			$this->restore_options( $restore );
 			wp_set_current_user( $original_user_id );
@@ -875,6 +878,93 @@ class Radical_Socials_Integration_Tests {
 		}
 
 		$this->assert_same( 1, $target_hits, 'Target object must be dereferenced exactly once across multiple boosters in the same run.' );
+	}
+
+	/**
+	 * Regression test for the "two hearts per post / missing nav links"
+	 * bugs. The plugin registers three hooked-block insertions:
+	 *
+	 *   - radical-socials/like-button     → core/post-template / last_child
+	 *   - radical-socials/following-link  → core/navigation    / last_child
+	 *   - radical-socials/favorites-link  → core/navigation    / last_child
+	 *
+	 * Historically these were registered via TWO paths simultaneously
+	 * (declarative `blockHooks` in block.json AND an imperative
+	 * `hooked_block_types` filter callback), and WP inserted each block
+	 * TWICE. We later removed the imperative callbacks entirely — which
+	 * worked for the like-button (post-template hooks run at render time
+	 * via blockHooks) but silently dropped the nav links (saved
+	 * wp_navigation posts don't reliably pick up declarative blockHooks).
+	 * The current shape is: like-button via blockHooks only, nav links
+	 * via imperative filter only. This test enforces exactly that —
+	 * exactly one insertion per anchor, no zero, no duplicates.
+	 */
+	private function test_hooked_block_insertions(): void {
+		// Apply `hooked_block_types` against each anchor and assert that
+		// the resulting list contains each expected hook exactly once.
+		$nav_hooks = apply_filters(
+			'hooked_block_types',
+			array(),
+			'last_child',
+			'core/navigation',
+			null
+		);
+		$this->assert_same(
+			1,
+			count( array_keys( $nav_hooks, 'radical-socials/following-link', true ) ),
+			'radical-socials/following-link must be hooked into core/navigation/last_child exactly once.'
+		);
+		$this->assert_same(
+			1,
+			count( array_keys( $nav_hooks, 'radical-socials/favorites-link', true ) ),
+			'radical-socials/favorites-link must be hooked into core/navigation/last_child exactly once.'
+		);
+
+		// like-button is declared via blockHooks only; assert it does NOT
+		// also appear in the imperative filter list (a duplicate would
+		// produce two hearts per feed item again).
+		$pt_imperative_hooks = apply_filters(
+			'hooked_block_types',
+			array(),
+			'last_child',
+			'core/post-template',
+			null
+		);
+		$this->assert_same(
+			0,
+			count( array_keys( $pt_imperative_hooks, 'radical-socials/like-button', true ) ),
+			'radical-socials/like-button must NOT be added via the imperative hooked_block_types filter (block.json blockHooks is the canonical source).'
+		);
+
+		// And block.json's declarative blockHooks must still be present
+		// — read straight from the registered block type, so a future
+		// edit of block.json that drops the field gets caught.
+		$bt = WP_Block_Type_Registry::get_instance()->get_registered( 'radical-socials/like-button' );
+		$this->assert_true(
+			$bt && isset( $bt->block_hooks['core/post-template'] ),
+			'radical-socials/like-button block.json must declare blockHooks for core/post-template.'
+		);
+		$this->assert_same(
+			'last_child',
+			$bt->block_hooks['core/post-template'] ?? null,
+			'radical-socials/like-button block.json must declare its core/post-template hook at last_child.'
+		);
+
+		// Symmetric assertion for the nav-link blocks: they MUST NOT have
+		// blockHooks in block.json. The declarative path doesn't insert
+		// reliably into saved wp_navigation posts; if we ever add it back
+		// the result is two of each nav link the moment the bug is fixed
+		// upstream. This test fails loudly if that happens.
+		$following = WP_Block_Type_Registry::get_instance()->get_registered( 'radical-socials/following-link' );
+		$this->assert_true(
+			$following && empty( $following->block_hooks ),
+			'radical-socials/following-link must NOT declare blockHooks (imperative filter is the sole insertion path).'
+		);
+		$favorites = WP_Block_Type_Registry::get_instance()->get_registered( 'radical-socials/favorites-link' );
+		$this->assert_true(
+			$favorites && empty( $favorites->block_hooks ),
+			'radical-socials/favorites-link must NOT declare blockHooks (imperative filter is the sole insertion path).'
+		);
 	}
 
 	/**

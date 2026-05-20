@@ -6,9 +6,6 @@
 	"description": "A link to the Following feed page, for use inside a Navigation block.",
 	"textdomain": "radical-socials",
 	"parent": [ "core/navigation" ],
-	"blockHooks": {
-		"core/navigation": "last_child"
-	},
 	"render": "file:./render.php",
 	"editorScript": "file:./editor.js",
 	"supports": {

@@ -6,7 +6,7 @@
 	"description": "Heart button shown to the site owner on each feed item. Saves the item as a permanent Favorite.",
 	"textdomain": "radical-socials",
 	"blockHooks": {
-		"core/post-template": "last_child"
+		"core/post-template": "lastChild"
 	},
 	"render": "file:./render.php",
 	"editorScript": "file:./editor.js",

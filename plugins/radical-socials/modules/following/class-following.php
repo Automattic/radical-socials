@@ -104,16 +104,41 @@ class Radical_Socials_Following {
 		register_block_type( __DIR__ . '/blocks/feed-author-name' );
 		register_block_type( __DIR__ . '/blocks/feed-author-avatar' );
 
-		// Block-hook insertions (following-link → core/navigation,
-		// favorites-link → core/navigation, like-button → core/post-template)
-		// are now declared *only* in each block's block.json via the
-		// `blockHooks` field. We used to also register imperative
-		// `hooked_block_types` filter callbacks for the same three insertions
-		// — `ignoredHookedBlocks` only suppresses ONE entry per anchor, so
-		// the declarative + imperative paths produced two of every hooked
-		// block (two hearts per feed item, two Following links in the nav,
-		// two Favorites links in the nav). block.json is the canonical
-		// source; the imperative filter callbacks are gone.
+		// One insertion path per hooked block, per anchor:
+		//
+		// - `radical-socials/like-button` → `core/post-template/last_child`.
+		//   post-template is rendered from the theme HTML on every page
+		//   load, so the declarative `blockHooks` field in block.json fires
+		//   reliably. Imperative path removed (was producing two hearts per
+		//   item).
+		//
+		// - `radical-socials/following-link` and `…/favorites-link` →
+		//   `core/navigation/last_child`. core/navigation stores its inner
+		//   blocks in a wp_navigation post, and the declarative `blockHooks`
+		//   field does NOT reliably insert into saved nav posts (insertion
+		//   is meant to happen at save time, but the resulting metadata
+		//   often desyncs and the next render shows nothing). The imperative
+		//   `hooked_block_types` filter fires at hook-resolution time and
+		//   works against existing saved menus, so we keep the imperative
+		//   path for both nav links — and remove the `blockHooks` field
+		//   from their block.json so we don't end up with two of each link
+		//   the moment WP fixes nav-side declarative hooks.
+		add_filter( 'hooked_block_types', [ __CLASS__, 'hook_following_link' ], 10, 3 );
+		add_filter( 'hooked_block_types', [ __CLASS__, 'hook_favorites_link' ], 10, 3 );
+	}
+
+	public static function hook_following_link( array $hooked_blocks, string $position, ?string $anchor_block ): array {
+		if ( 'last_child' === $position && 'core/navigation' === $anchor_block ) {
+			$hooked_blocks[] = 'radical-socials/following-link';
+		}
+		return $hooked_blocks;
+	}
+
+	public static function hook_favorites_link( array $hooked_blocks, string $position, ?string $anchor_block ): array {
+		if ( 'last_child' === $position && 'core/navigation' === $anchor_block ) {
+			$hooked_blocks[] = 'radical-socials/favorites-link';
+		}
+		return $hooked_blocks;
 	}
 
 	// ── Cron ──────────────────────────────────────────────────────────────────
