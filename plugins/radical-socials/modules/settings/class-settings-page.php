@@ -19,8 +19,10 @@ class Radical_Socials_Settings_Page {
 
 	public static function init(): void {
 		add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue' ] );
+		add_action( 'admin_init',            [ __CLASS__, 'handle_profile_save' ] );
 		add_action( 'admin_init',            [ __CLASS__, 'handle_following_privacy_save' ] );
 		add_action( 'admin_init',            [ __CLASS__, 'handle_diagnostics_action' ] );
+		add_action( 'admin_init',            [ __CLASS__, 'handle_wpcom_disconnect' ] );
 		add_action( 'admin_post_rs_install_activitypub', [ __CLASS__, 'handle_install_activitypub' ] );
 		add_action( 'admin_post_rs_save_handle',         [ __CLASS__, 'handle_save_handle' ] );
 	}
@@ -199,6 +201,102 @@ class Radical_Socials_Settings_Page {
 	 * inside render() would trigger "headers already sent" and leave the user
 	 * staring at an empty admin page.
 	 */
+	/**
+	 * Profile-tab Save handler. Must run on admin_init (NOT inside render())
+	 * because we wp_safe_redirect() back on success — render() is invoked
+	 * after the admin header has already been streamed to the browser, so
+	 * a redirect at that point silently fails and the user gets a blank
+	 * page where their settings used to be. Same lesson as the Following
+	 * privacy form below.
+	 */
+	public static function handle_profile_save(): void {
+		if ( ! isset( $_POST['rs_settings_nonce'] ) ) {
+			return;
+		}
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		if ( ! wp_verify_nonce( wp_unslash( $_POST['rs_settings_nonce'] ), 'rs_settings_save' ) ) {
+			return;
+		}
+
+		$user        = wp_get_current_user();
+		$user_update = [ 'ID' => $user->ID ];
+
+		if ( isset( $_POST['blogname'] ) ) {
+			update_option( 'blogname', sanitize_text_field( wp_unslash( $_POST['blogname'] ) ) );
+		}
+
+		if ( isset( $_POST['rs_display_name'] ) ) {
+			$user_update['display_name'] = sanitize_text_field( wp_unslash( $_POST['rs_display_name'] ) );
+		}
+
+		if ( isset( $_POST['rs_profile_website'] ) ) {
+			$website = trim( wp_unslash( $_POST['rs_profile_website'] ) );
+
+			if ( '' !== $website && ! preg_match( '#^[a-z][a-z0-9+.-]*://#i', $website ) ) {
+				$website = 'https://' . $website;
+			}
+
+			$user_update['user_url'] = esc_url_raw( $website );
+		}
+
+		if ( count( $user_update ) > 1 ) {
+			wp_update_user( $user_update );
+		}
+
+		if ( isset( $_POST['rs_profile_handle'] ) ) {
+			update_user_meta(
+				$user->ID,
+				self::PROFILE_HANDLE_META,
+				self::sanitize_profile_handle( wp_unslash( $_POST['rs_profile_handle'] ) )
+			);
+		}
+
+		if ( isset( $_POST['rs_profile_bio'] ) ) {
+			update_user_meta( $user->ID, 'description', sanitize_textarea_field( wp_unslash( $_POST['rs_profile_bio'] ) ) );
+		}
+
+		if ( current_user_can( 'upload_files' ) ) {
+			self::save_image_meta( $user->ID, self::PROFILE_AVATAR_META, 'rs_profile_avatar_id' );
+			self::save_image_meta( $user->ID, self::PROFILE_BANNER_META, 'rs_profile_banner_id' );
+		}
+
+		// custom_logo is always present in the POST (hidden input).
+		// site-icon.js sets the value to 'false' (string) on remove.
+		if ( array_key_exists( 'custom_logo', $_POST ) ) {
+			$logo_id = absint( wp_unslash( $_POST['custom_logo'] ) );
+			if ( $logo_id ) {
+				set_theme_mod( 'custom_logo', $logo_id );
+			} else {
+				remove_theme_mod( 'custom_logo' );
+			}
+		}
+
+		wp_safe_redirect( admin_url( 'admin.php?page=radical-socials-settings&tab=profile&rs_settings=updated' ) );
+		exit;
+	}
+
+	/**
+	 * WP.com disconnect (GET, nonce-protected). Also lives on admin_init
+	 * so its wp_safe_redirect() lands before the admin header is sent.
+	 */
+	public static function handle_wpcom_disconnect(): void {
+		if ( ! isset( $_GET['rs_action'] ) || 'wpcom_disconnect' !== $_GET['rs_action'] ) {
+			return;
+		}
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( wp_unslash( $_GET['_wpnonce'] ), 'rs_wpcom_disconnect' ) ) {
+			return;
+		}
+
+		Radical_Socials_WPCOM_OAuth::disconnect();
+		wp_safe_redirect( admin_url( 'admin.php?page=radical-socials-settings&tab=following&rs_wpcom=disconnected' ) );
+		exit;
+	}
+
 	public static function handle_following_privacy_save(): void {
 		if ( ! isset( $_POST['rs_following_privacy_nonce'] ) ) {
 			return;
@@ -342,86 +440,7 @@ class Radical_Socials_Settings_Page {
 		}
 
 		$active_tab = self::active_tab();
-		$updated = false;
-		$user    = wp_get_current_user();
-
-		// ── Handle actions before any output ────────────────────────────────
-
-		// WP.com disconnect (GET, nonce-protected).
-		if (
-			isset( $_GET['rs_action'] ) &&
-			'wpcom_disconnect' === $_GET['rs_action'] &&
-			isset( $_GET['_wpnonce'] ) &&
-			wp_verify_nonce( wp_unslash( $_GET['_wpnonce'] ), 'rs_wpcom_disconnect' )
-		) {
-			Radical_Socials_WPCOM_OAuth::disconnect();
-			wp_safe_redirect( admin_url( 'admin.php?page=radical-socials-settings&tab=following&rs_wpcom=disconnected' ) );
-			exit;
-		}
-
-		// Profile settings save.
-		$updated = false;
-		if (
-			isset( $_POST['rs_settings_nonce'] ) &&
-			wp_verify_nonce( wp_unslash( $_POST['rs_settings_nonce'] ), 'rs_settings_save' )
-		) {
-			$user_update = [
-				'ID' => $user->ID,
-			];
-
-			if ( isset( $_POST['blogname'] ) ) {
-				update_option( 'blogname', sanitize_text_field( wp_unslash( $_POST['blogname'] ) ) );
-			}
-
-			if ( isset( $_POST['rs_display_name'] ) ) {
-				$user_update['display_name'] = sanitize_text_field( wp_unslash( $_POST['rs_display_name'] ) );
-			}
-
-			if ( isset( $_POST['rs_profile_website'] ) ) {
-				$website = trim( wp_unslash( $_POST['rs_profile_website'] ) );
-
-				if ( '' !== $website && ! preg_match( '#^[a-z][a-z0-9+.-]*://#i', $website ) ) {
-					$website = 'https://' . $website;
-				}
-
-				$user_update['user_url'] = esc_url_raw( $website );
-			}
-
-			if ( count( $user_update ) > 1 ) {
-				wp_update_user( $user_update );
-			}
-
-			if ( isset( $_POST['rs_profile_handle'] ) ) {
-				update_user_meta(
-					$user->ID,
-					self::PROFILE_HANDLE_META,
-					self::sanitize_profile_handle( wp_unslash( $_POST['rs_profile_handle'] ) )
-				);
-			}
-
-			if ( isset( $_POST['rs_profile_bio'] ) ) {
-				update_user_meta( $user->ID, 'description', sanitize_textarea_field( wp_unslash( $_POST['rs_profile_bio'] ) ) );
-			}
-
-			if ( current_user_can( 'upload_files' ) ) {
-				self::save_image_meta( $user->ID, self::PROFILE_AVATAR_META, 'rs_profile_avatar_id' );
-				self::save_image_meta( $user->ID, self::PROFILE_BANNER_META, 'rs_profile_banner_id' );
-			}
-
-			// custom_logo is always present in the POST (hidden input).
-			// site-icon.js sets the value to 'false' (string) on remove.
-			if ( array_key_exists( 'custom_logo', $_POST ) ) {
-				$logo_id = absint( wp_unslash( $_POST['custom_logo'] ) );
-				if ( $logo_id ) {
-					set_theme_mod( 'custom_logo', $logo_id );
-				} else {
-					remove_theme_mod( 'custom_logo' );
-				}
-			}
-
-			wp_safe_redirect( admin_url( 'admin.php?page=radical-socials-settings&tab=profile&rs_settings=updated' ) );
-			exit;
-		}
+		$user       = wp_get_current_user();
 
 		$logo_id     = (int) get_theme_mod( 'custom_logo' );
 		$logo_url    = $logo_id ? wp_get_attachment_image_url( $logo_id, 'medium' ) : '';
