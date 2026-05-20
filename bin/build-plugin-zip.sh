@@ -43,6 +43,19 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
+# Plugin header Version: must match readme.txt's Stable tag: — wp.org
+# auto-rejects mismatches. Catching it here avoids a silent broken
+# release.
+STABLE_TAG="$(
+    grep -E '^[[:space:]]*Stable tag:' "$PLUGIN_DIR/readme.txt" \
+        | head -n1 \
+        | sed -E 's/.*Stable tag:[[:space:]]*([^[:space:]]+).*/\1/'
+)"
+if [ "$STABLE_TAG" != "$VERSION" ]; then
+    echo "✘ Stable tag (\"$STABLE_TAG\") in readme.txt does not match plugin Version (\"$VERSION\")" >&2
+    exit 1
+fi
+
 ZIP_PATH="$DIST_DIR/radical-socials-$VERSION.zip"
 
 echo "→ Building production assets…"
@@ -57,6 +70,9 @@ mkdir -p "$STAGE_DIR/radical-socials"
 rsync -a \
     --exclude='*.map' \
     --exclude='/modules/dev/' \
+    --exclude='*.test.js' \
+    --exclude='*.test.jsx' \
+    --exclude='__tests__' \
     --exclude='.DS_Store' \
     --exclude='Thumbs.db' \
     --exclude='*~' \
@@ -64,12 +80,13 @@ rsync -a \
     --exclude='*.orig' \
     --exclude='*.swp' \
     --exclude='*.rej' \
+    --exclude='.gitkeep' \
     "$PLUGIN_DIR/" "$STAGE_DIR/radical-socials/"
 
 # Sanity: refuse to ship if any of the things we don't want made it through.
 LEAKED="$(
     find "$STAGE_DIR/radical-socials" \
-        \( -name '*.map' -o -name '.DS_Store' -o -path '*/modules/dev/*' \) -print
+        \( -name '*.map' -o -name '.DS_Store' -o -name '*.test.js' -o -name '*.test.jsx' -o -path '*/__tests__/*' -o -path '*/modules/dev/*' \) -print
 )"
 if [ -n "$LEAKED" ]; then
     echo "✘ Unexpected files in staging:" >&2

@@ -86,7 +86,7 @@ class Radical_Socials_WPCOM_OAuth {
 		$state = wp_generate_uuid4();
 
 		if ( self::is_using_proxy() ) {
-			$response = wp_remote_post( self::proxy_url() . '/wp-json/radical-socials/v1/wpcom-proxy/init', [
+			$response = wp_safe_remote_post( self::proxy_url() . '/wp-json/radical-socials/v1/wpcom-proxy/init', [
 				'timeout' => 10,
 				'body'    => [
 					'state'  => $state,
@@ -169,7 +169,7 @@ class Radical_Socials_WPCOM_OAuth {
 		// the broker, not here, so we ask the broker to do the swap on our
 		// behalf. In direct mode we POST to WP.com ourselves.
 		if ( self::is_using_proxy() ) {
-			$response = wp_remote_post(
+			$response = wp_safe_remote_post(
 				self::proxy_url() . '/wp-json/radical-socials/v1/wpcom-proxy/exchange',
 				[
 					'timeout' => 15,
@@ -180,7 +180,7 @@ class Radical_Socials_WPCOM_OAuth {
 				]
 			);
 		} else {
-			$response = wp_remote_post(
+			$response = wp_safe_remote_post(
 				self::TOKEN_URL,
 				[
 					'body' => [

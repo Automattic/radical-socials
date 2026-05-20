@@ -65,13 +65,13 @@ class Radical_Socials_Settings_Page {
 
 			case 'run_fetch':
 				// Last-resort inline run for hosts where cron doesn't fire.
-				// Bump time / memory caps for this one request only; if the
-				// host enforces hard limits we'll still hit them but most
-				// shared hosts honour these soft hints.
-				if ( function_exists( 'set_time_limit' ) ) {
-					@set_time_limit( 600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-				}
-				@ini_set( 'memory_limit', '512M' ); // phpcs:ignore WordPress.PHP.IniSet.memory_limit_Disallowed
+				// We deliberately do NOT call set_time_limit() or ini_set()
+				// here — wp.org Plugin Check rejects those, and most shared
+				// hosts ignore the bump anyway. If the host's limits are too
+				// tight for a full refresh, the chunking in Feed_Fetcher::run
+				// already bounds the work per tick (10 RSS + 10 AP outboxes
+				// + WP.com + inbox ≈ 30s wall time); the rest catches up on
+				// subsequent ticks.
 				delete_transient( Radical_Socials_Following::REFRESH_LOCK );
 				$started = microtime( true );
 				try {
@@ -114,9 +114,9 @@ class Radical_Socials_Settings_Page {
 				break;
 
 			case 'test_feeds':
-				if ( function_exists( 'set_time_limit' ) ) {
-					@set_time_limit( 120 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-				}
+				// Same reasoning as run_fetch: no set_time_limit(). The
+				// 20-feeds-per-click chunking below keeps each request well
+				// under any reasonable max_execution_time.
 				$results = (array) get_transient( 'rs_diag_feed_test_results' );
 				if ( ! isset( $results['rows'] ) || ! is_array( $results['rows'] ) ) {
 					$results = [ 'rows' => [] ];
@@ -214,6 +214,11 @@ class Radical_Socials_Settings_Page {
 			! empty( $_POST['rs_following_public'] ),
 			false
 		);
+		update_option(
+			'rs_purge_on_uninstall',
+			! empty( $_POST['rs_purge_on_uninstall'] ),
+			false
+		);
 		wp_safe_redirect( admin_url( 'admin.php?page=radical-socials-settings&tab=following&rs_settings=updated' ) );
 		exit;
 	}
@@ -250,6 +255,11 @@ class Radical_Socials_Settings_Page {
 				filemtime( __DIR__ . '/assets/settings.js' ) ?: '1',
 				true
 			);
+			wp_set_script_translations(
+				'rs-settings-page',
+				'radical-socials',
+				plugin_dir_path( __FILE__ ) . '../../languages'
+			);
 		}
 
 		// The Welcome wizard re-uses the Following tab's add-feed widgets
@@ -261,6 +271,11 @@ class Radical_Socials_Settings_Page {
 				[],
 				filemtime( __DIR__ . '/assets/following.js' ) ?: '1',
 				true
+			);
+			wp_set_script_translations(
+				'rs-following-settings',
+				'radical-socials',
+				plugin_dir_path( __FILE__ ) . '../../languages'
 			);
 			$nonce = wp_create_nonce( 'wp_rest' );
 			wp_localize_script( 'rs-following-settings', 'rsFollowing', [
@@ -781,9 +796,10 @@ class Radical_Socials_Settings_Page {
 				<!-- Left column: controls -->
 				<div>
 					<?php
-					$following_page  = get_page_by_path( 'following', OBJECT, 'page' );
-					$following_url   = $following_page ? get_permalink( $following_page->ID ) : home_url( '/following/' );
-					$following_public = (bool) get_option( Radical_Socials_Following::PUBLIC_OPTION, false );
+					$following_page    = get_page_by_path( 'following', OBJECT, 'page' );
+					$following_url     = $following_page ? get_permalink( $following_page->ID ) : home_url( '/following/' );
+					$following_public  = (bool) get_option( Radical_Socials_Following::PUBLIC_OPTION, false );
+					$purge_on_uninstall = (bool) get_option( 'rs_purge_on_uninstall', false );
 					?>
 					<p class="description"><?php printf(
 						/* translators: %s: link to the /following page */
@@ -800,6 +816,14 @@ class Radical_Socials_Settings_Page {
 								<?php esc_html_e( 'Allow logged-out visitors to see the Following page', 'radical-socials' ); ?>
 								<br>
 								<span class="description"><?php esc_html_e( 'When off, /following/ and its items return 404 for logged-out visitors, and the Following menu link is hidden for them.', 'radical-socials' ); ?></span>
+							</span>
+						</label>
+						<label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px">
+							<input type="checkbox" name="rs_purge_on_uninstall" value="1" <?php checked( $purge_on_uninstall ); ?> />
+							<span>
+								<?php esc_html_e( 'Delete all data when the plugin is uninstalled', 'radical-socials' ); ?>
+								<br>
+								<span class="description"><?php esc_html_e( 'Off by default. When off, uninstalling removes only plugin settings; your imported feeds, favorites, and follows are preserved. Turn this on if you want a true wipe — note that your imported social-media archives (potentially your only copy) would also be deleted.', 'radical-socials' ); ?></span>
 							</span>
 						</label>
 						<p style="margin:10px 0 0">

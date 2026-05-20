@@ -25,7 +25,7 @@ class Radical_Socials_WPCOM_Reader {
 			return [];
 		}
 
-		$response = wp_remote_get(
+		$response = wp_safe_remote_get(
 			add_query_arg( [ 'number' => $count, 'order' => 'DESC' ], self::API_BASE ),
 			[
 				'headers' => [ 'Authorization' => 'Bearer ' . $token ],
@@ -57,7 +57,7 @@ class Radical_Socials_WPCOM_Reader {
 			return [];
 		}
 
-		$response = wp_remote_get(
+		$response = wp_safe_remote_get(
 			'https://public-api.wordpress.com/rest/v1.2/read/following?number=100',
 			[
 				'headers' => [ 'Authorization' => 'Bearer ' . $token ],
@@ -96,7 +96,7 @@ class Radical_Socials_WPCOM_Reader {
 			return false;
 		}
 
-		$response = wp_remote_post(
+		$response = wp_safe_remote_post(
 			'https://public-api.wordpress.com/rest/v1.1/sites/' . absint( $blog_id ) . '/follows/mine/delete',
 			[
 				'headers' => [ 'Authorization' => 'Bearer ' . $token ],

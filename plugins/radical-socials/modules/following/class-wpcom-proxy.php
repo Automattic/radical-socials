@@ -104,6 +104,18 @@ class Radical_Socials_WPCOM_Proxy {
 			return new WP_REST_Response( [ 'error' => 'bad_origin' ], 400 );
 		}
 
+		// Refuse to overwrite an existing state record. Without this an
+		// attacker can race a legitimate consumer with the same UUID and
+		// pre-bind /callback to their own origin — the moment WP.com
+		// redirects the real victim back through us, they're sent to the
+		// attacker's site with the live `code` query param. Consumer-side
+		// state is a fresh UUIDv4 per attempt, so collision under normal
+		// use is astronomically unlikely; this guard makes the abuse path
+		// fail with a clean 409 instead.
+		if ( false !== get_transient( self::STATE_PREFIX . $state ) ) {
+			return new WP_REST_Response( [ 'error' => 'state_already_in_use' ], 409 );
+		}
+
 		set_transient( self::STATE_PREFIX . $state, $origin, self::STATE_TTL );
 
 		$authorize_url = add_query_arg( [
@@ -169,7 +181,7 @@ class Radical_Socials_WPCOM_Proxy {
 			return new WP_REST_Response( [ 'error' => 'state_unknown_or_used' ], 400 );
 		}
 
-		$response = wp_remote_post( self::TOKEN_URL, [
+		$response = wp_safe_remote_post( self::TOKEN_URL, [
 			'timeout' => 15,
 			'body'    => [
 				'client_id'     => RS_WPCOM_CLIENT_ID,

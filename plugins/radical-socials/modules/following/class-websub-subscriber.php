@@ -206,7 +206,7 @@ class Radical_Socials_WebSub_Subscriber {
 		$secret   = $existing['secret'] ?? wp_generate_password( 32, false );
 		$callback = self::callback_url( $feed_url );
 
-		wp_remote_post(
+		wp_safe_remote_post(
 			$hub_url,
 			[
 				'body' => [
@@ -272,7 +272,7 @@ class Radical_Socials_WebSub_Subscriber {
 		$callback = self::callback_url( $feed_url );
 
 		if ( Radical_Socials_RSS_Fetcher::is_safe_remote_url( $hub_url ) ) {
-			wp_remote_post(
+			wp_safe_remote_post(
 				$hub_url,
 				[
 					'body' => [

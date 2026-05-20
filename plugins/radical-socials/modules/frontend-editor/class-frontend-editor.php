@@ -88,6 +88,15 @@ class Radical_Socials_Frontend_Editor {
 				'restUrl' => rest_url(),
 			]
 		);
+
+		// Wire JS strings (composer placeholder, error messages, etc.) to
+		// the same /languages/ folder PHP uses. Without this call wp.org's
+		// translate.wordpress.org generates .json catalogs that never load.
+		wp_set_script_translations(
+			self::SCRIPT_HANDLE,
+			'radical-socials',
+			plugin_dir_path( __FILE__ ) . '../../languages'
+		);
 	}
 
 	public static function register_block(): void {

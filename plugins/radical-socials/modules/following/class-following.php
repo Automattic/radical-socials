@@ -385,6 +385,13 @@ class Radical_Socials_Following {
 		// case, fire a direct non-blocking POST to wp-cron.php ourselves so
 		// the user-initiated refresh actually runs. wp-cron.php itself does
 		// not honour the constant; only spawn_cron() does.
+		//
+		// We use wp_remote_post (not wp_safe_remote_post) deliberately:
+		// the target is our own site_url(), which on local-dev / Docker /
+		// any non-public installation resolves to a loopback or private
+		// IP that wp_safe_remote_* would reject. Same-origin self-ping is
+		// the entire point of this call, so reject_unsafe_urls would
+		// defeat it.
 		if ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) {
 			wp_remote_post( site_url( 'wp-cron.php?doing_wp_cron=' . sprintf( '%.22F', microtime( true ) ) ), [
 				'timeout'   => 0.01,
@@ -590,6 +597,15 @@ class Radical_Socials_Following {
 		// Refresh is only relevant on the following feed, not favorites.
 		$is_following = is_post_type_archive( 'rs_feed_item' );
 
+		// `_n_noop` registers both plural forms as a related pair so the
+		// translation tooling at translate.wordpress.org understands the
+		// singular/plural relationship — the JS-side branch in
+		// `infinite-scroll.js::formatNewPostsLabel` then picks between the
+		// two. This is best-effort for languages with >2 plural forms
+		// (Russian, Arabic, Polish, etc.), which only resolve correctly
+		// when we know the count server-side; the refresh count is set
+		// client-side, so we ship both forms.
+		$new_posts_forms = _n_noop( '1 new post', '%d new posts', 'radical-socials' );
 		wp_interactivity_state( 'radical-socials/following', [
 			'refreshUrl'           => rest_url( 'radical-socials/v1/following/refresh' ),
 			'nonce'                => is_user_logged_in() ? wp_create_nonce( 'wp_rest' ) : '',
@@ -597,11 +613,11 @@ class Radical_Socials_Following {
 			'refreshing'           => false,
 			'pulling'              => false,
 			'refreshLabel'         => __( 'Refresh feed', 'radical-socials' ),
-			'refreshingLabel'      => __( 'Refreshing...', 'radical-socials' ),
+			'refreshingLabel'      => __( 'Refreshing…', 'radical-socials' ),
 			'noNewPostsLabel'      => __( 'No new posts', 'radical-socials' ),
 			'stillRefreshingLabel' => __( 'Still refreshing', 'radical-socials' ),
-			'newPostLabel'         => __( '1 new post', 'radical-socials' ),
-			'newPostsLabel'        => __( '%d new posts', 'radical-socials' ),
+			'newPostLabel'         => translate_nooped_plural( $new_posts_forms, 1, 'radical-socials' ),
+			'newPostsLabel'        => translate_nooped_plural( $new_posts_forms, 2, 'radical-socials' ),
 		] );
 
 		$last_fetched = (int) get_option( 'rs_last_feed_fetch', 0 );

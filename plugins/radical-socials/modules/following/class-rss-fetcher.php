@@ -168,9 +168,23 @@ class Radical_Socials_RSS_Fetcher {
 		}
 
 		if ( ! $ips && ! $is_ip_host ) {
-			// Some environments cannot pre-resolve valid public hostnames even
-			// though WP's HTTP layer can fetch them. Let wp_safe_remote_* enforce
-			// the final network safety checks at request time.
+			// DNS preflight failed (no A/AAAA records, no gethostbyname
+			// resolution). In some legitimate environments this just
+			// means we can't pre-resolve a perfectly valid public host
+			// — WP Playground, locked-down PHP installs, or containers
+			// with custom resolvers. We deliberately fall through to
+			// `true` here and rely on the *caller* to use wp_safe_remote_*
+			// (which runs wp_http_validate_url at fetch time and refuses
+			// private/loopback IPs the moment a real connection is
+			// attempted, regardless of what DNS does at preflight).
+			//
+			// SSRF risk note: an attacker controlling DNS could serve
+			// SERVFAIL here and a private IP at fetch time. Defense
+			// against that lives one layer down — every external caller
+			// in this plugin goes through wp_safe_remote_*, and any
+			// future caller MUST do the same. The only exception is
+			// the same-host wp-cron loopback in Radical_Socials_Following,
+			// which deliberately bypasses safety to ping itself.
 			return true;
 		}
 

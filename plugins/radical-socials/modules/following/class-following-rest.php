@@ -121,10 +121,25 @@ class Radical_Socials_Following_REST {
 	// ── Background refresh ────────────────────────────────────────────────────
 
 	public static function verify_refresh_secret( WP_REST_Request $request ): bool {
-		// Logged-in users (site owner viewing their own feed) may trigger a refresh.
+		// Design intent (intentionally permissive): any reader/visitor with a
+		// session may refresh their own feed, AND server-to-server cron loopback
+		// can call us with a shared secret. Two callers, two paths.
+		//
+		// For the user path we still require a valid REST nonce on top —
+		// without it, any third-party page a logged-in user visits could
+		// drive feed fetches via CSRF (low impact, but free DoS-amp against
+		// followed hosts). REST's cookie-auth normally enforces this, but the
+		// `X-WP-Nonce` header / `_wpnonce` param must actually be present;
+		// we double-check here so the permission_callback fails loudly on
+		// missing nonces rather than silently letting the request through.
 		if ( is_user_logged_in() ) {
-			return true;
+			$nonce = $request->get_header( 'x_wp_nonce' );
+			if ( ! $nonce ) {
+				$nonce = $request->get_param( '_wpnonce' );
+			}
+			return $nonce && wp_verify_nonce( $nonce, 'wp_rest' );
 		}
+
 		// Server-to-server background call authenticated by shared secret.
 		$provided = $request->get_header( 'x_rs_refresh_secret' );
 		return $provided && hash_equals( Radical_Socials_Following::refresh_secret(), $provided );

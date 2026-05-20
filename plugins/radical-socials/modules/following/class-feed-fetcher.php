@@ -243,7 +243,15 @@ class Radical_Socials_Feed_Fetcher {
 			'post_title'   => (string) ( $item['title'] ?? '' ),
 			'post_content' => wp_kses( $item['content'] ?? $item['excerpt'] ?? '', self::kses_allowlist() ),
 			'post_excerpt' => wp_strip_all_tags( $item['excerpt'] ?? '' ),
-			'post_date'    => get_date_from_gmt( gmdate( 'Y-m-d H:i:s', strtotime( $item['date'] ?? 'now' ) ) ),
+			// Cap parsed date at "tomorrow" so a hostile feed publishing
+			// far-future timestamps can't pin itself permanently at the
+			// top of the timeline (or sort below items that arrive later
+			// but are tagged a year ago, etc.). 24h slack accommodates
+			// normal time-zone skew without letting abuse through.
+			'post_date'    => get_date_from_gmt( gmdate( 'Y-m-d H:i:s', min(
+				strtotime( $item['date'] ?? 'now' ) ?: time(),
+				time() + DAY_IN_SECONDS
+			) ) ),
 			'meta_input'   => [
 				'_rs_item_url'          => $item['url'] ?? '',
 				'_rs_item_source_url'   => $item['source_url'] ?? '',
