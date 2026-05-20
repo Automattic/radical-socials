@@ -1,5 +1,5 @@
 === Radical Socials ===
-Contributors:      automattic
+Contributors:      automattic, mikachan, onemaggie
 Tags:              fediverse, activitypub, mastodon, rss, feed-reader
 Requires at least: 6.5
 Tested up to:      6.9
