@@ -151,9 +151,17 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 		setIsSubmitting( true );
 		setError( null );
 		try {
-			const content       = serialize( blocks );
-			const firstImage    = blocks.find( ( b ) => b.name === 'core/image' );
-			const featuredMedia = firstImage?.attributes?.id;
+			// If the first image becomes the featured image, drop that block
+			// from the content. Otherwise single-post templates render it
+			// twice — once as the featured image header and again inline.
+			// Video/audio/embed don't have this problem because they're
+			// never auto-promoted to featured media.
+			const firstImageIdx = blocks.findIndex( ( b ) => b.name === 'core/image' );
+			const featuredMedia = firstImageIdx >= 0 ? blocks[ firstImageIdx ].attributes?.id : undefined;
+			const contentBlocks = featuredMedia
+				? blocks.filter( ( _b, i ) => i !== firstImageIdx )
+				: blocks;
+			const content       = serialize( contentBlocks );
 			const tagIds        = await resolveTagIds( hashtags );
 
 			const response = await fetch(
