@@ -210,7 +210,13 @@
 	"templateParts": [
 		{
 			"area": "header",
-			"name": "header"
+			"name": "header",
+			"title": "Header"
+		},
+		{
+			"area": "footer",
+			"name": "footer",
+			"title": "Footer"
 		},
 		{
 			"area": "uncategorized",
@@ -221,6 +227,18 @@
 			"area": "uncategorized",
 			"name": "sidebar-right",
 			"title": "Sidebar Right"
+		}
+	],
+	"customTemplates": [
+		{
+			"name": "archive-rs_feed_item",
+			"title": "Following — feed-item archive",
+			"postTypes": [ "rs_feed_item" ]
+		},
+		{
+			"name": "archive-rs_favorite",
+			"title": "Favorites — favorite archive",
+			"postTypes": [ "rs_favorite" ]
 		}
 	]
 }

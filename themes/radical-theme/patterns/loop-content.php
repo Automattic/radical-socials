@@ -2,9 +2,9 @@
 /**
  * Title: Loop content
  * Slug: radical-theme/loop-content
- * Categories: 
+ * Categories: query
  * Inserter: no
- */ 
+ */
 ?>
 
 <!-- wp:group {"style":{"spacing":{"padding":{"right":"var:preset|spacing|30","left":"var:preset|spacing|30"}}},"layout":{"type":"constrained"}} -->
@@ -28,14 +28,14 @@
 
 <!-- wp:post-content {"metadata":{"ignoredHookedBlocks":["activitypub/reactions"]}} /-->
 
-<!-- wp:read-more {"content":"Read more"} /-->
+<!-- wp:read-more {"content":"<?php echo esc_attr__( 'Read more', 'radical-theme' ); ?>"} /-->
 
 </div>
 <!-- /wp:group -->
 
 <!-- wp:activitypub/reactions {"className":"is-style-facepile"} -->
-<div class="wp-block-activitypub-reactions is-style-facepile"><!-- wp:heading {"level":6} -->
-<h6 class="wp-block-heading">Fediverse reactions</h6>
+<div class="wp-block-activitypub-reactions is-style-facepile"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading"><?php echo esc_html__( 'Fediverse reactions', 'radical-theme' ); ?></h3>
 <!-- /wp:heading --></div>
 <!-- /wp:activitypub/reactions -->
 

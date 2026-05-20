@@ -1,17 +1,32 @@
 /*
-Theme Name:   Radical Theme
-Theme URI:    https://github.com/Automattic/radical-socials
-Description:  Block theme companion for the Radical Socials plugin.
-Version:      0.1.0
-Author:       Automattic
-Author URI:   https://automattic.com
-Contributors: automattic, mikachan, onemaggie
-License:      GPL-2.0-or-later
-License URI:  https://www.gnu.org/licenses/gpl-2.0.html
-Text Domain:  radical-theme
+Theme Name:        Radical Theme
+Theme URI:         https://github.com/Automattic/radical-socials
+Description:       A block theme for personal feed readers and social-style content sites, with layouts tuned for photo grids, vertical video, and text timelines. Works on its own and pairs with the Radical Socials plugin, which adds Following, Favorites, and a frontend post composer.
+Version:           0.1.0
+Requires at least: 6.6
+Tested up to:      6.9
+Requires PHP:      7.4
+Author:            Automattic
+Author URI:        https://automattic.com
+Contributors:      automattic, mikachan, onemaggie
+License:           GPL-2.0-or-later
+License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+Text Domain:       radical-theme
+Tags:              block-themes, blog, photoblogging, three-columns, custom-colors, custom-menu, featured-image-header, featured-images, full-site-editing, style-variations, translation-ready
 */
 
-.wp-block-post-terms.rs-feed-type-badge a {
+/*
+ * All rules below target plugin-provided classes (frontend post composer,
+ * feed-item taxonomy badges, etc.). They're scoped under `.rs-plugin`, a
+ * body class the Radical Socials plugin adds via the `body_class` filter
+ * when it's active. With the plugin inactive, none of these elements
+ * exist on the page anyway — the body-class scope is a defense-in-depth
+ * so even if a stray HTML snippet referencing them shows up, the theme's
+ * plugin-specific styling stays dormant. Mirrors the Storefront pattern
+ * of scoping all WooCommerce styling under `body.woocommerce-active`.
+ */
+
+.rs-plugin .wp-block-post-terms.rs-feed-type-badge a {
 	border: 1px solid currentColor;
 	padding: 0.25em 0.5em;
 	border-radius: 9999px;
@@ -20,27 +35,27 @@ Text Domain:  radical-theme
 	text-transform: uppercase;
 }
 
-/* ─── RS editor custom styles ─── */
+/* ─── Frontend post composer overrides ─── */
 
-.wp-site-blocks .rs-frontend-editor {
+.rs-plugin .wp-site-blocks .rs-frontend-editor {
 	margin: 0;
 	max-width: 100%;
 }
 
-.wp-site-blocks .rs-editor-prompt {
+.rs-plugin .wp-site-blocks .rs-editor-prompt {
 	border-top: none;
 	border-left: none;
 	border-right: none;
 	border-radius: 0;
-	padding: 2rem 1.125rem
+	padding: 2rem 1.125rem;
 }
 
-.wp-site-blocks .rs-editor-prompt:hover {
+.rs-plugin .wp-site-blocks .rs-editor-prompt:hover {
 	border-color: var( --wp--preset--color--contrast-3, rgba( 255, 255, 255, 0.12 ) );
 	background-color: rgba( 255, 255, 255, 0.04 );
 }
 
-.wp-site-blocks .rs-social-editor {
+.rs-plugin .wp-site-blocks .rs-social-editor {
 	border-top: none;
 	border-left: none;
 	border-right: none;
@@ -48,22 +63,22 @@ Text Domain:  radical-theme
 	border-radius: 0;
 }
 
-.wp-site-blocks .rs-editor-writing-area {
+.rs-plugin .wp-site-blocks .rs-editor-writing-area {
 	background: none;
 	border: none;
 	padding: 0;
 }
 
-.wp-site-blocks .rs-media-bar {
+.rs-plugin .wp-site-blocks .rs-media-bar {
 	margin-top: 0;
 }
 
-.rs-modal-dialog .components-modal__content {
+.rs-plugin .rs-modal-dialog .components-modal__content {
 	padding: 0;
 	margin-top: 2rem;
 }
 
-.rs-modal-dialog .rs-social-editor {
+.rs-plugin .rs-modal-dialog .rs-social-editor {
 	border: none;
 	padding: 0;
 }

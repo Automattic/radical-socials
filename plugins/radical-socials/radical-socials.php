@@ -173,6 +173,22 @@ function radical_socials_plugin_action_links( array $links ): array {
 }
 add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'radical_socials_plugin_action_links' );
 
+/**
+ * Add an `rs-plugin` class to <body>. Companion themes (Radical Theme,
+ * others) scope their plugin-specific CSS under this selector so the
+ * styling is inert when the plugin is missing. Mirrors WooCommerce's
+ * `woocommerce-active` body class — the same pattern Storefront and
+ * friends use to keep theme/plugin coupling graceful.
+ *
+ * @param string[] $classes
+ * @return string[]
+ */
+function radical_socials_body_class( array $classes ): array {
+	$classes[] = 'rs-plugin';
+	return $classes;
+}
+add_filter( 'body_class', 'radical_socials_body_class' );
+
 function radical_socials_maybe_flush_rewrite_rules(): void {
 	if ( RADICAL_SOCIALS_REWRITE_VERSION === get_option( 'radical_socials_rewrite_version' ) ) {
 		return;
