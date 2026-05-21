@@ -1,6 +1,6 @@
 {
   "name": "radical-socials",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Escape closed-wall social media platforms with a self-hosted WordPress alternative.",
   "private": true,
   "scripts": {

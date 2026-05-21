@@ -4,23 +4,24 @@ Tags:              fediverse, activitypub, mastodon, rss, feed-reader
 Requires at least: 6.7
 Tested up to:      6.9
 Requires PHP:      8.0
-Stable tag:        0.1.0
+Stable tag:        1.0.0
 License:           GPL-2.0-or-later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
 
-Escape walled gardens with a self-hosted WordPress site that feels like home: import your archive, follow people across the Fediverse and RSS.
+Escape walled gardens and own your own social media: follow people across the Fediverse, your WordPress.com reader subcriptions and RSS. All in one place.
 
 == Description ==
 
 Radical Socials turns a fresh WordPress site into a place that feels like the social network you came from, without locking you back inside one.
 
-* Import your social-media export (Instagram, Twitter/X, Bluesky, TikTok) into your own site as WordPress posts you fully own.
-* Hide the standard WordPress chrome behind a one-click "advanced mode" toggle, so the site feels like an app — not a CMS.
-* Follow people across the Fediverse (ActivityPub via the **ActivityPub** plugin), via RSS / Atom (with WebSub push when supported), and via WP.com Reader.
-* A unified Following feed pulls everything onto one timeline.
-* A Favorites list lets you bookmark feed items permanently, even after they roll off the feed.
-* Block-theme-friendly: a Social Menu block, an Author Avatar / Name block for feed items, and Following / Favorites links you can drop into any Navigation block.
-* No extra database tables — everything stored as standard WordPress posts and meta, so it survives backups, exports, and WP-CLI.
+* Follow people across the Fediverse (Mastodon, Pixelfed, PeerTube, …) via the optional **ActivityPub** plugin, via RSS / Atom feeds (with WebSub push when the publisher supports it), and via WordPress.com Reader subscriptions.
+* A unified Following timeline that merges every source into one stream — with ActivityPub posts rendered as social-style cards (avatar, display name, handle, relative time, "Reposted by …") so they don't look like blog entries dropped into a feed.
+* A Favorites list so you can bookmark items permanently — they survive after the live feed rolls them off.
+* A lightweight Custom Bar that replaces the WordPress admin bar on the front end with Home / Explore / Create / Profile shortcuts — the site feels like an app, not a CMS.
+* Frontend post composer (a small inline editor) that publishes via the REST API.
+* OPML import / export for moving in and out of other feed readers, plus a one-shot "import follows from a Mastodon account" tool.
+* Block-theme-friendly: ships a Social Menu block, Following / Favorites link blocks for any Navigation block, and plugin-default block templates so the Following and Favorites archives have a working layout on any active theme.
+* No extra database tables — everything lives as standard WordPress posts and meta, so it survives backups, exports, and WP-CLI.
 
 This plugin is the product. The default theme (Radical Theme) is an optional design layer; the plugin works on any block theme.
 
@@ -28,7 +29,7 @@ This plugin is the product. The default theme (Radical Theme) is an optional des
 
 1. Install and activate Radical Socials.
 2. (Optional, recommended) Install and activate the [ActivityPub plugin](https://wordpress.org/plugins/activitypub/) so you can follow Fediverse accounts and let your own posts federate.
-3. Visit *Radical Socials* in the admin sidebar to set up your profile, connect feeds, and import an archive.
+3. Visit *Radical Socials* in the admin sidebar to set up your profile and connect feeds.
 
 == Frequently Asked Questions ==
 
@@ -50,13 +51,13 @@ It stays on your WordPress site. There's no Radical Socials cloud service. The p
 
 = Will I lose my data if I deactivate the plugin? =
 
-Your imported posts, follows, and favorites are stored as standard WordPress posts and meta, so they remain in the database after deactivation. Cron schedules and WebSub subscriptions are cleaned up on deactivation.
+Your feed items, follows, and favorites are stored as standard WordPress posts and meta, so they remain in the database after deactivation. Cron schedules and WebSub subscriptions are cleaned up on deactivation.
 
 = What about when I uninstall the plugin entirely? =
 
-By default, uninstall preserves your imported posts, favorites, and follow lists — Radical Socials is often used as a personal archive of social-media content, so silently wiping that on uninstall would be a data-loss surprise. Only plugin-internal flags (cron coordination, transients, OAuth tokens) are removed.
+By default, uninstall preserves your feed items, favorites, and follow lists — Radical Socials is often used as a personal archive of content you've collected, so silently wiping that on uninstall would be a data-loss surprise. Only plugin-internal flags (cron coordination, transients, OAuth tokens) are removed.
 
-If you'd rather have a clean wipe on uninstall, turn on *Settings → Following → "Delete all data when the plugin is uninstalled"* before removing the plugin. With that toggle on, uninstall also removes the imported feed items, follow records, favorites, custom taxonomies, and all plugin options.
+If you'd rather have a clean wipe on uninstall, turn on *Settings → Following → "Delete all data when the plugin is uninstalled"* before removing the plugin. With that toggle on, uninstall also removes the feed items, follow records, favorites, custom taxonomies, and all plugin options.
 
 = Will activating the plugin change my permalink settings? =
 
@@ -123,20 +124,33 @@ Service: the Mastodon instance you specify.
 
 Radical Socials does not collect, store, or transmit usage analytics, telemetry, or any other data to first-party services. All outbound HTTP traffic is to the user-initiated third-party services listed above.
 
+== Screenshots ==
+
+1. Unified Following timeline — ActivityPub, RSS, and WordPress.com Reader items merged into a single feed with social-style cards.
+2. Frontend post composer — an inline editor that publishes through the REST API without leaving the front end.
+3. Custom Bar — a lightweight Home / Explore / Create / Profile bar that replaces the WordPress admin bar for logged-in visitors.
+4. Settings → Following — manage Fediverse follows, RSS subscriptions, WordPress.com Reader subscriptions, and OPML import / export from one screen.
+5. Onboarding wizard — guided first-run flow with one-click ActivityPub install and add-your-first-feed prompts.
+6. Favorites archive — a permanent bookmark list for items that have rolled off the live feed.
+
 == Upgrade Notice ==
 
-= 0.1.0 =
-First public release. No prior version to upgrade from.
+= 1.0.0 =
+First stable release. No prior version to upgrade from.
 
 == Changelog ==
 
-= 0.1.0 =
-* Initial public release.
-* Unified Following timeline that merges RSS / Atom (with WebSub push), WordPress.com Reader, and ActivityPub follows.
-* Importers for Instagram, Twitter / X, Bluesky, and TikTok archive exports — each entry stored as a standard WordPress post.
-* Frontend post composer (Twitter-style inline editor) that publishes via the WordPress REST API.
-* OPML import / export for moving in and out of other feed readers.
-* Compact admin under *Settings → Radical Socials* with profile, following management, and a Diagnostics tab.
+= 1.0.0 =
+* First stable release.
+* Unified Following timeline merging RSS / Atom (with WebSub push when the publisher supports it), WordPress.com Reader subscriptions, and ActivityPub follows.
+* ActivityPub posts render as self-contained social cards (avatar, display name, handle, relative time, optional "Reposted by …" line) — independent of the active theme.
+* Favorites: bookmark feed items permanently as a separate custom post type so they survive feed rotation.
+* Frontend post composer that publishes via the REST API.
+* Custom Bar (collapsible vertical rail on desktop, fixed bottom strip on mobile) replacing the WordPress admin bar for logged-in visitors.
+* OPML import / export plus a one-shot "import follows from a Mastodon account" tool.
+* Plugin-default block templates for the Feed and Favorites archives so any active theme has a working layout out of the box; site editors can override either template per the standard WordPress flow.
+* Following / Favorites navigation-link blocks hooked into core/navigation, plus a like-button hooked into core/post-template.
+* Compact admin under *Radical Socials* with Profile, Following, and Diagnostics tabs.
 * Onboarding wizard with one-click ActivityPub plugin install and add-feed flows.
 
 == Source code ==

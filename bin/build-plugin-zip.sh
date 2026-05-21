@@ -77,6 +77,7 @@ mkdir -p "$STAGE_DIR/radical-socials"
 rsync -a \
     --exclude='*.map' \
     --exclude='/modules/dev/' \
+    --exclude='/.wordpress-org/' \
     --exclude='*.test.js' \
     --exclude='*.test.jsx' \
     --exclude='__tests__' \
