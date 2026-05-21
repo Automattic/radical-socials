@@ -23,13 +23,12 @@ Radical Socials turns a fresh WordPress site into a place that feels like the so
 * Block-theme-friendly: ships a Social Menu block, Following / Favorites link blocks for any Navigation block, and plugin-default block templates so the Following and Favorites archives have a working layout on any active theme.
 * No extra database tables — everything lives as standard WordPress posts and meta, so it survives backups, exports, and WP-CLI.
 
-This plugin is the product. The default theme (Radical Theme) is an optional design layer; the plugin works on any block theme.
-
 == Installation ==
 
 1. Install and activate Radical Socials.
 2. (Optional, recommended) Install and activate the [ActivityPub plugin](https://wordpress.org/plugins/activitypub/) so you can follow Fediverse accounts and let your own posts federate.
 3. Visit *Radical Socials* in the admin sidebar to set up your profile and connect feeds.
+4. Intall the Radical Socials theme (optional, recommended) for a better experience.
 
 == Frequently Asked Questions ==
 
@@ -71,8 +70,6 @@ Radical Socials connects to third-party services only when you ask it to. Every 
 
 When you follow someone on the Fediverse, Radical Socials uses the ActivityPub plugin to perform a WebFinger lookup against the remote host and then exchange ActivityPub follow / Accept activities with it. After the follow is established, Radical Socials polls each followed actor's outbox URL periodically (every 15 minutes, chunked) so new posts from that account appear in your timeline. When an actor's display name, avatar URL, or outbox URL is unknown or stale, Radical Socials also issues a one-shot `GET` against that actor's profile JSON URL to refresh those fields.
 
-The "Test feed(s)" buttons in *Settings → Diagnostics* perform the same `GET` requests against the URLs you've already added, on demand, when you click them.
-
 What is sent: the remote actor's identifier (e.g. `@user@example.social`) and standard ActivityPub follow / Accept payloads signed by your WordPress site's actor key. No personal data beyond what the ActivityPub plugin already advertises about your blog actor.
 Service: each remote Fediverse instance you choose to follow.
 Terms vary per instance.
@@ -100,8 +97,6 @@ To opt out entirely: define your own `RS_WPCOM_CLIENT_ID` and `RS_WPCOM_CLIENT_S
 = Arbitrary RSS / Atom feed URLs =
 
 When you add an RSS feed by URL (or via OPML import), Radical Socials fetches that URL using WordPress's HTTP API and parses it with the bundled SimplePie library to discover items and the WebSub hub. The same URLs are then re-fetched on a 15-minute schedule (chunked to 10 feeds per tick so the schedule never overwhelms a shared host).
-
-The "Test feed(s)" buttons in *Settings → Diagnostics* perform an immediate `GET` against the same URLs when you click them.
 
 What is sent: an HTTP `GET` from your server with WordPress's default user agent. URLs are validated to refuse local / private-network targets before fetching.
 Service: whichever publisher hosts the feed.
@@ -150,7 +145,7 @@ First stable release. No prior version to upgrade from.
 * OPML import / export plus a one-shot "import follows from a Mastodon account" tool.
 * Plugin-default block templates for the Feed and Favorites archives so any active theme has a working layout out of the box; site editors can override either template per the standard WordPress flow.
 * Following / Favorites navigation-link blocks hooked into core/navigation, plus a like-button hooked into core/post-template.
-* Compact admin under *Radical Socials* with Profile, Following, and Diagnostics tabs.
+* Compact admin under *Radical Socials* with Profile and Following tabs.
 * Onboarding wizard with one-click ActivityPub plugin install and add-feed flows.
 
 == Source code ==

@@ -21,10 +21,30 @@ class Radical_Socials_Settings_Page {
 		add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue' ] );
 		add_action( 'admin_init',            [ __CLASS__, 'handle_profile_save' ] );
 		add_action( 'admin_init',            [ __CLASS__, 'handle_following_privacy_save' ] );
-		add_action( 'admin_init',            [ __CLASS__, 'handle_diagnostics_action' ] );
 		add_action( 'admin_init',            [ __CLASS__, 'handle_wpcom_disconnect' ] );
 		add_action( 'admin_post_rs_install_activitypub', [ __CLASS__, 'handle_install_activitypub' ] );
 		add_action( 'admin_post_rs_save_handle',         [ __CLASS__, 'handle_save_handle' ] );
+
+		// Diagnostics is a developer-only surface. Skip the form-action
+		// listener entirely on non-dev installs so the POST handler doesn't
+		// even exist there (the nonce + capability checks make it safe
+		// either way, but the cleaner shape is "no code path at all").
+		if ( self::is_dev_mode() ) {
+			add_action( 'admin_init', [ __CLASS__, 'handle_diagnostics_action' ] );
+		}
+	}
+
+	/**
+	 * Are we running in a development install? Diagnostics, fetch-now
+	 * buttons, and other internal-introspection tools render only when
+	 * this is true. The canonical signal is WP_DEBUG (set in wp-config.php
+	 * on dev sites); RS_DEV is an opt-in override for the rare case
+	 * someone wants Diagnostics on a non-debug install without flipping
+	 * WP_DEBUG globally.
+	 */
+	public static function is_dev_mode(): bool {
+		return ( defined( 'WP_DEBUG' ) && WP_DEBUG )
+			|| ( defined( 'RS_DEV' ) && RS_DEV );
 	}
 
 	/**
@@ -323,8 +343,12 @@ class Radical_Socials_Settings_Page {
 
 	private static function active_tab(): string {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'profile';
-		return in_array( $tab, [ 'welcome', 'profile', 'following', 'diagnostics' ], true ) ? $tab : 'profile';
+		$tab    = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'profile';
+		$allowed = [ 'welcome', 'profile', 'following' ];
+		if ( self::is_dev_mode() ) {
+			$allowed[] = 'diagnostics';
+		}
+		return in_array( $tab, $allowed, true ) ? $tab : 'profile';
 	}
 
 	public static function enqueue( string $hook ): void {
@@ -474,11 +498,14 @@ class Radical_Socials_Settings_Page {
 					<nav class="rs-settings-tabs-wrapper" aria-label="<?php esc_attr_e( 'Settings sections', 'radical-socials' ); ?>">
 						<?php
 						$tabs = [
-							'welcome'     => __( 'Welcome', 'radical-socials' ),
-							'profile'     => __( 'Profile', 'radical-socials' ),
-							'following'   => __( 'Following', 'radical-socials' ),
-							'diagnostics' => __( 'Diagnostics', 'radical-socials' ),
+							'welcome'   => __( 'Welcome', 'radical-socials' ),
+							'profile'   => __( 'Profile', 'radical-socials' ),
+							'following' => __( 'Following', 'radical-socials' ),
 						];
+						// Developer-only tab — hidden on non-debug installs.
+						if ( self::is_dev_mode() ) {
+							$tabs['diagnostics'] = __( 'Diagnostics', 'radical-socials' );
+						}
 						foreach ( $tabs as $slug => $label ) :
 							$class = 'rs-settings-tab' . ( $slug === $active_tab ? ' active' : '' );
 							?>
