@@ -4,7 +4,7 @@
  * Plugin URI:        https://github.com/Automattic/radical-socials
  * Description:       Escape walled gardens with a self-hosted WordPress site that feels like home.
  * Version:           0.1.0
- * Requires at least: 6.5
+ * Requires at least: 6.7
  * Tested up to:      6.9
  * Requires PHP:      8.0
  * Author:            Automattic
@@ -28,6 +28,7 @@ require_once __DIR__ . '/modules/custom-bar/class-custom-bar.php';
 require_once __DIR__ . '/modules/settings/class-settings-page.php';
 require_once __DIR__ . '/modules/frontend-editor/class-frontend-editor.php';
 require_once __DIR__ . '/modules/following/loader.php';
+require_once __DIR__ . '/modules/templates/class-block-templates.php';
 
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
 	require_once __DIR__ . '/modules/dev/class-integration-tests.php';

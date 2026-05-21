@@ -61,6 +61,13 @@ ZIP_PATH="$DIST_DIR/radical-socials-$VERSION.zip"
 echo "→ Building production assets…"
 ( cd "$ROOT" && npm run build --silent )
 
+# Flatten theme templates into plugin-default block templates. The output
+# lives under plugins/radical-socials/templates/ and is gitignored — it
+# must be regenerated for every zip so the shipped fallback templates
+# match the current state of radical-theme.
+echo "→ Flattening theme templates into plugin defaults…"
+( cd "$ROOT" && npm run build:templates --silent )
+
 echo "→ Staging plugin files at $STAGE_DIR/radical-socials …"
 rm -rf "$STAGE_DIR"
 mkdir -p "$STAGE_DIR/radical-socials"

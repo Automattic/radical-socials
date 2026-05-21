@@ -17,6 +17,7 @@
     "env:cron": "curl -s 'http://localhost:8890/wp-cron.php?doing_wp_cron' > /dev/null",
     "test": "wp-scripts test-unit-js",
     "test:integration": "wp-env run cli wp radical-socials integration-tests",
+    "build:templates": "php ./bin/build-templates.php",
     "plugin-zip": "bash ./bin/build-plugin-zip.sh",
     "theme-zip": "bash ./bin/build-theme-zip.sh"
   },
