@@ -30,6 +30,172 @@
 	overflow-x: auto;
 }
 
+/* ─── ActivityPub posts: self-contained card layout ──────────
+ *
+ * Every visual element of an AP card lives inside `post_content`
+ * as a single `<div class="rs-ap-card">` baked in at fetch time
+ * by Radical_Socials_ActivityPub_Fetcher::render_card_wrapper().
+ * That means a theme template that reorders or removes the
+ * surrounding blocks (post title, post date, our author blocks,
+ * read-more, etc.) doesn't affect how the card looks — the layout
+ * is fully owned by this CSS plus the markup baked into content.
+ *
+ * Sizes are all ems so the card scales with the visitor's base
+ * font size; colors come from existing theme palette tokens
+ * (`--wp--preset--color--contrast-1` for muted text) with a
+ * sensible `currentColor` fallback when a theme doesn't define
+ * them.
+ *
+ * Only AP items get this treatment; RSS and WP.com cards keep the
+ * standard block layout (post-title + date + read-more + author
+ * blocks) since those have meaningful titles and are closer to
+ * traditional blog content.
+ */
+
+/* Hide the surrounding blocks for AP items only. They're either
+ * not part of the social-card layout (title, date, featured
+ * image, read-more, comments link) or their data is already
+ * present inside the card content (avatar + name baked into
+ * .rs-ap-card during normalize). */
+.rs-feed-type-activitypub .wp-block-post-title,
+.rs-feed-type-activitypub .wp-block-post-date,
+.rs-feed-type-activitypub .wp-block-post-featured-image,
+.rs-feed-type-activitypub .wp-block-post-comments-link {
+	display: none;
+}
+
+/* The card itself — a small grid laid out inside the post body.
+ * Areas: optional "Reposted by …" line at the top spanning both
+ * columns, avatar in column 1 spanning rows 2–3, display name in
+ * column 2 row 2, post body (paragraphs, attachments, etc.) in
+ * column 2 row 3. */
+.rs-feed-type-activitypub .entry-content .rs-ap-card {
+	display: grid;
+	grid-template-columns: 3em 1fr;
+	grid-template-areas:
+		"boost  boost"
+		"avatar name"
+		"avatar body";
+	column-gap: 0.875em;
+	row-gap: 0.375em;
+}
+
+.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-boost-context {
+	grid-area: boost;
+	margin: 0;
+	font-size: 0.825em;
+	color: var( --wp--preset--color--contrast-1, currentColor );
+}
+
+.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-boost-context a {
+	color: inherit;
+	text-decoration: none;
+}
+
+/* The avatar is wrapped in a <div> so wpautop doesn't wrap the bare
+ * <img> in a <p> (see render_card_wrapper for the why). Layout lives on
+ * the wrapper; the inner <img> just fills it. */
+.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-avatar {
+	grid-area: avatar;
+	align-self: start;
+	width: 3em;
+	height: 3em;
+}
+
+.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-avatar img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	border-radius: 50%;
+	object-fit: cover;
+}
+
+/* Name row: bold display name, muted "@user@host" handle, and a muted
+ * relative time. They live in a single flex row that wraps onto a
+ * second line on narrow viewports — the time stays close to the handle
+ * so the visual association doesn't break. */
+.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-name {
+	grid-area: name;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	column-gap: 0.4em;
+	font-size: 1em;
+	line-height: 1.3;
+}
+
+.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-displayname {
+	font-weight: 600;
+}
+
+.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-handle,
+.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-time {
+	font-size: 0.825em;
+	color: var( --wp--preset--color--contrast-1, currentColor );
+	font-weight: 400;
+}
+
+/* Render a middle-dot separator before the time only when it follows
+ * another part of the name row, so we never end up with a stray "·" at
+ * the start (which happens for items missing both display name and
+ * handle). */
+.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-handle + .rs-ap-time::before,
+.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-displayname + .rs-ap-time::before {
+	content: "·";
+	margin-right: 0.4em;
+	opacity: 0.7;
+}
+
+.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-name a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-body {
+	grid-area: body;
+	font-size: 1em;
+	line-height: 1.5;
+}
+
+.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-body > p {
+	margin: 0.375em 0;
+}
+
+/* Reply context ("↪️ In reply to …") gets a muted treatment and
+ * sits at the top of the body column (in flow with the rest of
+ * the post text). */
+.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-reply-context {
+	font-size: 0.825em;
+	color: var( --wp--preset--color--contrast-1, currentColor );
+	margin: 0 0 0.375em;
+}
+
+/* Multiple image attachments: lay them in a 2-column grid inside
+ * the body column. Single-image and mixed-media posts keep the
+ * default block flow. */
+.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-body:has(.wp-block-image + .wp-block-image) {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	column-gap: 0.5em;
+	row-gap: 0.5em;
+}
+
+.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-body:has(.wp-block-image + .wp-block-image) > p,
+.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-body:has(.wp-block-image + .wp-block-image) > .rs-reply-context {
+	grid-column: 1 / -1;
+}
+
+.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-body > .wp-block-image {
+	margin: 0.5em 0 0;
+}
+
+.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-body > .wp-block-image img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	border-radius: 0.5em;
+}
+
 .rs-refresh-bar {
 	display: flex;
 	align-items: center;

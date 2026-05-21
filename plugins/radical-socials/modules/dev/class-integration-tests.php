@@ -72,6 +72,9 @@ class Radical_Socials_Integration_Tests {
 			$this->test_wpcom_reader_normalisation();
 			$this->pass( 'WP.com Reader fetch + unfollow surface correctly' );
 
+			$this->test_author_meta_populated_for_rss_and_wpcom();
+			$this->pass( 'RSS + WP.com items carry author name / avatar / URL (so the feed-author blocks render for non-AP cards too)' );
+
 			// — Tests that probe the failure modes seen in production —
 			// (Hostinger: 215 subscriptions, 300s exec limit, lock stuck queued,
 			// 0 feed items stored. Each of these targets a specific suspect.)
@@ -97,8 +100,14 @@ class Radical_Socials_Integration_Tests {
 			$this->test_outbox_announce_dedupes_target_fetch();
 			$this->pass( 'Outbox Announce dereferences target once and dedupes across boosters' );
 
+			$this->test_boost_fetches_original_author_profile();
+			$this->pass( 'Boost normalisation fetches the original author profile (name + avatar) when local cache misses' );
+
 			$this->test_hooked_block_insertions();
 			$this->pass( 'Hooked-block insertions: 1× like-button in post-template, 1× following-link & 1× favorites-link in navigation' );
+
+			$this->test_like_button_ssr_initial_state();
+			$this->pass( 'Like-button SSR pre-applies the `hidden` attribute so only one heart is visible before hydration' );
 		} finally {
 			$this->restore_options( $restore );
 			wp_set_current_user( $original_user_id );
@@ -553,6 +562,100 @@ class Radical_Socials_Integration_Tests {
 	}
 
 	/**
+	 * Regression test: every fetcher path (RSS, WP.com, ActivityPub) must
+	 * populate `author_name` / `author_icon_url` / `author_url` in post
+	 * meta. The AP fetcher bakes these into post_content as part of the
+	 * `.rs-ap-card` wrapper; the RSS and WP.com fetchers just record them
+	 * on the post for future use (no surfacing today). The meta has to
+	 * land regardless of feed type so it's available to anything that
+	 * reads it later — without this guarantee, the old "two avatar blocks
+	 * pull empty meta and bail" failure mode silently returns.
+	 */
+	private function test_author_meta_populated_for_rss_and_wpcom(): void {
+		// ── RSS path: feed has channel <image> + per-item <dc:creator>. ──
+		$feed_url = 'https://93.184.216.34/withauthor';
+		$rss      = '<?xml version="1.0" encoding="UTF-8"?>'
+			. '<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel>'
+			. '<title>Site With Author</title>'
+			. '<link>https://example.com/</link>'
+			. '<image><url>https://example.com/icon.png</url><title>Site With Author</title><link>https://example.com/</link></image>'
+			. '<item>'
+			. '<title>Hello</title>'
+			. '<link>https://example.com/hello</link>'
+			. '<dc:creator>Jane Author</dc:creator>'
+			. '<pubDate>Mon, 11 May 2026 12:00:00 +0000</pubDate>'
+			. '<description>...</description>'
+			. '</item>'
+			. '</channel></rss>';
+
+		$this->with_http_mocks(
+			[ 'GET ' . $feed_url => $this->http_response( $rss, 200, [ 'content-type' => 'application/rss+xml' ] ) ],
+			function () use ( $feed_url ): void {
+				$items = Radical_Socials_RSS_Fetcher::fetch( $feed_url, 5 );
+				$this->assert_true( ! empty( $items ), 'RSS fetcher returned items.' );
+				$first = $items[0];
+				$this->assert_same( 'Jane Author',                  $first['author_name'],     'RSS per-item author name is populated from <dc:creator>.' );
+				$this->assert_same( 'https://example.com/icon.png', $first['author_icon_url'], 'RSS author_icon_url falls back to the channel <image><url>.' );
+				$this->assert_same( 'https://example.com/',         $first['author_url'],      'RSS author_url falls back to the channel <link> when the item has no author <link>.' );
+			}
+		);
+
+		// ── RSS fallback: no per-item author, no channel image. ──
+		$bare_url = 'https://93.184.216.34/noauthor';
+		$bare_rss = '<?xml version="1.0" encoding="UTF-8"?>'
+			. '<rss version="2.0"><channel>'
+			. '<title>Bare Feed</title>'
+			. '<link>https://bare.example/</link>'
+			. '<item>'
+			. '<title>Hello</title>'
+			. '<link>https://bare.example/hello</link>'
+			. '<pubDate>Mon, 11 May 2026 12:00:00 +0000</pubDate>'
+			. '<description>...</description>'
+			. '</item>'
+			. '</channel></rss>';
+		$this->with_http_mocks(
+			[ 'GET ' . $bare_url => $this->http_response( $bare_rss, 200, [ 'content-type' => 'application/rss+xml' ] ) ],
+			function () use ( $bare_url ): void {
+				$items = Radical_Socials_RSS_Fetcher::fetch( $bare_url, 5 );
+				$first = $items[0];
+				$this->assert_same( 'Bare Feed',             $first['author_name'], 'RSS without per-item author falls back to the channel title.' );
+				$this->assert_same( 'https://bare.example/', $first['author_url'],  'RSS without per-item author URL falls back to the channel link.' );
+				// author_icon_url may be empty when the feed has no <image>; that's expected.
+			}
+		);
+
+		// ── WP.com path: nested `author` object. ──
+		$method = new ReflectionMethod( Radical_Socials_WPCOM_Reader::class, 'normalize' );
+		$method->setAccessible( true );
+
+		$post = [
+			'title'     => 'Test',
+			'URL'       => 'https://blog.example/post',
+			'content'   => '<p>body</p>',
+			'date'      => '2026-05-21T12:00:00',
+			'site_name' => 'Blog',
+			'site_URL'  => 'https://blog.example/',
+			'site_icon' => [ 'img' => 'https://blog.example/icon.png' ],
+			'author'    => [
+				'name'       => 'WPcom Author',
+				'URL'        => 'https://gravatar.com/wpcom-author',
+				'avatar_URL' => 'https://gravatar.com/avatar/abc',
+			],
+		];
+		$item = $method->invoke( null, $post );
+		$this->assert_same( 'WPcom Author',                       $item['author_name'],     'WP.com author_name comes from author.name.' );
+		$this->assert_same( 'https://gravatar.com/avatar/abc',    $item['author_icon_url'], 'WP.com author_icon_url comes from author.avatar_URL.' );
+		$this->assert_same( 'https://gravatar.com/wpcom-author',  $item['author_url'],      'WP.com author_url comes from author.URL.' );
+
+		// ── WP.com fallback: no author block → use site fields. ──
+		unset( $post['author'] );
+		$item2 = $method->invoke( null, $post );
+		$this->assert_same( 'Blog',                             $item2['author_name'],     'WP.com falls back to site_name when there is no author block.' );
+		$this->assert_same( 'https://blog.example/icon.png',    $item2['author_icon_url'], 'WP.com falls back to site_icon.img when there is no author avatar.' );
+		$this->assert_same( 'https://blog.example/',            $item2['author_url'],      'WP.com falls back to site_URL when there is no author URL.' );
+	}
+
+	/**
 	 * After a normal run, the refresh lock must be cleared so the next cron
 	 * tick (or user-clicked refresh) can proceed. A stuck lock is one of the
 	 * two failure modes seen on staging.
@@ -802,12 +905,23 @@ class Radical_Socials_Integration_Tests {
 			'published'    => '2026-05-10T08:00:00Z',
 		] );
 
-		// Clear the static dereference cache between tests.
+		$author_object = wp_json_encode( [
+			'type' => 'Person',
+			'id'   => $author_url,
+			'name' => 'Bob Original',
+			'icon' => [ 'url' => 'https://origin.test/avatars/bob.png' ],
+		] );
+
+		// Clear caches between tests so the actor fetch path is exercised.
 		$reset = \Closure::bind( static function () { Radical_Socials_ActivityPub_Fetcher::$object_cache = []; }, null, Radical_Socials_ActivityPub_Fetcher::class );
 		$reset();
+		delete_transient( 'rs_ap_author_' . md5( $author_url ) );
 
 		$this->with_http_mocks(
-			[ 'GET ' . $target_url => $this->http_response( $target_object, 200, [ 'content-type' => 'application/activity+json' ] ) ],
+			[
+				'GET ' . $target_url => $this->http_response( $target_object, 200, [ 'content-type' => 'application/activity+json' ] ),
+				'GET ' . $author_url => $this->http_response( $author_object, 200, [ 'content-type' => 'application/activity+json' ] ),
+			],
 			function () use ( $inbox_id, $booster_url, $target_url, $author_url ): void {
 				$item = Radical_Socials_ActivityPub_Fetcher::normalize_activity( (int) $inbox_id );
 
@@ -816,8 +930,11 @@ class Radical_Socials_Integration_Tests {
 				$this->assert_same( md5( $target_url ), $item['guid'], 'guid must hash the boosted note URL so multiple boosters dedupe to one item.' );
 				$this->assert_same( $booster_url, $item['source_url'], 'source_url must be the booster — otherwise prune removes boosted items.' );
 				$this->assert_same( $author_url, $item['author_url'], 'author_url must be the original poster.' );
-				$this->assert_true( str_contains( $item['content'], 'rs-boost-context' ), 'Boost badge HTML must be prepended to content.' );
+				$this->assert_true( str_contains( $item['content'], 'rs-boost-context' ), 'Boost badge HTML must be present in content.' );
 				$this->assert_true( str_contains( $item['content'], 'boosted body' ), 'Boosted note body must be present in content.' );
+				$this->assert_true( str_contains( $item['content'], 'rs-ap-card' ), 'Content is wrapped in the self-contained rs-ap-card layout.' );
+				$this->assert_true( str_contains( $item['content'], 'rs-ap-avatar' ), 'Avatar image is baked into the content header.' );
+				$this->assert_true( str_contains( $item['content'], 'rs-ap-name' ), 'Display name is baked into the content header.' );
 			}
 		);
 	}
@@ -878,6 +995,61 @@ class Radical_Socials_Integration_Tests {
 		}
 
 		$this->assert_same( 1, $target_hits, 'Target object must be dereferenced exactly once across multiple boosters in the same run.' );
+	}
+
+	/**
+	 * The original author of a boosted note is almost never in the
+	 * local ap_actor cache (we follow boosters, not the people they
+	 * boost). Normalisation must fetch the actor JSON once and pull
+	 * the display name + avatar URL out of it. Otherwise boosted-
+	 * post cards render with no avatar.
+	 */
+	private function test_boost_fetches_original_author_profile(): void {
+		$booster   = 'https://b.example/users/booster';
+		$target    = 'https://origin.example/users/auth/statuses/777';
+		$author    = 'https://origin.example/users/auth';
+
+		$target_json = wp_json_encode( [
+			'type'         => 'Note',
+			'id'           => $target,
+			'url'          => $target,
+			'attributedTo' => $author,
+			'content'      => '<p>boosted body</p>',
+			'published'    => '2026-05-21T08:00:00Z',
+		] );
+		$author_json = wp_json_encode( [
+			'type' => 'Person',
+			'id'   => $author,
+			'name' => 'Auth Display Name',
+			'icon' => [ 'url' => 'https://origin.example/avatars/auth.png' ],
+		] );
+
+		// Clear in-request and cross-run caches so the fetch path is forced.
+		$reset = \Closure::bind( static function () { Radical_Socials_ActivityPub_Fetcher::$object_cache = []; }, null, Radical_Socials_ActivityPub_Fetcher::class );
+		$reset();
+		delete_transient( 'rs_ap_author_' . md5( $author ) );
+
+		$this->with_http_mocks(
+			[
+				'GET ' . $target => $this->http_response( $target_json, 200, [ 'content-type' => 'application/activity+json' ] ),
+				'GET ' . $author => $this->http_response( $author_json, 200, [ 'content-type' => 'application/activity+json' ] ),
+			],
+			function () use ( $booster, $target, $author ) {
+				$activity = [ 'type' => 'Announce', 'actor' => $booster, 'object' => $target, 'published' => '2026-05-21T08:01:00Z' ];
+
+				$method = new ReflectionMethod( Radical_Socials_ActivityPub_Fetcher::class, 'normalize_outbox_announce' );
+				$method->setAccessible( true );
+				$item = $method->invoke( null, $activity, $booster );
+
+				$this->assert_true( is_array( $item ), 'normalize_outbox_announce returns an array for a boost.' );
+				$this->assert_same( $author, $item['author_url'], 'author_url is the original poster.' );
+				$this->assert_same( 'Auth Display Name', $item['author_name'], 'author_name is pulled from the fetched actor JSON.' );
+				$this->assert_same( 'https://origin.example/avatars/auth.png', $item['author_icon_url'], 'author_icon_url is pulled from the fetched actor JSON.' );
+			}
+		);
+
+		// Clean up the transient so subsequent test runs start fresh.
+		delete_transient( 'rs_ap_author_' . md5( $author ) );
 	}
 
 	/**
@@ -965,6 +1137,85 @@ class Radical_Socials_Integration_Tests {
 			$favorites && empty( $favorites->block_hooks ),
 			'radical-socials/favorites-link must NOT declare blockHooks (imperative filter is the sole insertion path).'
 		);
+	}
+
+	/**
+	 * Regression test for the "two hearts at once" visual glitch. The
+	 * like-button renders both ♥ and ♡ in the same DOM so the Interactivity
+	 * API can swap the `hidden` attribute on click. Without a server-side
+	 * `hidden` baked into the initial markup, both icons render visible
+	 * during the brief window before the view module hydrates — so the
+	 * card appears to have two hearts. This test asserts the SSR output
+	 * has the correct `hidden` already applied for both initial states.
+	 */
+	private function test_like_button_ssr_initial_state(): void {
+		$item_url = 'https://example.invalid/ssr-test-' . wp_generate_uuid4();
+		$post_id  = wp_insert_post( [
+			'post_type'    => 'rs_feed_item',
+			'post_status'  => 'publish',
+			'post_title'   => 'SSR test',
+			'post_content' => 'body',
+			'meta_input'   => [
+				'_rs_item_url' => $item_url,
+			],
+		] );
+		$this->assert_true( ! is_wp_error( $post_id ) && $post_id > 0, 'Test setup: rs_feed_item insert' );
+		$this->created_posts[] = (int) $post_id;
+
+		// Drive the_post() so the block's render.php picks up get_the_ID().
+		global $post;
+		$prev_post = $post;
+		$post      = get_post( $post_id ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		setup_postdata( $post );
+
+		// The block's render guards on manage_options; the suite already runs
+		// as admin, but assert the precondition so a setup regression doesn't
+		// silently turn this test into a no-op.
+		$this->assert_true(
+			current_user_can( 'manage_options' ),
+			'Test setup: current user must be an administrator (the like-button render returns early otherwise).'
+		);
+
+		$fav_slug = md5( $item_url );
+
+		try {
+			// Not favorited: ♥ (filled) must start hidden, ♡ (empty) visible.
+			$html = do_blocks( '<!-- wp:radical-socials/like-button /-->' );
+			$this->assert_true(
+				(bool) preg_match( '~class="rs-like-icon-filled"[^>]*(?<![\w-])hidden(?=\s|>)~', $html ),
+				'Unfavorited state: filled ♥ must be rendered with `hidden`.'
+			);
+			$this->assert_true(
+				! preg_match( '~class="rs-like-icon-empty"[^>]*(?<![\w-])hidden(?=\s|>)~', $html ),
+				'Unfavorited state: empty ♡ must NOT be rendered with `hidden`.'
+			);
+
+			// Favorite by inserting the rs_favorite CPT row the toggle handler
+			// would create. is_favorited() looks this up by slug=md5(url).
+			$fav_id = wp_insert_post( [
+				'post_type'   => 'rs_favorite',
+				'post_status' => 'publish',
+				'post_name'   => $fav_slug,
+				'post_title'  => 'SSR test',
+				'meta_input'  => [ '_rs_item_url' => $item_url ],
+			] );
+			$this->assert_true( ! is_wp_error( $fav_id ) && $fav_id > 0, 'Test setup: rs_favorite insert' );
+			$this->created_posts[] = (int) $fav_id;
+
+			// Favorited: ♥ visible, ♡ hidden.
+			$html = do_blocks( '<!-- wp:radical-socials/like-button /-->' );
+			$this->assert_true(
+				! preg_match( '~class="rs-like-icon-filled"[^>]*(?<![\w-])hidden(?=\s|>)~', $html ),
+				'Favorited state: filled ♥ must NOT be rendered with `hidden`.'
+			);
+			$this->assert_true(
+				(bool) preg_match( '~class="rs-like-icon-empty"[^>]*(?<![\w-])hidden(?=\s|>)~', $html ),
+				'Favorited state: empty ♡ must be rendered with `hidden`.'
+			);
+		} finally {
+			wp_reset_postdata();
+			$post = $prev_post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		}
 	}
 
 	/**

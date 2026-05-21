@@ -101,8 +101,6 @@ class Radical_Socials_Following {
 		register_block_type( __DIR__ . '/blocks/following-link' );
 		register_block_type( __DIR__ . '/blocks/favorites-link' );
 		register_block_type( __DIR__ . '/blocks/like-button' );
-		register_block_type( __DIR__ . '/blocks/feed-author-name' );
-		register_block_type( __DIR__ . '/blocks/feed-author-avatar' );
 
 		// One insertion path per hooked block, per anchor:
 		//

@@ -47,7 +47,7 @@ $context = wp_json_encode( [
 		data-wp-class--rs-liked="context.favorited"
 		aria-label="<?php esc_attr_e( 'Save to favorites', 'radical-socials' ); ?>"
 	>
-		<span aria-hidden="true" class="rs-like-icon-filled" data-wp-bind--hidden="!context.favorited">♥</span>
-		<span aria-hidden="true" class="rs-like-icon-empty"  data-wp-bind--hidden="context.favorited">♡</span>
+		<span aria-hidden="true" class="rs-like-icon-filled" data-wp-bind--hidden="!context.favorited"<?php echo $favorited ? '' : ' hidden'; ?>>♥</span>
+		<span aria-hidden="true" class="rs-like-icon-empty"  data-wp-bind--hidden="context.favorited"<?php echo $favorited ? ' hidden' : ''; ?>>♡</span>
 	</button>
 </div>

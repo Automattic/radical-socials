@@ -1,6 +1,6 @@
 === Radical Theme ===
 Contributors:      automattic, mikachan, onemaggie
-Tags:              block-themes, blog, photoblogging, three-columns, custom-colors, custom-menu, featured-images, full-site-editing, style-variations, translation-ready
+Tags:              block-themes, blog, style-variations, three-columns, custom-colors, custom-menu, featured-images, full-site-editing, translation-ready
 Requires at least: 6.6
 Tested up to:      6.9
 Requires PHP:      7.4

@@ -78,6 +78,12 @@ class Radical_Socials_RSS_Fetcher {
 			$channel_url = $feed_url;
 		}
 
+		// Channel-level image (the feed's `<image>` / `<itunes:image>` /
+		// Atom `<icon>`). Used as the default avatar for every item from
+		// this feed — RSS rarely carries per-item author avatars, so the
+		// feed's own icon is the closest thing to a "who posted this".
+		$channel_icon = esc_url_raw( (string) ( $feed->get_image_url() ?: '' ) );
+
 		$normalized = [];
 		foreach ( $items as $item ) {
 			$url = esc_url_raw( (string) $item->get_permalink() );
@@ -96,17 +102,37 @@ class Radical_Socials_RSS_Fetcher {
 				$thumbnail = self::extract_first_image( $raw_content );
 			}
 
+			// Author: prefer the item's own author (<author> / <dc:creator>
+			// / <atom:author><name>); fall back to the channel title so a
+			// per-author byline is rare but a feed name is always there.
+			$author_obj  = $item->get_author();
+			$author_name = $author_obj
+				? wp_strip_all_tags( (string) ( $author_obj->get_name() ?: $author_obj->get_email() ) )
+				: '';
+			if ( '' === $author_name ) {
+				$author_name = $channel_title;
+			}
+			$author_url = $author_obj
+				? esc_url_raw( (string) ( $author_obj->get_link() ?: '' ) )
+				: '';
+			if ( '' === $author_url ) {
+				$author_url = $channel_url;
+			}
+
 			$normalized[] = [
-				'title'         => wp_strip_all_tags( (string) $item->get_title() ),
-				'url'           => $url,
-				'content'       => $raw_content,
-				'excerpt'       => wp_trim_words( wp_strip_all_tags( (string) $item->get_description() ), 30 ),
-				'date'          => $item->get_date( 'c' ) ?: current_time( 'c' ),
-				'source_name'   => $channel_title ?: parse_url( $feed_url, PHP_URL_HOST ),
-				'source_url'    => $channel_url,
-				'thumbnail_url' => $thumbnail,
-				'guid'          => md5( $url ),
-				'feed_type'     => 'rss',
+				'title'           => wp_strip_all_tags( (string) $item->get_title() ),
+				'url'             => $url,
+				'content'         => $raw_content,
+				'excerpt'         => wp_trim_words( wp_strip_all_tags( (string) $item->get_description() ), 30 ),
+				'date'            => $item->get_date( 'c' ) ?: current_time( 'c' ),
+				'source_name'     => $channel_title ?: parse_url( $feed_url, PHP_URL_HOST ),
+				'source_url'      => $channel_url,
+				'thumbnail_url'   => $thumbnail,
+				'guid'            => md5( $url ),
+				'feed_type'       => 'rss',
+				'author_name'     => $author_name,
+				'author_icon_url' => $channel_icon,
+				'author_url'      => $author_url,
 			];
 		}
 

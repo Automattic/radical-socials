@@ -111,27 +111,39 @@ class Radical_Socials_ActivityPub_Fetcher {
 		$image     = is_array( $object ) ? ( $object['image'] ?? '' ) : '';
 		$thumbnail = is_array( $image ) ? esc_url_raw( $image['url'] ?? '' ) : esc_url_raw( (string) $image );
 
+		$reply_context    = '';
+		$attachments_html = '';
 		if ( is_array( $object ) ) {
-			$reply_context = self::render_reply_context( $object );
-			if ( $reply_context ) {
-				$content = $reply_context . $content;
-			}
+			$reply_context    = self::render_reply_context( $object );
 			$attachments_html = self::render_attachments( $object['attachment'] ?? [] );
-			if ( $attachments_html ) {
-				$content .= $attachments_html;
-			}
 		}
 
 		[ $author_name, $author_icon_url ] = self::lookup_author_by_actor_url( $actor_url );
+
+		$published_iso = is_array( $object ) ? (string) ( $object['published'] ?? '' ) : '';
+		$item_date     = $published_iso ?: get_the_date( 'c', $post_id );
+
+		// Wrap the body + reply context + attachments inside a self-
+		// contained card. Reply context lives at the top of the body
+		// column (above the post text); attachments go at the bottom.
+		$body_html = $reply_context . $content . $attachments_html;
+		$wrapped   = self::render_card_wrapper(
+			$author_name,
+			$author_icon_url,
+			esc_url_raw( $actor_url ),
+			$body_html,
+			'',
+			$item_date
+		);
 
 		return [
 			// AP notes don't have a meaningful title — only use object.name if
 			// the remote actually set one (e.g. a syndicated blog post).
 			'title'           => wp_strip_all_tags( (string) $name ),
 			'url'             => $object_url,
-			'content'         => wp_kses_post( $content ),
+			'content'         => wp_kses_post( $wrapped ),
 			'excerpt'         => wp_trim_words( wp_strip_all_tags( $content ), 30 ),
-			'date'            => get_the_date( 'c', $post_id ),
+			'date'            => $item_date,
 			'source_name'     => self::actor_handle_from_url( $actor_url ),
 			'source_url'      => esc_url_raw( $actor_url ),
 			'thumbnail_url'   => $thumbnail,
@@ -191,35 +203,39 @@ class Radical_Socials_ActivityPub_Fetcher {
 			: '';
 		$booster_display = self::actor_handle_from_url( $booster_url );
 
-		$content = (string) ( $target['content'] ?? $target['summary'] ?? '' );
-
-		$boost_badge = self::render_boost_context( $booster_url, $booster_display );
-		if ( $boost_badge ) {
-			$content = $boost_badge . $content;
-		}
-
-		$reply_context = self::render_reply_context( $target );
-		if ( $reply_context ) {
-			$content .= $reply_context;
-		}
-
+		$body_html        = (string) ( $target['content'] ?? $target['summary'] ?? '' );
+		$boost_html       = self::render_boost_context( $booster_url, $booster_display );
+		$reply_context    = self::render_reply_context( $target );
 		$attachments_html = self::render_attachments( $target['attachment'] ?? [] );
-		if ( $attachments_html ) {
-			$content .= $attachments_html;
-		}
 
-		[ $author_name, $author_icon_url ] = $author_url
-			? self::lookup_author_by_actor_url( $author_url )
-			: [ '', '' ];
+		// `resolve_author_profile` falls back to fetching the actor JSON
+		// over HTTP when the original author isn't in our local ap_actor
+		// cache (which is the common case for boosts, since the booster
+		// is what we follow, not the original author).
+		[ $author_name, $author_icon_url ] = self::resolve_author_profile( $author_url );
 
 		$published = (string) ( $target['published'] ?? '' );
+		$item_date = $published ?: $fallback_date;
+
+		// Body column: reply context (above the post text) + original
+		// content + attachments. Boost line goes at the top of the card,
+		// spanning both columns.
+		$body_inner = $reply_context . $body_html . $attachments_html;
+		$wrapped    = self::render_card_wrapper(
+			$author_name ?: self::actor_handle_from_url( $author_url ),
+			$author_icon_url,
+			$author_url,
+			$body_inner,
+			$boost_html,
+			$item_date
+		);
 
 		return [
 			'title'           => wp_strip_all_tags( (string) ( $target['name'] ?? '' ) ),
 			'url'             => $object_url,
-			'content'         => wp_kses_post( $content ),
-			'excerpt'         => wp_trim_words( wp_strip_all_tags( $content ), 30 ),
-			'date'            => $published ?: $fallback_date,
+			'content'         => wp_kses_post( $wrapped ),
+			'excerpt'         => wp_trim_words( wp_strip_all_tags( $body_html ), 30 ),
+			'date'            => $item_date,
 			// source = booster so prune keeps the item alive while we follow them.
 			'source_name'     => $booster_display,
 			'source_url'      => esc_url_raw( $booster_url ),
@@ -467,27 +483,32 @@ class Radical_Socials_ActivityPub_Fetcher {
 		$thumbnail = is_array( $image ) ? esc_url_raw( $image['url'] ?? '' ) : esc_url_raw( (string) $image );
 
 		$published = $object['published'] ?? $activity['published'] ?? '';
+		$item_date = $published ?: current_time( 'c' );
 
-		// Prepend a "↩ In reply to @handle" line for replies.
-		$reply_context = self::render_reply_context( $object );
-		if ( $reply_context ) {
-			$content = $reply_context . $content;
-		}
-
-		// Append attachments to content as block-style HTML (images, video, audio).
+		$reply_context    = self::render_reply_context( $object );
 		$attachments_html = self::render_attachments( $object['attachment'] ?? [] );
-		if ( $attachments_html ) {
-			$content .= $attachments_html;
-		}
+
+		// Wrap body + reply context + attachments inside the self-
+		// contained card. Same shape as every other AP path so the
+		// markup stays uniform across inbox/outbox + Create/Announce.
+		$body_inner = $reply_context . $content . $attachments_html;
+		$wrapped    = self::render_card_wrapper(
+			(string) ( $author['name'] ?? '' ) ?: $actor_name,
+			(string) ( $author['icon_url'] ?? '' ),
+			esc_url_raw( $actor_url ),
+			$body_inner,
+			'',
+			$item_date
+		);
 
 		return [
 			// AP notes don't have a meaningful title — only use object.name if
 			// the remote actually set one (e.g. a syndicated blog post).
 			'title'           => wp_strip_all_tags( (string) $name ),
 			'url'             => $object_url,
-			'content'         => wp_kses_post( $content ),
+			'content'         => wp_kses_post( $wrapped ),
 			'excerpt'         => wp_trim_words( wp_strip_all_tags( $content ), 30 ),
-			'date'            => $published ?: current_time( 'c' ),
+			'date'            => $item_date,
 			'source_name'     => $actor_name,
 			'source_url'      => esc_url_raw( $actor_url ),
 			'thumbnail_url'   => $thumbnail,
@@ -533,38 +554,43 @@ class Radical_Socials_ActivityPub_Fetcher {
 			: '';
 		$booster_display = self::actor_handle_from_url( $actor_url );
 
-		$content = (string) ( $target['content'] ?? $target['summary'] ?? '' );
-
-		$boost_badge = self::render_boost_context( $actor_url, $booster_display );
-		if ( $boost_badge ) {
-			$content = $boost_badge . $content;
-		}
-
-		$reply_context = self::render_reply_context( $target );
-		if ( $reply_context ) {
-			$content .= $reply_context;
-		}
-
+		$body_html        = (string) ( $target['content'] ?? $target['summary'] ?? '' );
+		$boost_html       = self::render_boost_context( $actor_url, $booster_display );
+		$reply_context    = self::render_reply_context( $target );
 		$attachments_html = self::render_attachments( $target['attachment'] ?? [] );
-		if ( $attachments_html ) {
-			$content .= $attachments_html;
-		}
 
 		$published = (string) ( $target['published'] ?? $activity['published'] ?? '' );
+		$item_date = $published ?: current_time( 'c' );
+
+		// Same fetch-fallback as the inbox path — we typically don't
+		// follow the original author of a boosted note, so the local
+		// ap_actor cache will miss and we need the actor JSON to get a
+		// display name + avatar URL.
+		[ $author_name, $author_icon_url ] = self::resolve_author_profile( $author_url );
+
+		$body_inner = $reply_context . $body_html . $attachments_html;
+		$wrapped    = self::render_card_wrapper(
+			$author_name ?: self::actor_handle_from_url( $author_url ),
+			$author_icon_url,
+			$author_url,
+			$body_inner,
+			$boost_html,
+			$item_date
+		);
 
 		return [
 			'title'           => wp_strip_all_tags( (string) ( $target['name'] ?? '' ) ),
 			'url'             => $object_url,
-			'content'         => wp_kses_post( $content ),
-			'excerpt'         => wp_trim_words( wp_strip_all_tags( $content ), 30 ),
-			'date'            => $published ?: current_time( 'c' ),
+			'content'         => wp_kses_post( $wrapped ),
+			'excerpt'         => wp_trim_words( wp_strip_all_tags( $body_html ), 30 ),
+			'date'            => $item_date,
 			'source_name'     => $booster_display,
 			'source_url'      => esc_url_raw( $actor_url ),
 			'thumbnail_url'   => '',
 			'guid'            => md5( $object_url ),
 			'feed_type'       => 'activitypub',
-			'author_name'     => self::actor_handle_from_url( $author_url ),
-			'author_icon_url' => '',
+			'author_name'     => $author_name ?: self::actor_handle_from_url( $author_url ),
+			'author_icon_url' => $author_icon_url,
 			'author_url'      => $author_url,
 		];
 	}
@@ -584,13 +610,177 @@ class Radical_Socials_ActivityPub_Fetcher {
 	}
 
 	/**
-	 * Build a "user@host" handle from an actor URL. Mirrors the legacy
-	 * inline logic that was duplicated in both inbox and outbox normalizers.
+	 * Wrap an item's body HTML in a self-contained social-card layout.
+	 *
+	 * Everything that describes the item — avatar, display name, the
+	 * post body, the optional "Boosted by …" line, reply context and
+	 * media attachments — gets baked into one `<div class="rs-ap-card">`
+	 * structure inside the item's content. This lets the entire visual
+	 * card live inside `post_content`, so a theme template that reorders
+	 * or removes outer blocks (post title, post date, our author blocks)
+	 * doesn't affect the card. The companion CSS (in the plugin's
+	 * following.css) hides those outer blocks for AP items as siblings.
+	 *
+	 * Structure:
+	 *   <div class="rs-ap-card">
+	 *     <p class="rs-boost-context">…</p>     (only for boosts)
+	 *     <img class="rs-ap-avatar" …/>
+	 *     <div class="rs-ap-name"><a>…</a></div>
+	 *     <div class="rs-ap-body">
+	 *       <p class="rs-reply-context">…</p>   (when it's a reply)
+	 *       [post body paragraphs]
+	 *       [attachments]
+	 *     </div>
+	 *   </div>
+	 *
+	 * CSS lays out boost (full-width row 1), avatar (col 1 rows 2-3),
+	 * name (col 2 row 2), body (col 2 row 3) via grid-template-areas.
+	 */
+	public static function render_card_wrapper(
+		string $author_name,
+		string $author_icon_url,
+		string $author_url,
+		string $body_html,
+		string $boost_html = '',
+		string $published_iso = ''
+	): string {
+		$avatar_html = '';
+		if ( '' !== $author_icon_url ) {
+			// The avatar is wrapped in a <div> rather than emitted as a
+			// bare <img>, because `wpautop` (which runs on `the_content`)
+			// wraps loose <img> tags in <p>. That extra <p> becomes a
+			// direct grid child of `.rs-ap-card`, has no grid-area, and
+			// auto-places itself into the first free cell — pushing the
+			// real layout around and leaving the avatar cell empty. A
+			// <div> is a block element, so wpautop leaves it alone.
+			$avatar_html = sprintf(
+				'<div class="rs-ap-avatar"><img src="%s" alt="" loading="lazy" decoding="async" /></div>',
+				esc_url( $author_icon_url )
+			);
+		}
+
+		$handle = self::actor_handle_from_url( $author_url );
+
+		// Build the name row: bold display name, muted "@user@host" handle,
+		// muted relative time. If we have no display name, the handle takes
+		// its place and the standalone handle span is suppressed so we don't
+		// print the same string twice.
+		$display_text = $author_name !== '' ? $author_name : $handle;
+		$parts        = [];
+
+		if ( '' !== $display_text ) {
+			$inner = '' !== $author_url
+				? sprintf(
+					'<a href="%s" target="_blank" rel="noopener noreferrer nofollow">%s</a>',
+					esc_url( $author_url ),
+					esc_html( $display_text )
+				)
+				: esc_html( $display_text );
+			$parts[] = sprintf( '<span class="rs-ap-displayname">%s</span>', $inner );
+		}
+
+		if ( '' !== $author_name && '' !== $handle ) {
+			$parts[] = sprintf( '<span class="rs-ap-handle">@%s</span>', esc_html( $handle ) );
+		}
+
+		$time_html = self::render_relative_time( $published_iso );
+		if ( '' !== $time_html ) {
+			$parts[] = $time_html;
+		}
+
+		$name_html = $parts
+			? sprintf( '<div class="rs-ap-name">%s</div>', implode( '', $parts ) )
+			: '';
+
+		return sprintf(
+			'<div class="rs-ap-card">%s%s%s<div class="rs-ap-body">%s</div></div>',
+			$boost_html,
+			$avatar_html,
+			$name_html,
+			self::clean_body_html( $body_html )
+		);
+	}
+
+	/**
+	 * Format a published ISO-8601 timestamp as "5 mins ago" (uses WP's
+	 * i18n-aware human_time_diff). Returns an empty string for missing or
+	 * unparseable input — the card layout still works without a time.
+	 */
+	private static function render_relative_time( string $iso ): string {
+		if ( '' === $iso ) {
+			return '';
+		}
+		$ts = strtotime( $iso );
+		if ( ! $ts ) {
+			return '';
+		}
+		$label = sprintf(
+			/* translators: %s: human-readable time difference (e.g. "5 mins") */
+			__( '%s ago', 'radical-socials' ),
+			human_time_diff( $ts, time() )
+		);
+		return sprintf(
+			'<time class="rs-ap-time" datetime="%s">%s</time>',
+			esc_attr( gmdate( 'c', $ts ) ),
+			esc_html( $label )
+		);
+	}
+
+	/**
+	 * Tidy the AP body HTML before it lands in the card. Remote AP servers
+	 * frequently emit `<p></p>` placeholders and `<p><figure>…</figure></p>`
+	 * patterns; the former leaves visible vertical gaps, the latter is
+	 * invalid (block-level inside <p>) and renders unevenly across browsers
+	 * because the parser auto-closes the <p> before the <figure>.
+	 *
+	 * Two passes:
+	 *   1. Unwrap any `<p[…]><figure[…]>…</figure></p>` → `<figure[…]>…</figure>`
+	 *   2. Drop any `<p[…]>\s*</p>` left behind (or already present).
+	 *
+	 * Operates on the composed body — reply context, post HTML, attachments —
+	 * so attachment figures are always emitted as top-level block children
+	 * of `.rs-ap-body`.
+	 */
+	private static function clean_body_html( string $html ): string {
+		if ( '' === $html ) {
+			return $html;
+		}
+		$html = preg_replace(
+			'~<p\b[^>]*>\s*(<figure\b[^>]*>.*?</figure>)\s*</p>~is',
+			'$1',
+			$html
+		);
+		$html = preg_replace(
+			'~<p\b[^>]*>(?:\s|&nbsp;|<br\s*/?>)*</p>~i',
+			'',
+			$html
+		);
+		return $html;
+	}
+
+	/**
+	 * Build a "user@host" handle from an actor URL. Strips the two common
+	 * Mastodon path shapes so we end up with a clean handle on either:
+	 *   - https://mastodon.social/@alice  → alice@mastodon.social
+	 *   - https://mastodon.social/users/alice → alice@mastodon.social
+	 *
+	 * Mirrors the legacy inline logic that was duplicated in both inbox
+	 * and outbox normalizers.
 	 */
 	private static function actor_handle_from_url( string $actor_url ): string {
 		$host = parse_url( $actor_url, PHP_URL_HOST ) ?? '';
 		$path = ltrim( parse_url( $actor_url, PHP_URL_PATH ) ?? '', '/' );
-		return $path ? $path . '@' . $host : $host;
+		if ( '' === $path ) {
+			return $host;
+		}
+		// Mastodon: /@user form.
+		$path = ltrim( $path, '@' );
+		// Mastodon: /users/user form.
+		$path = preg_replace( '~^users/~', '', $path );
+		// Take only the first path segment — anything past the actor segment
+		// (statuses/123, replies, …) doesn't belong in a handle.
+		$path = strtok( $path, '/' );
+		return ( $path && $host ) ? $path . '@' . $host : ( $path ?: $host );
 	}
 
 	/**
@@ -641,6 +831,65 @@ class Radical_Socials_ActivityPub_Fetcher {
 			(string) get_post_meta( $actor_id, '_rs_actor_display_name', true ),
 			(string) get_post_meta( $actor_id, '_rs_actor_icon_url', true ),
 		];
+	}
+
+	/**
+	 * Resolve an actor's display name + avatar URL, falling back to a
+	 * one-shot HTTP fetch of the actor JSON when the local ap_actor
+	 * cache has no record (a boost's original author is almost never
+	 * one of our followed actors, so the local cache misses by default).
+	 *
+	 * Uses `dereference_object()` which is request-scope-cached, so the
+	 * same actor across N boosts in one fetcher run only costs one HTTP.
+	 * Result is also cached locally as a transient (6 h) so subsequent
+	 * runs don't re-fetch — boosts of the same author by different
+	 * boosters across hours don't pile up extra requests.
+	 *
+	 * @param string $actor_url Actor URL (typically `attributedTo` of a boost target).
+	 * @return array{0:string,1:string} [ display_name, icon_url ]
+	 */
+	private static function resolve_author_profile( string $actor_url ): array {
+		if ( '' === $actor_url ) {
+			return [ '', '' ];
+		}
+
+		// 1. Local ap_actor cache (free).
+		[ $name, $icon ] = self::lookup_author_by_actor_url( $actor_url );
+		if ( $name && $icon ) {
+			return [ $name, $icon ];
+		}
+
+		// 2. Cross-run transient — boosts dereference the same authors
+		// repeatedly, so a few hours of caching saves real bandwidth.
+		$transient_key = 'rs_ap_author_' . md5( $actor_url );
+		$cached        = get_transient( $transient_key );
+		if ( is_array( $cached ) && isset( $cached[0], $cached[1] ) ) {
+			return [ (string) $cached[0], (string) $cached[1] ];
+		}
+
+		// 3. Last resort: fetch the actor JSON once and remember the result.
+		$actor_json = self::dereference_object( $actor_url );
+		if ( ! is_array( $actor_json ) ) {
+			set_transient( $transient_key, [ '', '' ], 30 * MINUTE_IN_SECONDS );
+			return [ '', '' ];
+		}
+
+		$fetched_name = isset( $actor_json['name'] )
+			? wp_strip_all_tags( (string) $actor_json['name'] )
+			: '';
+		$fetched_icon = '';
+		if ( isset( $actor_json['icon']['url'] ) ) {
+			$fetched_icon = esc_url_raw( (string) $actor_json['icon']['url'] );
+		} elseif ( isset( $actor_json['icon'] ) && is_string( $actor_json['icon'] ) ) {
+			$fetched_icon = esc_url_raw( $actor_json['icon'] );
+		}
+
+		// Prefer cached name/icon over locally-known empty values.
+		$name = $name ?: $fetched_name;
+		$icon = $icon ?: $fetched_icon;
+
+		set_transient( $transient_key, [ $name, $icon ], 6 * HOUR_IN_SECONDS );
+		return [ $name, $icon ];
 	}
 
 	/**
