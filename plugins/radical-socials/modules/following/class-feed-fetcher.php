@@ -380,10 +380,22 @@ class Radical_Socials_Feed_Fetcher {
 	private static function prune_orphaned_rss(): void {
 		$subs = (array) get_option( 'rs_rss_subscriptions', [] );
 
+		// Safety: refuse to mass-delete stored items just because the
+		// subscriptions option is empty. The branch was originally
+		// reasoning "no subs → every item is an orphan", but it can't
+		// tell that legitimate state apart from a transient bug (the
+		// integration-test harness wiped this option twice and the
+		// next cron tick deleted every cached RSS item before anyone
+		// noticed). Bail and log; if the user genuinely cleared their
+		// feed list and wants the items gone, that's a deliberate UI
+		// action, not something cron should do for them.
 		if ( empty( $subs ) ) {
-			// No subscriptions at all — every RSS item is an orphan.
-			foreach ( self::get_item_ids_by_type( 'rss' ) as $id ) {
-				wp_delete_post( (int) $id, true );
+			$existing = count( self::get_item_ids_by_type( 'rss' ) );
+			if ( $existing > 0 ) {
+				error_log( sprintf(
+					'[Radical Socials] prune_orphaned_rss: refusing to delete %d RSS feed item(s) because rs_rss_subscriptions is empty. If this is intentional, clear them manually.',
+					$existing
+				) );
 			}
 			return;
 		}
@@ -436,9 +448,18 @@ class Radical_Socials_Feed_Fetcher {
 		// WP_Post objects — guid holds the actor URL.
 		$known = array_column( (array) $follows, 'guid' );
 
+		// Same safety as the RSS branch: never auto-delete the cached
+		// items just because the follow list is empty. That state can
+		// be transient (e.g. AP plugin reloading, or the actor mode
+		// being toggled mid-request) and a cron tick should not be
+		// allowed to wipe content based on it.
 		if ( empty( $known ) ) {
-			foreach ( self::get_item_ids_by_type( 'activitypub' ) as $id ) {
-				wp_delete_post( (int) $id, true );
+			$existing = count( self::get_item_ids_by_type( 'activitypub' ) );
+			if ( $existing > 0 ) {
+				error_log( sprintf(
+					'[Radical Socials] prune_orphaned_activitypub: refusing to delete %d ActivityPub feed item(s) because the follow list is empty. If this is intentional, clear them manually.',
+					$existing
+				) );
 			}
 			return;
 		}

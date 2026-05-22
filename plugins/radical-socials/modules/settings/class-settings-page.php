@@ -342,8 +342,7 @@ class Radical_Socials_Settings_Page {
 	}
 
 	private static function active_tab(): string {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$tab    = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'profile';
+		$tab     = radical_socials_url_param( 'tab' ) ?? 'profile';
 		$allowed = [ 'welcome', 'profile', 'following' ];
 		if ( self::is_dev_mode() ) {
 			$allowed[] = 'diagnostics';

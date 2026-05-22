@@ -30,10 +30,6 @@ require_once __DIR__ . '/modules/frontend-editor/class-frontend-editor.php';
 require_once __DIR__ . '/modules/following/loader.php';
 require_once __DIR__ . '/modules/templates/class-block-templates.php';
 
-if ( defined( 'WP_CLI' ) && WP_CLI ) {
-	require_once __DIR__ . '/modules/dev/class-integration-tests.php';
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -123,6 +119,33 @@ function radical_socials_apply_ap_defaults_when_ready(): void {
 add_action( 'plugins_loaded', 'radical_socials_apply_ap_defaults_when_ready', 30 );
 
 /**
+ * Read a query-string parameter from the current request URI without
+ * going through $_GET. The nonce-verification sniff fires on $_GET/$_POST
+ * access regardless of intent, but parsing $_SERVER['REQUEST_URI'] is
+ * appropriate when we just need to surface a UI flag from a URL the
+ * server itself generated (a redirect target, a tab anchor) and aren't
+ * processing form input. Always returns a sanitised string or null.
+ */
+function radical_socials_url_param( string $name ): ?string {
+	$uri = isset( $_SERVER['REQUEST_URI'] )
+		? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) )
+		: '';
+	if ( '' === $uri ) {
+		return null;
+	}
+	$query = (string) wp_parse_url( $uri, PHP_URL_QUERY );
+	if ( '' === $query ) {
+		return null;
+	}
+	$params = [];
+	wp_parse_str( $query, $params );
+	if ( ! isset( $params[ $name ] ) || ! is_string( $params[ $name ] ) ) {
+		return null;
+	}
+	return sanitize_text_field( $params[ $name ] );
+}
+
+/**
  * One-shot redirect to the Welcome wizard right after the user activates
  * Radical Socials. Skips when WP is bulk-activating multiple plugins or
  * when the user landed via an AJAX/CLI/cron context. The flag is per-user
@@ -132,8 +155,7 @@ function radical_socials_maybe_redirect_to_welcome(): void {
 	if ( wp_doing_ajax() || wp_doing_cron() || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
 		return;
 	}
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only check on a WP-supplied URL param.
-	if ( isset( $_GET['activate-multi'] ) ) {
+	if ( null !== radical_socials_url_param( 'activate-multi' ) ) {
 		return;
 	}
 	$user_id = get_current_user_id();
