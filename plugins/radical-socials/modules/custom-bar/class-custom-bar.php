@@ -100,13 +100,6 @@ class Radical_Socials_Custom_Bar {
 			];
 		}
 
-		$links[] = [
-			'id'    => 'explore',
-			'label' => __( 'Explore', 'radical-socials' ),
-			'url'   => '#',
-			'icon'  => 'dashicons-search',
-		];
-
 		if ( current_user_can( 'moderate_comments' ) ) {
 			$links[] = [
 				'id'    => 'comments',

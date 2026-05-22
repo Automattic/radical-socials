@@ -17,7 +17,7 @@ Radical Socials turns a fresh WordPress site into a place that feels like the so
 * Follow people across the Fediverse (Mastodon, Pixelfed, PeerTube, …) via the optional **ActivityPub** plugin, via RSS / Atom feeds (with WebSub push when the publisher supports it), and via WordPress.com Reader subscriptions.
 * A unified Following timeline that merges every source into one stream — with ActivityPub posts rendered as social-style cards (avatar, display name, handle, relative time, "Reposted by …") so they don't look like blog entries dropped into a feed.
 * A Favorites list so you can bookmark items permanently — they survive after the live feed rolls them off.
-* A lightweight Custom Bar that replaces the WordPress admin bar on the front end with Home / Explore / Create / Profile shortcuts — the site feels like an app, not a CMS.
+* A lightweight Custom Bar that replaces the WordPress admin bar on the front end with Home / Create / Profile shortcuts — the site feels like an app, not a CMS.
 * Frontend post composer (a small inline editor) that publishes via the REST API.
 * OPML import / export for moving in and out of other feed readers, plus a one-shot "import follows from a Mastodon account" tool.
 * Block-theme-friendly: ships a Social Menu block, Following / Favorites link blocks for any Navigation block, and plugin-default block templates so the Following and Favorites archives have a working layout on any active theme.
@@ -123,7 +123,7 @@ Radical Socials does not collect, store, or transmit usage analytics, telemetry,
 
 1. Unified Following timeline — ActivityPub, RSS, and WordPress.com Reader items merged into a single feed with social-style cards.
 2. Frontend post composer — an inline editor that publishes through the REST API without leaving the front end.
-3. Custom Bar — a lightweight Home / Explore / Create / Profile bar that replaces the WordPress admin bar for logged-in visitors.
+3. Custom Bar — a lightweight Home / Create / Profile bar that replaces the WordPress admin bar for logged-in visitors.
 4. Settings → Following — manage Fediverse follows, RSS subscriptions, WordPress.com Reader subscriptions, and OPML import / export from one screen.
 5. Onboarding wizard — guided first-run flow with one-click ActivityPub install and add-your-first-feed prompts.
 6. Favorites archive — a permanent bookmark list for items that have rolled off the live feed.
