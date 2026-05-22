@@ -9,7 +9,7 @@
  * Mobile (<= --rs-bp-mob): fixed strip at the bottom, icons only.
  *   Content is pushed up by --rs-h via the same inline <style>.
  *
- * Breakpoint values (783px / 782px) are hardcoded in the @media rules
+ * Breakpoint values (1201px / 1200px) are hardcoded in the @media rules
  * and kept in sync with Radical_Socials_Custom_Bar::BREAKPOINT in PHP.
  */
 
@@ -104,7 +104,7 @@
 }
 
 /* ── Desktop ───────────────────────────────────────────────────── */
-@media (min-width: 783px) {
+@media (min-width: 1201px) {
 
 	#rs-bar {
 		top:          0;
@@ -152,7 +152,7 @@
 }
 
 /* ── Mobile ────────────────────────────────────────────────────── */
-@media (max-width: 782px) {
+@media (max-width: 1200px) {
 
 	#rs-bar {
 		bottom:     0;

@@ -25,7 +25,7 @@ class Radical_Socials_Custom_Bar {
 	const H = 48;
 
 	/** Desktop breakpoint (px). Kept in sync with --rs-bp-* in the CSS. */
-	const BREAKPOINT = 782;
+	const BREAKPOINT = 1200;
 
 	public static function init(): void {
 		// Block registration must run in admin too so the editor can list the block.
