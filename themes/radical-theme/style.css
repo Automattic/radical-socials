@@ -33,6 +33,10 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+.rs-cover {
+	overflow: visible;
+}
+
 /*
  * All rules below target plugin-provided classes (frontend post composer,
  * feed-item taxonomy badges, etc.). They're scoped under `.rs-plugin`, a

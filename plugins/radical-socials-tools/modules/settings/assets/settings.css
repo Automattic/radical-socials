@@ -1,9 +1,3 @@
-/*
- * Settings page chrome — centered title, horizontal tab bar with a
- * 3px-shadow active indicator, 800px content column. Mirrors the
- * ActivityPub plugin's settings layout so the two admin surfaces feel
- * like neighbours, not strangers.
- */
 .toplevel_page_radical-socials-settings #wpcontent {
 	padding-left: 0;
 }
@@ -67,20 +61,20 @@
 }
 
 .rs-settings {
-	max-width: 800px;
+	max-width: 980px;
 	margin: 0 auto;
 	padding: 0 22px 32px;
 	position: relative;
 }
 
 .toplevel_page_radical-socials-settings .wrap > .notice {
-	max-width: 800px;
+	max-width: 980px;
 	margin: 0 auto 16px;
 }
 
 /* The Following tab needs to be wider — overrides the 800px column. */
 .rs-settings.rs-settings--wide {
-	max-width: 1180px;
+	max-width: 1400px;
 }
 
 .wp-header-end {
