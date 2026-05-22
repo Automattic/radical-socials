@@ -37,7 +37,7 @@ const FLATTEN_TEMPLATES = [ 'archive-rs_feed_item', 'archive-rs_favorite' ];
 
 $root       = realpath( __DIR__ . '/..' );
 $theme_dir  = $root . '/themes/radical-theme';
-$output_dir = $root . '/plugins/radical-socials/templates';
+$output_dir = $root . '/plugins/radical-socials-tools/templates';
 
 // Shim the WP i18n / escape helpers the theme's pattern PHP files call.
 // We're not the actual rendering path, so the goal is just to not crash

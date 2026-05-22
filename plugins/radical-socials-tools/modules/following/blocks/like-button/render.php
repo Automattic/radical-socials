@@ -1,0 +1,55 @@
+<?php
+/**
+ * Like Button block — server-side render.
+ *
+ * Only renders for the site owner viewing an rs_feed_item post.
+ * The block is hooked into core/post-template so it appears on every feed
+ * card; the early-return guards keep it invisible everywhere else.
+ *
+ * @package RadicalSocials
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+if ( ! is_user_logged_in() || ! current_user_can( 'manage_options' ) ) {
+	return;
+}
+
+$post_id = get_the_ID();
+if ( ! $post_id ) {
+	return;
+}
+
+$post = get_post( $post_id );
+if ( ! $post || 'rs_feed_item' !== $post->post_type ) {
+	return;
+}
+
+$favorited = Radical_Socials_Favorites::is_favorited( $post_id );
+
+wp_interactivity_state( 'radical-socials/like-button', [
+	'toggleUrl' => rest_url( 'radical-socials/v1/favorites/toggle' ),
+	'nonce'     => wp_create_nonce( 'wp_rest' ),
+] );
+
+$context = wp_json_encode( [
+	'postId'    => $post_id,
+	'favorited' => $favorited,
+] );
+?>
+<div
+	class="rs-like-button-wrap wp-block-radical-socials-like-button"
+	data-wp-interactive="radical-socials/like-button"
+	data-wp-context="<?php echo esc_attr( $context ); ?>"
+>
+	<button
+		type="button"
+		class="rs-like-btn"
+		data-wp-on--click="actions.toggle"
+		data-wp-class--rs-liked="context.favorited"
+		aria-label="<?php esc_attr_e( 'Save to favorites', 'radical-socials-tools' ); ?>"
+	>
+		<span aria-hidden="true" class="rs-like-icon-filled" data-wp-bind--hidden="!context.favorited"<?php echo $favorited ? '' : ' hidden'; ?>>♥</span>
+		<span aria-hidden="true" class="rs-like-icon-empty"  data-wp-bind--hidden="context.favorited"<?php echo $favorited ? ' hidden' : ''; ?>>♡</span>
+	</button>
+</div>

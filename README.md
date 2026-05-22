@@ -4,7 +4,7 @@ A WordPress plugin that turns a fresh WordPress site into a personal social-feed
 
 This monorepo contains both the plugin and its companion block theme (`radical-theme`). The plugin is the product; the theme is an optional design layer.
 
-User-facing docs live in [`plugins/radical-socials/readme.txt`](./plugins/radical-socials/readme.txt) and [`themes/radical-theme/readme.txt`](./themes/radical-theme/readme.txt).
+User-facing docs live in [`plugins/radical-socials-tools/readme.txt`](./plugins/radical-socials-tools/readme.txt) and [`themes/radical-theme/readme.txt`](./themes/radical-theme/readme.txt).
 
 ## Getting started (local development)
 
@@ -33,7 +33,7 @@ npm run build              # production webpack build for the plugin's src/
 npm run start              # webpack dev watch
 npm run build:templates    # flatten radical-theme templates into plugin-default
                            # block templates (output gitignored under
-                           # plugins/radical-socials/templates/)
+                           # plugins/radical-socials-tools/templates/)
 npm run plugin-zip         # full release zip: build + flatten + stage + zip
 npm run theme-zip          # theme release zip
 ```
@@ -43,7 +43,7 @@ npm run theme-zip          # theme release zip
 ## Repo layout
 
 ```
-plugins/radical-socials/   The plugin (the product).
+plugins/radical-socials-tools/   The plugin (the product).
   modules/                 Self-contained feature modules.
     custom-bar/            Lightweight admin-bar replacement.
     following/             Feed CPTs, fetchers, REST, blocks, OPML, WebSub, OAuth.

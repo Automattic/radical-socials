@@ -22,24 +22,24 @@ set -euo pipefail
 
 # Resolve repo root regardless of where the script is called from.
 ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
-PLUGIN_DIR="$ROOT/plugins/radical-socials"
+PLUGIN_DIR="$ROOT/plugins/radical-socials-tools"
 DIST_DIR="$ROOT/dist"
 STAGE_DIR="$DIST_DIR/staging"
 
-if [ ! -f "$PLUGIN_DIR/radical-socials.php" ]; then
-    echo "✘ Plugin file not found at $PLUGIN_DIR/radical-socials.php" >&2
+if [ ! -f "$PLUGIN_DIR/radical-socials-tools.php" ]; then
+    echo "✘ Plugin file not found at $PLUGIN_DIR/radical-socials-tools.php" >&2
     exit 1
 fi
 
 # Pull the version from the plugin header — single source of truth so the
 # zip filename always matches the Stable tag in readme.txt.
 VERSION="$(
-    grep -E '^[[:space:]]*\*[[:space:]]*Version:' "$PLUGIN_DIR/radical-socials.php" \
+    grep -E '^[[:space:]]*\*[[:space:]]*Version:' "$PLUGIN_DIR/radical-socials-tools.php" \
         | head -n1 \
         | sed -E 's/.*Version:[[:space:]]*([^[:space:]]+).*/\1/'
 )"
 if [ -z "$VERSION" ]; then
-    echo "✘ Could not parse Version from radical-socials.php header" >&2
+    echo "✘ Could not parse Version from radical-socials-tools.php header" >&2
     exit 1
 fi
 
@@ -56,7 +56,7 @@ if [ "$STABLE_TAG" != "$VERSION" ]; then
     exit 1
 fi
 
-ZIP_PATH="$DIST_DIR/radical-socials-$VERSION.zip"
+ZIP_PATH="$DIST_DIR/radical-socials-tools-$VERSION.zip"
 
 echo "→ Building production assets…"
 ( cd "$ROOT" && npm run build --silent )
@@ -68,9 +68,9 @@ echo "→ Building production assets…"
 echo "→ Flattening theme templates into plugin defaults…"
 ( cd "$ROOT" && npm run build:templates --silent )
 
-echo "→ Staging plugin files at $STAGE_DIR/radical-socials …"
+echo "→ Staging plugin files at $STAGE_DIR/radical-socials-tools …"
 rm -rf "$STAGE_DIR"
-mkdir -p "$STAGE_DIR/radical-socials"
+mkdir -p "$STAGE_DIR/radical-socials-tools"
 
 # rsync gives us a single tool for copy + exclude. Trailing slash on source
 # means "copy contents", target has no slash so dirs are created under it.
@@ -89,11 +89,11 @@ rsync -a \
     --exclude='*.swp' \
     --exclude='*.rej' \
     --exclude='.gitkeep' \
-    "$PLUGIN_DIR/" "$STAGE_DIR/radical-socials/"
+    "$PLUGIN_DIR/" "$STAGE_DIR/radical-socials-tools/"
 
 # Sanity: refuse to ship if any of the things we don't want made it through.
 LEAKED="$(
-    find "$STAGE_DIR/radical-socials" \
+    find "$STAGE_DIR/radical-socials-tools" \
         \( -name '*.map' -o -name '.DS_Store' -o -name '*.test.js' -o -name '*.test.jsx' -o -path '*/__tests__/*' -o -path '*/modules/dev/*' \) -print
 )"
 if [ -n "$LEAKED" ]; then
@@ -106,7 +106,7 @@ fi
 # folder inside the archive is radical-socials/ (what wp.org expects).
 rm -f "$ZIP_PATH"
 echo "→ Zipping to $ZIP_PATH …"
-( cd "$STAGE_DIR" && zip -rq "$ZIP_PATH" radical-socials )
+( cd "$STAGE_DIR" && zip -rq "$ZIP_PATH" radical-socials-tools )
 
 # Cleanup staging — leave only the zip under dist/.
 rm -rf "$STAGE_DIR"

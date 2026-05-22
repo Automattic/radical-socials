@@ -1,18 +1,18 @@
 /*
-Theme Name:        Radical Socials
-Theme URI:         https://github.com/Automattic/radical-socials
-Description:       A block theme for personal feed readers and social-style content sites, with layouts tuned for photo grids, vertical video, and text timelines. Works on its own and pairs with the Radical Socials plugin, which adds Following, Favorites, and a frontend post composer.
-Version:           1.0.0
+Theme Name: Radical Socials
+Theme URI: https://github.com/Automattic/radical-socials
+Description: A block theme for personal feed readers and social-style content sites, with layouts tuned for photo grids, vertical video, and text timelines. Works on its own and pairs with the Radical Socials plugin, which adds Following, Favorites, and a frontend post composer.
+Version: 1.0.0
 Requires at least: 6.6
-Tested up to:      6.9
-Requires PHP:      7.4
-Author:            Automattic
-Author URI:        https://automattic.com
-Contributors:      automattic, mikachan, onemaggie
-License:           GPL-2.0-or-later
-License URI:       https://www.gnu.org/licenses/gpl-2.0.html
-Text Domain:       radical-theme
-Tags:              blog, style-variations, three-columns, custom-colors, custom-menu, featured-images, full-site-editing, translation-ready
+Tested up to: 7.0
+Requires PHP: 7.4
+Author: Automattic
+Author URI: https://automattic.com
+Contributors: automattic, mikachan, onemaggie
+License: GPLv2 or later
+License URI: http://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: radical-socials
+Tags: blog, style-variations, three-columns, custom-colors, custom-menu, featured-images, full-site-editing, translation-ready
 */
 
 /*!

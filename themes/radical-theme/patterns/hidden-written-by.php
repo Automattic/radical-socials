@@ -8,13 +8,13 @@
 <!-- wp:group {"style":{"spacing":{"blockGap":"0.2em"}},"fontSize":"small","layout":{"type":"flex","flexWrap":"wrap"}} -->
 <div class="wp-block-group has-small-font-size">
 	<!-- wp:paragraph -->
-	<p><?php echo esc_html_x( 'Written by', 'post meta byline', 'radical-theme' ); ?></p>
+	<p><?php echo esc_html_x( 'Written by', 'post meta byline', 'radical-socials' ); ?></p>
 	<!-- /wp:paragraph -->
 
 	<!-- wp:post-author-name {"isLink":true} /-->
 
 	<!-- wp:paragraph -->
-	<p><?php echo esc_html_x( 'in', 'as in "Written by [author] in [category]"', 'radical-theme' ); ?></p>
+	<p><?php echo esc_html_x( 'in', 'as in "Written by [author] in [category]"', 'radical-socials' ); ?></p>
 	<!-- /wp:paragraph -->
 
 	<!-- wp:post-terms {"term":"category","style":{"typography":{"fontWeight":"300"}}} /-->

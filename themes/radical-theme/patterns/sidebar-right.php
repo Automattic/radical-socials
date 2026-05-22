@@ -11,14 +11,14 @@
 
 	<!-- wp:group {"layout":{"type":"constrained"}} -->
 	<div class="wp-block-group">
-		<!-- wp:search {"label":"<?php echo esc_attr__( 'Search', 'radical-theme' ); ?>","showLabel":false,"placeholder":"<?php echo esc_attr__( 'Search', 'radical-theme' ); ?>","buttonText":"<?php echo esc_attr__( 'Search', 'radical-theme' ); ?>","buttonPosition":"button-inside","buttonUseIcon":true,"style":{"border":{"radius":{"topLeft":"4em","topRight":"4em","bottomLeft":"4em","bottomRight":"4em"}},"spacing":{"margin":{"top":"0","bottom":"var:preset|spacing|30"}}},"fontSize":"small"} /-->
+		<!-- wp:search {"label":"<?php echo esc_attr__( 'Search', 'radical-socials' ); ?>","showLabel":false,"placeholder":"<?php echo esc_attr__( 'Search', 'radical-socials' ); ?>","buttonText":"<?php echo esc_attr__( 'Search', 'radical-socials' ); ?>","buttonPosition":"button-inside","buttonUseIcon":true,"style":{"border":{"radius":{"topLeft":"4em","topRight":"4em","bottomLeft":"4em","bottomRight":"4em"}},"spacing":{"margin":{"top":"0","bottom":"var:preset|spacing|30"}}},"fontSize":"small"} /-->
 		</div>
 	<!-- /wp:group -->
 
 	<!-- wp:group {"layout":{"type":"constrained"}} -->
 	<div class="wp-block-group">
 		<!-- wp:heading {"fontSize":"medium"} -->
-		<h2 class="wp-block-heading has-medium-font-size"><?php echo esc_html__( 'Filter by source', 'radical-theme' ); ?></h2>
+		<h2 class="wp-block-heading has-medium-font-size"><?php echo esc_html__( 'Filter by source', 'radical-socials' ); ?></h2>
 		<!-- /wp:heading -->
 
 		<!-- wp:categories {"taxonomy":"rs_feed_type","style":{"typography":{"lineHeight":"2.5"},"spacing":{"padding":{"right":"0","left":"var:preset|spacing|30","top":"0","bottom":"0"}}}} /-->
@@ -28,7 +28,7 @@
 	<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|30","bottom":"var:preset|spacing|30"}}},"layout":{"type":"constrained"}} -->
 	<div class="wp-block-group" style="padding-top:var(--wp--preset--spacing--30);padding-bottom:var(--wp--preset--spacing--30)">
 		<!-- wp:heading {"fontSize":"medium"} -->
-		<h2 class="wp-block-heading has-medium-font-size"><?php echo esc_html__( 'Favorite feeds', 'radical-theme' ); ?></h2>
+		<h2 class="wp-block-heading has-medium-font-size"><?php echo esc_html__( 'Favorite feeds', 'radical-socials' ); ?></h2>
 		<!-- /wp:heading -->
 
 		<!-- wp:radical-socials/favorite-feeds {"style":{"spacing":{"blockGap":"var:preset|spacing|30","padding":{"left":"var:preset|spacing|30"}}}} /-->

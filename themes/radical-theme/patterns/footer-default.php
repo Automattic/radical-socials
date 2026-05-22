@@ -14,8 +14,8 @@
 		<?php
 		printf(
 			/* translators: %s: WordPress link. */
-			esc_html__( 'Proudly powered by %s', 'radical-theme' ),
-			'<a href="' . esc_url( __( 'https://wordpress.org', 'radical-theme' ) ) . '">' . esc_html__( 'WordPress', 'radical-theme' ) . '</a>'
+			esc_html__( 'Proudly powered by %s', 'radical-socials' ),
+			'<a href="' . esc_url( __( 'https://wordpress.org', 'radical-socials' ) ) . '">' . esc_html__( 'WordPress', 'radical-socials' ) . '</a>'
 		);
 		?>
 	</p>

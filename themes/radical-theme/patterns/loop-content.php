@@ -23,14 +23,14 @@
 
 <!-- wp:post-content {"metadata":{"ignoredHookedBlocks":["activitypub/reactions"]}} /-->
 
-<!-- wp:read-more {"content":"<?php echo esc_attr__( 'Read more', 'radical-theme' ); ?>"} /-->
+<!-- wp:read-more {"content":"<?php echo esc_attr__( 'Read more', 'radical-socials' ); ?>"} /-->
 
 </div>
 <!-- /wp:group -->
 
 <!-- wp:activitypub/reactions {"className":"is-style-facepile"} -->
 <div class="wp-block-activitypub-reactions is-style-facepile"><!-- wp:heading {"level":3} -->
-<h3 class="wp-block-heading"><?php echo esc_html__( 'Fediverse reactions', 'radical-theme' ); ?></h3>
+<h3 class="wp-block-heading"><?php echo esc_html__( 'Fediverse reactions', 'radical-socials' ); ?></h3>
 <!-- /wp:heading --></div>
 <!-- /wp:activitypub/reactions -->
 

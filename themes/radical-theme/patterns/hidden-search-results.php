@@ -12,7 +12,7 @@
 	<div class="wp-block-group" style="padding-right:var(--wp--preset--spacing--30);padding-left:var(--wp--preset--spacing--30)">
 		<!-- wp:query-title {"type":"search"} /-->
 
-		<!-- wp:search {"label":"<?php echo esc_attr__( 'Search', 'radical-theme' ); ?>","showLabel":false,"placeholder":"<?php echo esc_attr_x( 'Search…', 'placeholder text', 'radical-theme' ); ?>","buttonText":"<?php echo esc_attr__( 'Search', 'radical-theme' ); ?>"} /-->
+		<!-- wp:search {"label":"<?php echo esc_attr__( 'Search', 'radical-socials' ); ?>","showLabel":false,"placeholder":"<?php echo esc_attr_x( 'Search…', 'placeholder text', 'radical-socials' ); ?>","buttonText":"<?php echo esc_attr__( 'Search', 'radical-socials' ); ?>"} /-->
 	</div>
 	<!-- /wp:group -->
 	<!-- wp:query {"queryId":3,"query":{"perPage":10,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":true}} -->
@@ -25,7 +25,7 @@
 		<div class="wp-block-group" style="padding-right:var(--wp--preset--spacing--30);padding-left:var(--wp--preset--spacing--30)">
 			<!-- wp:query-no-results -->
 				<!-- wp:paragraph -->
-				<p><?php echo esc_html__( 'No results found. Try a different search?', 'radical-theme' ); ?></p>
+				<p><?php echo esc_html__( 'No results found. Try a different search?', 'radical-socials' ); ?></p>
 				<!-- /wp:paragraph -->
 			<!-- /wp:query-no-results -->
 		</div>
