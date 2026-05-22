@@ -311,6 +311,7 @@ class Radical_Socials_Feed_Fetcher {
 			's'      => $common, 'del' => $common, 'ins' => $common, 'u' => $common,
 			'sup'    => $common, 'sub' => $common,
 			'abbr'   => array_merge( $common, [ 'title' => true ] ),
+			'time'   => array_merge( $common, [ 'datetime' => true ] ),
 			'ul' => $common, 'ol' => $common, 'li' => $common,
 			'dl' => $common, 'dt' => $common, 'dd' => $common,
 			'a'  => array_merge( $common, [ 'href' => true, 'title' => true, 'target' => true, 'rel' => true ] ),
@@ -392,10 +393,19 @@ class Radical_Socials_Feed_Fetcher {
 		if ( empty( $subs ) ) {
 			$existing = count( self::get_item_ids_by_type( 'rss' ) );
 			if ( $existing > 0 ) {
-				error_log( sprintf(
-					'[Radical Socials] prune_orphaned_rss: refusing to delete %d RSS feed item(s) because rs_rss_subscriptions is empty. If this is intentional, clear them manually.',
-					$existing
-				) );
+				/**
+				 * Fires when `prune_orphaned_rss()` refuses to mass-delete
+				 * cached items because the subscriptions list is empty —
+				 * a state we treat as suspect (it was the cause of two
+				 * past data-loss incidents from buggy test cleanup, see
+				 * `feedback-destructive-tests`). The action carries the
+				 * count of items that would have been deleted; consumers
+				 * can hook it to log to debug.log, surface an admin
+				 * notice, page on-call, etc.
+				 *
+				 * @param int $existing Number of RSS feed items the prune skipped.
+				 */
+				do_action( 'rs_prune_orphaned_rss_refused', $existing );
 			}
 			return;
 		}
@@ -456,10 +466,15 @@ class Radical_Socials_Feed_Fetcher {
 		if ( empty( $known ) ) {
 			$existing = count( self::get_item_ids_by_type( 'activitypub' ) );
 			if ( $existing > 0 ) {
-				error_log( sprintf(
-					'[Radical Socials] prune_orphaned_activitypub: refusing to delete %d ActivityPub feed item(s) because the follow list is empty. If this is intentional, clear them manually.',
-					$existing
-				) );
+				/**
+				 * Same shape as `rs_prune_orphaned_rss_refused`, fired
+				 * when the AP follow list is empty but cached AP items
+				 * exist. Consumers can hook to log / surface a notice /
+				 * etc.; default is no-op.
+				 *
+				 * @param int $existing Number of AP feed items the prune skipped.
+				 */
+				do_action( 'rs_prune_orphaned_activitypub_refused', $existing );
 			}
 			return;
 		}

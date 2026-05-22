@@ -17,6 +17,49 @@ class Radical_Socials_Settings_Page {
 	const PROFILE_AVATAR_META = 'rs_profile_avatar_id';
 	const PROFILE_BANNER_META = 'rs_profile_banner_id';
 
+	/**
+	 * Per-user transient namespace for one-shot post-redirect notices.
+	 * Using a transient keyed by the current user id (instead of a
+	 * `?rs_settings=updated` query arg) means render-time reads don't
+	 * touch `$_GET` and therefore don't need a nonce, and a stale link
+	 * can't replay the notice for someone else.
+	 */
+	const NOTICE_TRANSIENT_PREFIX = 'rs_settings_notice_';
+	const NOTICE_TTL              = 60; // seconds; long enough to outlive the redirect, short enough to self-clean.
+
+	/**
+	 * Stash a post-redirect notice for the current user. The very next
+	 * settings render reads + clears it.
+	 *
+	 * @param array<string, mixed> $notice  Free-form payload; render-side keys read from this.
+	 */
+	public static function set_notice( array $notice ): void {
+		$uid = get_current_user_id();
+		if ( ! $uid ) {
+			return;
+		}
+		set_transient( self::NOTICE_TRANSIENT_PREFIX . $uid, $notice, self::NOTICE_TTL );
+	}
+
+	/**
+	 * Read-and-clear the pending notice for the current user.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private static function take_notice(): array {
+		$uid = get_current_user_id();
+		if ( ! $uid ) {
+			return [];
+		}
+		$key    = self::NOTICE_TRANSIENT_PREFIX . $uid;
+		$notice = get_transient( $key );
+		if ( false === $notice ) {
+			return [];
+		}
+		delete_transient( $key );
+		return is_array( $notice ) ? $notice : [];
+	}
+
 	public static function init(): void {
 		add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue' ] );
 		add_action( 'admin_init',            [ __CLASS__, 'handle_profile_save' ] );
@@ -67,7 +110,7 @@ class Radical_Socials_Settings_Page {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		if ( ! wp_verify_nonce( wp_unslash( $_POST['rs_diagnostics_nonce'] ), 'rs_diagnostics_action' ) ) {
+		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['rs_diagnostics_nonce'] ) ), 'rs_diagnostics_action' ) ) {
 			return;
 		}
 
@@ -211,7 +254,8 @@ class Radical_Socials_Settings_Page {
 				return;
 		}
 
-		wp_safe_redirect( admin_url( 'admin.php?page=radical-socials-settings&tab=diagnostics&rs_diag_result=' . rawurlencode( $flag ) ) );
+		self::set_notice( [ 'diag_result' => $flag ] );
+		wp_safe_redirect( admin_url( 'admin.php?page=radical-socials-settings&tab=diagnostics' ) );
 		exit;
 	}
 
@@ -236,7 +280,7 @@ class Radical_Socials_Settings_Page {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		if ( ! wp_verify_nonce( wp_unslash( $_POST['rs_settings_nonce'] ), 'rs_settings_save' ) ) {
+		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['rs_settings_nonce'] ) ), 'rs_settings_save' ) ) {
 			return;
 		}
 
@@ -260,7 +304,7 @@ class Radical_Socials_Settings_Page {
 		}
 
 		if ( isset( $_POST['rs_profile_website'] ) ) {
-			$website = trim( wp_unslash( $_POST['rs_profile_website'] ) );
+			$website = trim( sanitize_text_field( wp_unslash( $_POST['rs_profile_website'] ) ) );
 
 			if ( '' !== $website && ! preg_match( '#^[a-z][a-z0-9+.-]*://#i', $website ) ) {
 				$website = 'https://' . $website;
@@ -277,7 +321,7 @@ class Radical_Socials_Settings_Page {
 			update_user_meta(
 				$user->ID,
 				self::PROFILE_HANDLE_META,
-				self::sanitize_profile_handle( wp_unslash( $_POST['rs_profile_handle'] ) )
+				self::sanitize_profile_handle( sanitize_text_field( wp_unslash( $_POST['rs_profile_handle'] ) ) )
 			);
 		}
 
@@ -286,8 +330,13 @@ class Radical_Socials_Settings_Page {
 		}
 
 		if ( current_user_can( 'upload_files' ) ) {
-			self::save_image_meta( $user->ID, self::PROFILE_AVATAR_META, 'rs_profile_avatar_id' );
-			self::save_image_meta( $user->ID, self::PROFILE_BANNER_META, 'rs_profile_banner_id' );
+			// Read + cast in the caller (post-nonce-verify); the helper
+			// stays a pure data sink so phpcs doesn't have to follow the
+			// nonce-check up the call chain to know the value is trusted.
+			$avatar_post = array_key_exists( 'rs_profile_avatar_id', $_POST ) ? absint( wp_unslash( $_POST['rs_profile_avatar_id'] ) ) : null;
+			$banner_post = array_key_exists( 'rs_profile_banner_id', $_POST ) ? absint( wp_unslash( $_POST['rs_profile_banner_id'] ) ) : null;
+			self::save_image_meta( $user->ID, self::PROFILE_AVATAR_META, $avatar_post );
+			self::save_image_meta( $user->ID, self::PROFILE_BANNER_META, $banner_post );
 		}
 
 		// custom_logo is always present in the POST (hidden input).
@@ -313,7 +362,8 @@ class Radical_Socials_Settings_Page {
 			}
 		}
 
-		wp_safe_redirect( admin_url( 'admin.php?page=radical-socials-settings&tab=profile&rs_settings=updated' ) );
+		self::set_notice( [ 'saved' => true ] );
+		wp_safe_redirect( admin_url( 'admin.php?page=radical-socials-settings&tab=profile' ) );
 		exit;
 	}
 
@@ -328,12 +378,13 @@ class Radical_Socials_Settings_Page {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( wp_unslash( $_GET['_wpnonce'] ), 'rs_wpcom_disconnect' ) ) {
+		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'rs_wpcom_disconnect' ) ) {
 			return;
 		}
 
 		Radical_Socials_WPCOM_OAuth::disconnect();
-		wp_safe_redirect( admin_url( 'admin.php?page=radical-socials-settings&tab=following&rs_wpcom=disconnected' ) );
+		self::set_notice( [ 'wpcom_disconnected' => true ] );
+		wp_safe_redirect( admin_url( 'admin.php?page=radical-socials-settings&tab=following' ) );
 		exit;
 	}
 
@@ -344,7 +395,7 @@ class Radical_Socials_Settings_Page {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		if ( ! wp_verify_nonce( wp_unslash( $_POST['rs_following_privacy_nonce'] ), 'rs_following_privacy_save' ) ) {
+		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['rs_following_privacy_nonce'] ) ), 'rs_following_privacy_save' ) ) {
 			return;
 		}
 		update_option(
@@ -357,7 +408,8 @@ class Radical_Socials_Settings_Page {
 			! empty( $_POST['rs_purge_on_uninstall'] ),
 			false
 		);
-		wp_safe_redirect( admin_url( 'admin.php?page=radical-socials-settings&tab=following&rs_settings=updated' ) );
+		self::set_notice( [ 'saved' => true ] );
+		wp_safe_redirect( admin_url( 'admin.php?page=radical-socials-settings&tab=following' ) );
 		exit;
 	}
 
@@ -577,25 +629,34 @@ class Radical_Socials_Settings_Page {
 
 			<hr class="wp-header-end">
 
-			<?php if ( isset( $_GET['rs_settings'] ) && 'updated' === $_GET['rs_settings'] ) : ?>
+			<?php
+			// One read-and-clear per render, replacing the per-flag $_GET
+			// reads that used to drive these banners. The handlers stash
+			// the payload via set_notice() before they redirect, so any
+			// matching key is guaranteed to belong to *this* user — no
+			// nonce check needed on the read.
+			$notice = self::take_notice();
+			?>
+
+			<?php if ( ! empty( $notice['saved'] ) ) : ?>
 				<div class="notice notice-success is-dismissible">
 					<p><?php esc_html_e( 'Settings saved.', 'radical-socials-tools' ); ?></p>
 				</div>
 			<?php endif; ?>
 
-			<?php if ( isset( $_GET['rs_oauth'] ) && 'connected' === $_GET['rs_oauth'] ) : ?>
+			<?php if ( ! empty( $notice['oauth_connected'] ) ) : ?>
 				<div class="notice notice-success is-dismissible">
 					<p><?php esc_html_e( 'WP.com account connected. Your following feed will populate shortly.', 'radical-socials-tools' ); ?></p>
 				</div>
 			<?php endif; ?>
 
-			<?php if ( isset( $_GET['rs_wpcom'] ) && 'disconnected' === $_GET['rs_wpcom'] ) : ?>
+			<?php if ( ! empty( $notice['wpcom_disconnected'] ) ) : ?>
 				<div class="notice notice-success is-dismissible">
 					<p><?php esc_html_e( 'WP.com account disconnected.', 'radical-socials-tools' ); ?></p>
 				</div>
 			<?php endif; ?>
 
-			<?php if ( isset( $_GET['rs_oauth_error'] ) ) :
+			<?php if ( ! empty( $notice['oauth_error'] ) ) :
 				$oauth_error_msgs = [
 					'broker_unreachable'    => __( 'The WP.com OAuth broker is unreachable. Try again in a minute, or set RS_WPCOM_CLIENT_ID / RS_WPCOM_CLIENT_SECRET in wp-config.php to use your own WordPress.com app instead.', 'radical-socials-tools' ),
 					'broker_bad_response'   => __( 'The WP.com OAuth broker returned an unexpected response. Try again.', 'radical-socials-tools' ),
@@ -604,8 +665,7 @@ class Radical_Socials_Settings_Page {
 					'token_exchange_failed' => __( 'Could not exchange the WordPress.com code for an access token. Try again.', 'radical-socials-tools' ),
 					'no_token'              => __( 'WordPress.com returned an unexpected response (no access token). Try again.', 'radical-socials-tools' ),
 				];
-				$oauth_error_key = sanitize_text_field( wp_unslash( $_GET['rs_oauth_error'] ) );
-				$oauth_error_msg = $oauth_error_msgs[ $oauth_error_key ] ?? __( 'Could not connect WP.com account. Please try again.', 'radical-socials-tools' );
+				$oauth_error_msg = $oauth_error_msgs[ $notice['oauth_error'] ] ?? __( 'Could not connect WP.com account. Please try again.', 'radical-socials-tools' );
 				?>
 				<div class="notice notice-error is-dismissible">
 					<p><?php echo esc_html( $oauth_error_msg ); ?></p>
@@ -985,7 +1045,7 @@ class Radical_Socials_Settings_Page {
 			</div>
 
 			<?php elseif ( 'diagnostics' === $active_tab ) : ?>
-				<?php self::render_diagnostics_tab(); ?>
+				<?php self::render_diagnostics_tab( (string) ( $notice['diag_result'] ?? '' ) ); ?>
 			<?php endif; ?>
 			</div><!-- .rs-settings -->
 		</div>
@@ -1305,7 +1365,7 @@ class Radical_Socials_Settings_Page {
 		exit;
 	}
 
-	private static function render_diagnostics_tab(): void {
+	private static function render_diagnostics_tab( string $result = '' ): void {
 		$lock          = get_transient( Radical_Socials_Following::REFRESH_LOCK );
 		$last          = (int) get_option( 'rs_last_feed_fetch', 0 );
 		$next_ts       = wp_next_scheduled( Radical_Socials_Following::FETCH_HOOK );
@@ -1319,7 +1379,7 @@ class Radical_Socials_Settings_Page {
 		$exec_time     = (int) ini_get( 'max_execution_time' );
 
 		// Surface single-shot post-action messages stored in short-lived transients.
-		$result   = isset( $_GET['rs_diag_result'] ) ? sanitize_text_field( wp_unslash( $_GET['rs_diag_result'] ) ) : '';
+		// $result is passed in by the caller after take_notice() — no $_GET read.
 		$elapsed  = get_transient( 'rs_diag_fetch_elapsed' );
 		$err_msg  = get_transient( 'rs_diag_fetch_error' );
 		$test     = get_transient( 'rs_diag_test_result' );
@@ -1753,12 +1813,23 @@ class Radical_Socials_Settings_Page {
 		return substr( $handle, 0, 30 );
 	}
 
-	private static function save_image_meta( int $user_id, string $meta_key, string $post_key ): void {
-		if ( ! array_key_exists( $post_key, $_POST ) ) {
+	/**
+	 * Persist a single per-user image attachment, identified by `$meta_key`.
+	 *
+	 * Called from `handle_profile_save()` after the nonce has been verified.
+	 * The caller reads + casts the attachment id from `$_POST` so this
+	 * function takes a trusted int (or `null` when the form omitted the
+	 * field) — making the input boundary explicit and keeping the nonce
+	 * check at the entry point instead of duplicated in helpers.
+	 *
+	 * @param int      $user_id        WordPress user being updated.
+	 * @param string   $meta_key       User-meta key to write/delete.
+	 * @param int|null $attachment_id  Verified attachment id, or null when the field wasn't submitted.
+	 */
+	private static function save_image_meta( int $user_id, string $meta_key, ?int $attachment_id ): void {
+		if ( null === $attachment_id ) {
 			return;
 		}
-
-		$attachment_id = absint( wp_unslash( $_POST[ $post_key ] ) );
 
 		if ( ! $attachment_id ) {
 			delete_user_meta( $user_id, $meta_key );

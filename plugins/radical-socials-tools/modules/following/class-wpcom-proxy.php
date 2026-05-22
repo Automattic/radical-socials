@@ -157,13 +157,21 @@ class Radical_Socials_WPCOM_Proxy {
 			$args['code'] = $code;
 		}
 
-		// wp_redirect, not wp_safe_redirect: the origin is by design a
-		// different host (the consumer site) — wp_safe_redirect would refuse
-		// the cross-host hop and fall back to admin_url(), sending the user
-		// to /wp-admin/ on the broker. The origin URL was validated at /init
-		// time (HTTPS-only, parseable) before we stored it in the state
-		// transient, so it's already trusted at this point.
-		wp_redirect( add_query_arg( $args, $origin ) );
+		// The destination is the consumer site we recorded at /init — a
+		// validated (HTTPS-only, parseable) URL. wp_safe_redirect()
+		// normally refuses cross-host hops, so we register that single
+		// origin host with allowed_redirect_hosts just for this request.
+		// Filter is removed immediately after so we never broaden the
+		// allow-list for subsequent traffic.
+		$origin_host = wp_parse_url( $origin, PHP_URL_HOST );
+		$allow_host  = static function ( $hosts ) use ( $origin_host ) {
+			$hosts   = is_array( $hosts ) ? $hosts : [];
+			$hosts[] = $origin_host;
+			return $hosts;
+		};
+		add_filter( 'allowed_redirect_hosts', $allow_host );
+		wp_safe_redirect( add_query_arg( $args, $origin ) );
+		remove_filter( 'allowed_redirect_hosts', $allow_host );
 		exit;
 	}
 

@@ -38,8 +38,36 @@ class Radical_Socials_WPCOM_OAuth {
 	const DEFAULT_PROXY_URL = 'https://radicalsocials.wpcomstaging.com';
 
 	public static function init(): void {
-		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
-		add_action( 'admin_init',    [ __CLASS__, 'handle_connect_action' ] );
+		add_action( 'rest_api_init',          [ __CLASS__, 'register_routes' ] );
+		add_action( 'admin_init',             [ __CLASS__, 'handle_connect_action' ] );
+		// The OAuth flow needs to redirect the browser off-site to
+		// WordPress.com (and to the configured broker, when one is
+		// in use). wp_safe_redirect() refuses cross-host hops unless
+		// the host appears in allowed_redirect_hosts — so we register
+		// the destinations we use here.
+		add_filter( 'allowed_redirect_hosts', [ __CLASS__, 'add_allowed_oauth_hosts' ] );
+	}
+
+	/**
+	 * Whitelist the OAuth destinations so wp_safe_redirect() can hop
+	 * to them instead of bouncing back to /wp-admin/.
+	 *
+	 * @param string[] $hosts
+	 * @return string[]
+	 */
+	public static function add_allowed_oauth_hosts( $hosts ): array {
+		$hosts   = is_array( $hosts ) ? $hosts : [];
+		$hosts[] = 'public-api.wordpress.com';
+
+		// If the OAuth broker is configured, add its host too. parse_url
+		// returns null for malformed URLs, which array_filter strips.
+		$broker_url = self::is_using_proxy() ? self::proxy_url() : '';
+		$broker_host = $broker_url ? wp_parse_url( $broker_url, PHP_URL_HOST ) : null;
+		if ( $broker_host ) {
+			$hosts[] = $broker_host;
+		}
+
+		return array_values( array_unique( array_filter( $hosts ) ) );
 	}
 
 	public static function register_routes(): void {
@@ -95,7 +123,7 @@ class Radical_Socials_WPCOM_OAuth {
 			] );
 
 			if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
-				wp_safe_redirect( self::settings_url( 'rs_oauth_error=broker_unreachable' ) );
+				Radical_Socials_Settings_Page::set_notice( [ 'oauth_error' => 'broker_unreachable' ] ); wp_safe_redirect( self::settings_url() );
 				exit;
 			}
 			$body = json_decode( wp_remote_retrieve_body( $response ), true );
@@ -104,14 +132,15 @@ class Radical_Socials_WPCOM_OAuth {
 			// (We control the broker, but this stops a misconfigured / hijacked
 			// broker from being used as an open-redirect via our admin.)
 			if ( ! self::is_wpcom_authorize_url( $authorize_url ) ) {
-				wp_safe_redirect( self::settings_url( 'rs_oauth_error=broker_bad_response' ) );
+				Radical_Socials_Settings_Page::set_notice( [ 'oauth_error' => 'broker_bad_response' ] ); wp_safe_redirect( self::settings_url() );
 				exit;
 			}
 
 			update_option( self::STATE_OPTION, $state, false );
-			// wp_redirect, not wp_safe_redirect: the latter only allows
-			// same-host redirects and would bounce us to /wp-admin/ here.
-			wp_redirect( $authorize_url );
+			// add_allowed_oauth_hosts() above puts public-api.wordpress.com
+			// (and the broker host, when used) on the safe-redirect list,
+			// so this cross-host hop is allowed.
+			wp_safe_redirect( $authorize_url );
 			exit;
 		}
 
@@ -127,7 +156,9 @@ class Radical_Socials_WPCOM_OAuth {
 			],
 			self::AUTHORIZE_URL
 		);
-		wp_redirect( $authorize_url );
+		// Same justification as above — public-api.wordpress.com is on
+		// the allowed_redirect_hosts list courtesy of our init filter.
+		wp_safe_redirect( $authorize_url );
 		exit;
 	}
 
@@ -154,14 +185,14 @@ class Radical_Socials_WPCOM_OAuth {
 		$expected = get_option( self::STATE_OPTION, '' );
 
 		if ( ! $state || ! hash_equals( (string) $expected, (string) $state ) ) {
-			wp_safe_redirect( self::settings_url( 'rs_oauth_error=state_mismatch' ) );
+			Radical_Socials_Settings_Page::set_notice( [ 'oauth_error' => 'state_mismatch' ] ); wp_safe_redirect( self::settings_url() );
 			exit;
 		}
 		delete_option( self::STATE_OPTION );
 
 		$code = $request->get_param( 'code' );
 		if ( ! $code ) {
-			wp_safe_redirect( self::settings_url( 'rs_oauth_error=no_code' ) );
+			Radical_Socials_Settings_Page::set_notice( [ 'oauth_error' => 'no_code' ] ); wp_safe_redirect( self::settings_url() );
 			exit;
 		}
 
@@ -196,13 +227,13 @@ class Radical_Socials_WPCOM_OAuth {
 		}
 
 		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
-			wp_safe_redirect( self::settings_url( 'rs_oauth_error=token_exchange_failed' ) );
+			Radical_Socials_Settings_Page::set_notice( [ 'oauth_error' => 'token_exchange_failed' ] ); wp_safe_redirect( self::settings_url() );
 			exit;
 		}
 
 		$body = json_decode( wp_remote_retrieve_body( $response ), true );
 		if ( empty( $body['access_token'] ) ) {
-			wp_safe_redirect( self::settings_url( 'rs_oauth_error=no_token' ) );
+			Radical_Socials_Settings_Page::set_notice( [ 'oauth_error' => 'no_token' ] ); wp_safe_redirect( self::settings_url() );
 			exit;
 		}
 
@@ -212,7 +243,7 @@ class Radical_Socials_WPCOM_OAuth {
 		wp_schedule_single_event( time(), Radical_Socials_Following::FETCH_HOOK );
 		spawn_cron();
 
-		wp_safe_redirect( self::settings_url( 'rs_oauth=connected' ) );
+		Radical_Socials_Settings_Page::set_notice( [ 'oauth_connected' => true ] ); wp_safe_redirect( self::settings_url() );
 		exit;
 	}
 

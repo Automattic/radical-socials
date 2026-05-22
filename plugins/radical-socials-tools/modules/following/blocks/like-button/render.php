@@ -25,22 +25,22 @@ if ( ! $post || 'rs_feed_item' !== $post->post_type ) {
 	return;
 }
 
-$favorited = Radical_Socials_Favorites::is_favorited( $post_id );
+$radical_socials_favorited = Radical_Socials_Favorites::is_favorited( $post_id );
 
 wp_interactivity_state( 'radical-socials/like-button', [
 	'toggleUrl' => rest_url( 'radical-socials/v1/favorites/toggle' ),
 	'nonce'     => wp_create_nonce( 'wp_rest' ),
 ] );
 
-$context = wp_json_encode( [
+$radical_socials_context = wp_json_encode( [
 	'postId'    => $post_id,
-	'favorited' => $favorited,
+	'favorited' => $radical_socials_favorited,
 ] );
 ?>
 <div
 	class="rs-like-button-wrap wp-block-radical-socials-like-button"
 	data-wp-interactive="radical-socials/like-button"
-	data-wp-context="<?php echo esc_attr( $context ); ?>"
+	data-wp-context="<?php echo esc_attr( $radical_socials_context ); ?>"
 >
 	<button
 		type="button"
@@ -49,7 +49,7 @@ $context = wp_json_encode( [
 		data-wp-class--rs-liked="context.favorited"
 		aria-label="<?php esc_attr_e( 'Save to favorites', 'radical-socials-tools' ); ?>"
 	>
-		<span aria-hidden="true" class="rs-like-icon-filled" data-wp-bind--hidden="!context.favorited"<?php echo $favorited ? '' : ' hidden'; ?>>♥</span>
-		<span aria-hidden="true" class="rs-like-icon-empty"  data-wp-bind--hidden="context.favorited"<?php echo $favorited ? ' hidden' : ''; ?>>♡</span>
+		<span aria-hidden="true" class="rs-like-icon-filled" data-wp-bind--hidden="!context.favorited"<?php echo $radical_socials_favorited ? '' : ' hidden'; ?>>♥</span>
+		<span aria-hidden="true" class="rs-like-icon-empty"  data-wp-bind--hidden="context.favorited"<?php echo $radical_socials_favorited ? ' hidden' : ''; ?>>♡</span>
 	</button>
 </div>

@@ -687,7 +687,7 @@ class Radical_Socials_ActivityPub_Fetcher {
 			$parts[] = sprintf( '<span class="rs-ap-handle">@%s</span>', esc_html( $handle ) );
 		}
 
-		$time_html = self::render_relative_time( $published_iso );
+		$time_html = self::render_publication_time( $published_iso );
 		if ( '' !== $time_html ) {
 			$parts[] = $time_html;
 		}
@@ -706,11 +706,21 @@ class Radical_Socials_ActivityPub_Fetcher {
 	}
 
 	/**
-	 * Format a published ISO-8601 timestamp as "5 mins ago" (uses WP's
-	 * i18n-aware human_time_diff). Returns an empty string for missing or
-	 * unparseable input — the card layout still works without a time.
+	 * Format a published ISO-8601 timestamp as an absolute date label for
+	 * the rendered card (e.g. "May 22, 2026 11:02 am").
+	 *
+	 * Was previously rendering a relative "5 mins ago" via human_time_diff,
+	 * but that string is baked into post_content at fetch time and never
+	 * updates — every post ended up frozen at whatever its age was when
+	 * the cron tick happened to grab it. The absolute label is stable and
+	 * correct on any future render. The `datetime` attribute on `<time>`
+	 * keeps the machine-readable timestamp around so a future JS hook
+	 * could compute live relative time client-side.
+	 *
+	 * Returns an empty string for missing/unparseable input — the card
+	 * layout still works without a time.
 	 */
-	private static function render_relative_time( string $iso ): string {
+	private static function render_publication_time( string $iso ): string {
 		if ( '' === $iso ) {
 			return '';
 		}
@@ -718,15 +728,15 @@ class Radical_Socials_ActivityPub_Fetcher {
 		if ( ! $ts ) {
 			return '';
 		}
-		$label = sprintf(
-			/* translators: %s: human-readable time difference (e.g. "5 mins") */
-			__( '%s ago', 'radical-socials-tools' ),
-			human_time_diff( $ts, time() )
+		// wp_date() respects the site's timezone + locale (month names etc.).
+		$label = wp_date(
+			get_option( 'date_format' ) . ' ' . get_option( 'time_format' ),
+			$ts
 		);
 		return sprintf(
 			'<time class="rs-ap-time" datetime="%s">%s</time>',
 			esc_attr( gmdate( 'c', $ts ) ),
-			esc_html( $label )
+			esc_html( (string) $label )
 		);
 	}
 

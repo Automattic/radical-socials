@@ -8,7 +8,7 @@ Stable tag:        1.0.0
 License:           GPL-2.0-or-later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
 
-Escape walled gardens and own your own social media: follow people across the Fediverse, your WordPress.com reader subcriptions and RSS. All in one place.
+Own your social media: follow people across the Fediverse, WordPress.com Reader subscriptions, and RSS — all on one timeline.
 
 == Description ==
 
