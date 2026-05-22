@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:       Radical Socials
+ * Plugin Name:       Radical Socials Tools
  * Plugin URI:        https://github.com/Automattic/radical-socials
  * Description:       Escape walled gardens with a self-hosted WordPress site that feels like home.
  * Version:           1.0.0
@@ -46,8 +46,8 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
  */
 function radical_socials_add_menu_page(): void {
 	add_menu_page(
-		__( 'Radical Socials', 'radical-socials' ),
-		__( 'Radical Socials', 'radical-socials' ),
+		__( 'Radical Socials Tools', 'radical-socials' ),
+		__( 'Radical Socials Tools', 'radical-socials' ),
 		'manage_options',
 		'radical-socials-settings',
 		[ Radical_Socials_Settings_Page::class, 'render' ],

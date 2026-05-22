@@ -518,7 +518,7 @@ class Radical_Socials_Settings_Page {
 		<div class="wrap rs-settings-wrap">
 			<div class="rs-settings-header">
 				<div class="rs-settings-title-section">
-					<h1><?php esc_html_e( 'Radical Socials', 'radical-socials' ); ?></h1>
+					<h1><?php esc_html_e( 'Radical Socials Tools', 'radical-socials' ); ?></h1>
 				</div>
 				<div class="rs-settings-tabs-scroller">
 					<nav class="rs-settings-tabs-wrapper" aria-label="<?php esc_attr_e( 'Settings sections', 'radical-socials' ); ?>">

@@ -2,7 +2,7 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Radical Theme 0.1.0\n"
+"Project-Id-Version: Radical Socials 1.0.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/theme/radical-theme\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,7 +16,7 @@ msgstr ""
 
 #. Theme Name of the theme
 #: style.css
-msgid "Radical Theme"
+msgid "Radical Socials"
 msgstr ""
 
 #. Theme URI of the theme
