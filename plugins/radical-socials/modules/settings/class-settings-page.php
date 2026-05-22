@@ -351,6 +351,28 @@ class Radical_Socials_Settings_Page {
 		return in_array( $tab, $allowed, true ) ? $tab : 'profile';
 	}
 
+	/**
+	 * One-shot per-user transient used to surface admin-post handler results
+	 * to the welcome tab without keeping the flag in the URL bar.
+	 */
+	private static function form_result_key(): string {
+		return 'rs_form_result_' . get_current_user_id();
+	}
+
+	private static function push_form_result( array $data ): void {
+		set_transient( self::form_result_key(), $data, MINUTE_IN_SECONDS );
+	}
+
+	private static function pop_form_result(): array {
+		$key  = self::form_result_key();
+		$data = get_transient( $key );
+		if ( false === $data ) {
+			return [];
+		}
+		delete_transient( $key );
+		return is_array( $data ) ? $data : [];
+	}
+
 	public static function enqueue( string $hook ): void {
 		if ( 'toplevel_page_radical-socials-settings' !== $hook ) {
 			return;
@@ -414,21 +436,21 @@ class Radical_Socials_Settings_Page {
 					'loadError'     => __( 'Could not load following list.', 'radical-socials' ),
 					'empty'         => __( 'Not following anything yet. Add feeds or accounts above.', 'radical-socials' ),
 					'remove'        => __( 'Remove', 'radical-socials' ),
-					'deleteConfirm' => __( "Remove \"%name%\" (%url%)?\n\nThis will also delete all saved posts from this feed.", 'radical-socials' ),
+					'deleteConfirm' => __( "Remove \"{name}\" ({url})?\n\nThis will also delete all saved posts from this feed.", 'radical-socials' ),
 					'deleteError'   => __( 'Could not remove item. Please try again.', 'radical-socials' ),
 					'colFav'        => __( 'Fav', 'radical-socials' ),
 					'colName'       => __( 'Name', 'radical-socials' ),
 					'colHealth'     => __( 'Status', 'radical-socials' ),
 					'colType'       => __( 'Type', 'radical-socials' ),
 					'colCategories' => __( 'Categories', 'radical-socials' ),
-					'healthOk'      => __( 'Healthy — replied in %ms% ms (checked %ago% ago)', 'radical-socials' ),
-					'healthSlow'    => __( 'Slow — replied in %ms% ms (checked %ago% ago). If this stays in the orange, consider removing it.', 'radical-socials' ),
-					'healthFailed'  => __( 'Failed: %error% (last attempt %ago% ago)', 'radical-socials' ),
+					'healthOk'      => __( 'Healthy — replied in {ms} ms (checked {ago} ago)', 'radical-socials' ),
+					'healthSlow'    => __( 'Slow — replied in {ms} ms (checked {ago} ago). If this stays in the orange, consider removing it.', 'radical-socials' ),
+					'healthFailed'  => __( 'Failed: {error} (last attempt {ago} ago)', 'radical-socials' ),
 					'healthUntested' => __( 'Not yet checked. The status updates after the next refresh cycle reaches this feed.', 'radical-socials' ),
 					'healthUnknownError' => __( 'Unknown error', 'radical-socials' ),
 					'starLabel'     => __( 'Star this feed', 'radical-socials' ),
 					'unstarLabel'   => __( 'Unstar this feed', 'radical-socials' ),
-					'addSummary'    => __( 'Done — %added% added, %skipped% already existed, %failed% failed.', 'radical-socials' ),
+					'addSummary'    => __( 'Done — {added} added, {skipped} already existed, {failed} failed.', 'radical-socials' ),
 					'failuresLabel' => __( 'The following could not be added:', 'radical-socials' ),
 					'errorNetwork'  => __( 'Network error', 'radical-socials' ),
 					'errorUnknown'  => __( 'Unknown error', 'radical-socials' ),
@@ -447,17 +469,17 @@ class Radical_Socials_Settings_Page {
 					],
 					'importAccountBtn'     => __( 'Import follows', 'radical-socials' ),
 					'importAccountFetching' => __( 'Fetching following list…', 'radical-socials' ),
-					'importAccountAdding'   => __( 'Adding %done% / %total%…', 'radical-socials' ),
-					'importAccountDone'     => __( 'Done — %added% added, %skipped% already existed, %failed% failed.', 'radical-socials' ),
+					'importAccountAdding'   => __( 'Adding {done} / {total}…', 'radical-socials' ),
+					'importAccountDone'     => __( 'Done — {added} added, {skipped} already existed, {failed} failed.', 'radical-socials' ),
 					'importAccountPrivate'  => __( 'This account\'s following list is private. Enable "Show following and followers publicly" in your Mastodon privacy settings and try again.', 'radical-socials' ),
 					'importAccountNotFound' => __( 'Account not found. Check the handle and try again.', 'radical-socials' ),
 					'importAccountError'    => __( 'Could not fetch following list. Try again.', 'radical-socials' ),
 					'importBtn'     => __( 'Import OPML', 'radical-socials' ),
 					'importing'     => __( 'Importing…', 'radical-socials' ),
-					'importResult'  => __( 'Done — %added% added, %updated% updated, %skipped% unchanged, %failed% failed.', 'radical-socials' ),
+					'importResult'  => __( 'Done — {added} added, {updated} updated, {skipped} unchanged, {failed} failed.', 'radical-socials' ),
 					'importError'   => __( 'Import failed. Make sure the file is a valid OPML document.', 'radical-socials' ),
 					'importNoFile'  => __( 'Please choose an OPML file first.', 'radical-socials' ),
-					'feedsHeading'  => __( 'Feeds (%count%)', 'radical-socials' ),
+					'feedsHeading'  => __( 'Feeds ({count})', 'radical-socials' ),
 				],
 			] );
 		}
@@ -1040,13 +1062,13 @@ class Radical_Socials_Settings_Page {
 			return $done ? '✓' : (string) $n;
 		};
 
-		// Surface admin-post handler results.
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$ap_installed   = isset( $_GET['rs_ap_installed'] );
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$ap_error       = isset( $_GET['rs_ap_install_error'] ) ? sanitize_text_field( wp_unslash( $_GET['rs_ap_install_error'] ) ) : '';
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$handle_saved   = isset( $_GET['rs_handle_saved'] );
+		// Surface admin-post handler results. Stored in a one-shot transient by
+		// the handler (vs. a URL query param) so the notice doesn't reappear if
+		// the user reloads the page after seeing it.
+		$result         = self::pop_form_result();
+		$ap_installed   = 'ap_installed' === ( $result['kind'] ?? '' );
+		$ap_error       = 'ap_install_error' === ( $result['kind'] ?? '' ) ? (string) ( $result['error'] ?? '' ) : '';
+		$handle_saved   = 'handle_saved' === ( $result['kind'] ?? '' );
 		?>
 		<p class="rs-welcome-intro">
 			<?php esc_html_e( 'A few quick steps and your site is ready to read, post, and federate. You can come back to this tab any time — completed steps will stay checked.', 'radical-socials' ); ?>
@@ -1216,13 +1238,12 @@ class Radical_Socials_Settings_Page {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
 		$back = static function ( string $err = '' ): void {
-			$url = admin_url( 'admin.php?page=radical-socials-settings&tab=welcome' );
 			if ( $err ) {
-				$url = add_query_arg( 'rs_ap_install_error', rawurlencode( $err ), $url );
+				self::push_form_result( [ 'kind' => 'ap_install_error', 'error' => $err ] );
 			} else {
-				$url = add_query_arg( 'rs_ap_installed', 1, $url );
+				self::push_form_result( [ 'kind' => 'ap_installed' ] );
 			}
-			wp_safe_redirect( $url );
+			wp_safe_redirect( admin_url( 'admin.php?page=radical-socials-settings&tab=welcome' ) );
 			exit;
 		};
 
@@ -1292,7 +1313,8 @@ class Radical_Socials_Settings_Page {
 		if ( '' !== $candidate ) {
 			update_option( 'activitypub_blog_identifier', $candidate );
 		}
-		wp_safe_redirect( admin_url( 'admin.php?page=radical-socials-settings&tab=welcome&rs_handle_saved=1' ) );
+		self::push_form_result( [ 'kind' => 'handle_saved' ] );
+		wp_safe_redirect( admin_url( 'admin.php?page=radical-socials-settings&tab=welcome' ) );
 		exit;
 	}
 
@@ -1335,10 +1357,18 @@ class Radical_Socials_Settings_Page {
 			$warnings[] = [ 'level' => 'warning', 'msg' => __( 'A refresh is currently queued. If this state persists for more than a couple of minutes, cron isn\'t firing — clear the lock and try "Run fetch now".', 'radical-socials' ) ];
 		}
 		if ( $mem_bytes > 0 && $mem_bytes < 128 * MB_IN_BYTES ) {
-			$warnings[] = [ 'level' => 'warning', 'msg' => sprintf( __( 'PHP memory_limit is %s. Polling 100+ feeds may run out of memory. Raise it to at least 128M.', 'radical-socials' ), ini_get( 'memory_limit' ) ) ];
+			$warnings[] = [
+				'level' => 'warning',
+				/* translators: %s: PHP memory_limit ini value (e.g. "64M"). */
+				'msg'   => sprintf( __( 'PHP memory_limit is %s. Polling 100+ feeds may run out of memory. Raise it to at least 128M.', 'radical-socials' ), ini_get( 'memory_limit' ) ),
+			];
 		}
 		if ( $exec_time > 0 && $exec_time < 60 ) {
-			$warnings[] = [ 'level' => 'warning', 'msg' => sprintf( __( 'PHP max_execution_time is %ds. A full refresh of many feeds may not finish before the host kills it.', 'radical-socials' ), $exec_time ) ];
+			$warnings[] = [
+				'level' => 'warning',
+				/* translators: %d: PHP max_execution_time in seconds. */
+				'msg'   => sprintf( __( 'PHP max_execution_time is %ds. A full refresh of many feeds may not finish before the host kills it.', 'radical-socials' ), $exec_time ),
+			];
 		}
 		if ( ! function_exists( 'Activitypub\follow' ) ) {
 			$warnings[] = [
@@ -1357,7 +1387,7 @@ class Radical_Socials_Settings_Page {
 		$nonce = wp_create_nonce( 'rs_diagnostics_action' );
 		?>
 		<div style="margin-top:20px;max-width:840px">
-			<?php echo $result_notice; // already escaped inside the helper ?>
+			<?php echo wp_kses_post( $result_notice ); ?>
 
 			<?php if ( ! empty( $warnings ) ) : ?>
 				<div style="margin:16px 0">
@@ -1483,8 +1513,8 @@ class Radical_Socials_Settings_Page {
 						printf(
 							/* translators: 1: tested count, 2: total target count */
 							esc_html__( 'Test next batch (%1$d / %2$d tested)', 'radical-socials' ),
-							$feed_tested,
-							$feed_total
+							(int) $feed_tested,
+							(int) $feed_total
 						);
 					}
 					?>
@@ -1529,11 +1559,20 @@ class Radical_Socials_Settings_Page {
 				?>
 				<h2 style="margin-top:32px"><?php esc_html_e( 'Feed test results', 'radical-socials' ); ?></h2>
 				<p>
-					<span style="color:#0a7b3f"><?php printf( esc_html__( '%d OK', 'radical-socials' ), $bucket['ok'] ); ?></span>
+					<span style="color:#0a7b3f"><?php
+						/* translators: %d: count of feeds that responded successfully. */
+						printf( esc_html__( '%d OK', 'radical-socials' ), (int) $bucket['ok'] );
+					?></span>
 					&nbsp;·&nbsp;
-					<span style="color:#dba617"><?php printf( esc_html__( '%d slow (>3s)', 'radical-socials' ), $bucket['slow'] ); ?></span>
+					<span style="color:#dba617"><?php
+						/* translators: %d: count of feeds that responded but took longer than 3 seconds. */
+						printf( esc_html__( '%d slow (>3s)', 'radical-socials' ), (int) $bucket['slow'] );
+					?></span>
 					&nbsp;·&nbsp;
-					<span style="color:#dc3232"><?php printf( esc_html__( '%d failed', 'radical-socials' ), $bucket['error'] ); ?></span>
+					<span style="color:#dc3232"><?php
+						/* translators: %d: count of feeds that failed to respond. */
+						printf( esc_html__( '%d failed', 'radical-socials' ), (int) $bucket['error'] );
+					?></span>
 					<?php if ( ! empty( $feed_test['last_run'] ) ) : ?>
 						&nbsp;·&nbsp;
 						<span class="description"><?php
@@ -1550,10 +1589,10 @@ class Radical_Socials_Settings_Page {
 					printf(
 						/* translators: 1: RSS tested, 2: RSS total, 3: AP tested, 4: AP total */
 						esc_html__( '%1$d / %2$d RSS · %3$d / %4$d ActivityPub tested', 'radical-socials' ),
-						$by_type['rss'],
-						$by_type_total['rss'],
-						$by_type['activitypub'],
-						$by_type_total['activitypub']
+						(int) $by_type['rss'],
+						(int) $by_type_total['rss'],
+						(int) $by_type['activitypub'],
+						(int) $by_type_total['activitypub']
 					);
 					?>
 				</p>

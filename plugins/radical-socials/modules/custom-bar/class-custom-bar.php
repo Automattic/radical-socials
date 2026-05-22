@@ -155,11 +155,11 @@ class Radical_Socials_Custom_Bar {
 		$bp = self::BREAKPOINT;
 		?>
 		<style id="rs-bar-offset">
-		@media (min-width: <?php echo $bp + 1; ?>px) {
-			html { margin-left: <?php echo $w; ?>px; }
+		@media (min-width: <?php echo (int) ( $bp + 1 ); ?>px) {
+			html { margin-left: <?php echo (int) $w; ?>px; }
 		}
-		@media (max-width: <?php echo $bp; ?>px) {
-			body { padding-bottom: <?php echo $h; ?>px; }
+		@media (max-width: <?php echo (int) $bp; ?>px) {
+			body { padding-bottom: <?php echo (int) $h; ?>px; }
 		}
 		</style>
 		<?php
@@ -192,17 +192,23 @@ class Radical_Socials_Custom_Bar {
 			<ul>
 				<?php foreach ( $links as $link ) : ?>
 					<?php
-					$extra_attrs = '';
-					foreach ( $link['attrs'] ?? [] as $name => $value ) {
-						$extra_attrs .= sprintf( ' %s="%s"', esc_attr( $name ), esc_attr( $value ) );
-					}
 					$aria = 'comments' === $link['id'] && $pending > 0
+						/* translators: %d: number of pending comments awaiting moderation. */
 						? sprintf( __( 'Comments — %d pending', 'radical-socials' ), $pending )
 						: $link['label'];
 					?>
 					<li>
-						<a href="<?php echo esc_url( $link['url'] ); ?>" class="rs-bar-link" aria-label="<?php echo esc_attr( $aria ); ?>"<?php echo $extra_attrs; ?>>
-							<?php echo self::render_bar_icon( $link, $avatar, $pending ); ?>
+						<a href="<?php echo esc_url( $link['url'] ); ?>" class="rs-bar-link" aria-label="<?php echo esc_attr( $aria ); ?>"<?php foreach ( $link['attrs'] ?? [] as $name => $value ) : ?> <?php echo esc_attr( $name ); ?>="<?php echo esc_attr( $value ); ?>"<?php endforeach; ?>>
+							<?php if ( 'profile' === $link['id'] ) : ?>
+								<?php echo wp_kses_post( $avatar ); ?>
+							<?php elseif ( 'comments' === $link['id'] && $pending > 0 ) : ?>
+								<span class="rs-bar-icon-wrap">
+									<span class="dashicons <?php echo esc_attr( $link['icon'] ); ?>" aria-hidden="true"></span>
+									<span class="rs-bar-badge" aria-hidden="true"><?php echo $pending > 99 ? '99+' : (int) $pending; ?></span>
+								</span>
+							<?php else : ?>
+								<span class="dashicons <?php echo esc_attr( $link['icon'] ); ?>" aria-hidden="true"></span>
+							<?php endif; ?>
 							<span class="rs-bar-label"><?php echo esc_html( $link['label'] ); ?></span>
 						</a>
 					</li>
@@ -210,28 +216,6 @@ class Radical_Socials_Custom_Bar {
 			</ul>
 		</nav>
 		<?php
-	}
-
-	/**
-	 * Render the icon (or avatar/badge) for a given bar link.
-	 * Keeps the bar-specific decorations (avatar swap for profile, badge for
-	 * comments) out of the shared link data.
-	 */
-	private static function render_bar_icon( array $link, string $avatar, int $pending ): string {
-		if ( 'profile' === $link['id'] ) {
-			return $avatar;
-		}
-		if ( 'comments' === $link['id'] && $pending > 0 ) {
-			return sprintf(
-				'<span class="rs-bar-icon-wrap"><span class="dashicons %s" aria-hidden="true"></span><span class="rs-bar-badge" aria-hidden="true">%s</span></span>',
-				esc_attr( $link['icon'] ),
-				$pending > 99 ? '99+' : (int) $pending
-			);
-		}
-		return sprintf(
-			'<span class="dashicons %s" aria-hidden="true"></span>',
-			esc_attr( $link['icon'] )
-		);
 	}
 
 	/**

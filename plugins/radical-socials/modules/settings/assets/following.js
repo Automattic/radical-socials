@@ -37,7 +37,7 @@
 
 	function renderTable( items ) {
 		if ( feedHeading ) {
-			feedHeading.textContent = rsFollowing.i18n.feedsHeading.replace( '%count%', items.length );
+			feedHeading.textContent = rsFollowing.i18n.feedsHeading.replace( '{count}', items.length );
 		}
 
 		if ( ! items.length ) {
@@ -176,16 +176,16 @@
 		switch ( health.status ) {
 			case 'ok':
 				return i18n.healthOk
-					.replace( '%ms%', String( health.response_ms || 0 ) )
-					.replace( '%ago%', checkedAgo );
+					.replace( '{ms}', String( health.response_ms || 0 ) )
+					.replace( '{ago}', checkedAgo );
 			case 'slow':
 				return i18n.healthSlow
-					.replace( '%ms%', String( health.response_ms || 0 ) )
-					.replace( '%ago%', checkedAgo );
+					.replace( '{ms}', String( health.response_ms || 0 ) )
+					.replace( '{ago}', checkedAgo );
 			case 'failed':
 				return i18n.healthFailed
-					.replace( '%error%', health.last_error || i18n.healthUnknownError )
-					.replace( '%ago%', checkedAgo );
+					.replace( '{error}', health.last_error || i18n.healthUnknownError )
+					.replace( '{ago}', checkedAgo );
 			default:
 				return i18n.healthUntested;
 		}
@@ -227,8 +227,8 @@
 	async function deleteItem( item, tr ) {
 		const name    = item.title || item.url;
 		const message = rsFollowing.i18n.deleteConfirm
-			.replace( '%name%', name )
-			.replace( '%url%', item.url );
+			.replace( '{name}', name )
+			.replace( '{url}', item.url );
 		if ( ! window.confirm( message ) ) {
 			return;
 		}
@@ -298,9 +298,9 @@
 
 		addBtn.disabled = false;
 		const summary = rsFollowing.i18n.addSummary
-			.replace( '%added%',   added )
-			.replace( '%skipped%', skipped )
-			.replace( '%failed%',  failed );
+			.replace( '{added}',   added )
+			.replace( '{skipped}', skipped )
+			.replace( '{failed}',  failed );
 		progText.textContent = summary;
 
 		if ( failures.length ) {
@@ -401,7 +401,7 @@
 
 		if ( ! actors.length ) {
 			importAccountText.textContent = rsFollowing.i18n.importAccountDone
-				.replace( '%added%', 0 ).replace( '%skipped%', 0 ).replace( '%failed%', 0 );
+				.replace( '{added}', 0 ).replace( '{skipped}', 0 ).replace( '{failed}', 0 );
 			importAccountBtn.disabled = false;
 			return;
 		}
@@ -428,14 +428,14 @@
 				done++;
 				importAccountBar.value        = done;
 				importAccountText.textContent = rsFollowing.i18n.importAccountAdding
-					.replace( '%done%', done ).replace( '%total%', actors.length );
+					.replace( '{done}', done ).replace( '{total}', actors.length );
 			} ) );
 		}
 
 		importAccountText.textContent = rsFollowing.i18n.importAccountDone
-			.replace( '%added%',   added )
-			.replace( '%skipped%', skipped )
-			.replace( '%failed%',  failed );
+			.replace( '{added}',   added )
+			.replace( '{skipped}', skipped )
+			.replace( '{failed}',  failed );
 		importAccountBtn.disabled = false;
 
 		if ( added > 0 ) {
@@ -517,10 +517,10 @@
 
 		opmlImportBtn.disabled = false;
 		progText.textContent   = rsFollowing.i18n.importResult
-			.replace( '%added%',   added )
-			.replace( '%updated%', updated )
-			.replace( '%skipped%', unchanged )
-			.replace( '%failed%',  failed );
+			.replace( '{added}',   added )
+			.replace( '{updated}', updated )
+			.replace( '{skipped}', unchanged )
+			.replace( '{failed}',  failed );
 		opmlFile.value = '';
 
 		if ( added > 0 || updated > 0 ) {

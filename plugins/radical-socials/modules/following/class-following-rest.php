@@ -200,8 +200,12 @@ class Radical_Socials_Following_REST {
 			return new WP_REST_Response( [ 'error' => 'invalid_file_type' ], 415 );
 		}
 
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-		$xml = file_get_contents( $file['tmp_name'] );
+		global $wp_filesystem;
+		if ( ! $wp_filesystem ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+			WP_Filesystem();
+		}
+		$xml = $wp_filesystem->get_contents( $file['tmp_name'] );
 		if ( ! $xml ) {
 			return new WP_REST_Response( [ 'error' => 'empty_file' ], 400 );
 		}

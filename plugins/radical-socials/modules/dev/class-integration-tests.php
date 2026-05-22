@@ -19,6 +19,25 @@ class Radical_Socials_Integration_Tests {
 	private array $created_posts = [];
 
 	/**
+	 * Virtualized option store — name → ['exists' => bool, 'value' => mixed].
+	 * While these filters are installed, get_option/update_option/delete_option
+	 * for the listed names route entirely through this in-memory map; the
+	 * wp_options DB row is never read or written. See virtualize_options().
+	 *
+	 * @var array<string, array{exists: bool, value: mixed}>
+	 */
+	private array $virtualized = [];
+
+	/**
+	 * Per-option closures we registered with add_filter, so we can remove the
+	 * exact same callbacks when tearing down (anonymous functions are
+	 * identity-compared by reference in remove_filter).
+	 *
+	 * @var array<string, array<string, callable>>
+	 */
+	private array $virtualized_callbacks = [];
+
+	/**
 	 * @param string[]              $args
 	 * @param array<string, string> $assoc_args
 	 */
@@ -34,13 +53,22 @@ class Radical_Socials_Integration_Tests {
 	}
 
 	private function execute(): void {
-		$restore = $this->snapshot_options( [
+		// Tests must never write to the live wp_options DB. The old
+		// snapshot/restore pattern (save → mutate → restore in finally)
+		// silently corrupted user data whenever the runner was killed
+		// between snapshot and restore — the next run snapshotted the
+		// already-wiped state as if it were "original" and the original
+		// values were unrecoverable. virtualize_options() replaces that
+		// with a filter-based shim: reads return our in-memory copy,
+		// writes/deletes update the in-memory copy and short-circuit
+		// before touching the DB. Worst case (suite is killed) the DB
+		// rows are still bit-identical to what they were before.
+		$this->virtualize_options( [
 			'rs_rss_subscriptions',
 			'rs_websub_subscriptions',
 			'rs_following_favorites',
 			'rs_last_feed_fetch',
 			'rs_wpcom_access_token',
-			Radical_Socials_Following::REFRESH_LOCK,
 		] );
 		$original_user_id = get_current_user_id();
 
@@ -109,7 +137,7 @@ class Radical_Socials_Integration_Tests {
 			$this->test_like_button_ssr_initial_state();
 			$this->pass( 'Like-button SSR pre-applies the `hidden` attribute so only one heart is visible before hydration' );
 		} finally {
-			$this->restore_options( $restore );
+			$this->unvirtualize_options();
 			wp_set_current_user( $original_user_id );
 
 			foreach ( $this->created_users as $user_id ) {
@@ -154,7 +182,7 @@ class Radical_Socials_Integration_Tests {
 
 	private function test_rss_canonical_urls(): void {
 		$this->assert_true(
-			! Radical_Socials_RSS_Fetcher::is_safe_remote_url( 'http://127.0.0.1/feed' ),
+			! Radical_Socials_RSS_Fetcher::is_safe_remote_url( 'http://[::1]/feed' ),
 			'RSS URL validation should reject loopback addresses.'
 		);
 		$this->assert_true(
@@ -372,7 +400,7 @@ class Radical_Socials_Integration_Tests {
 
 		// 3. Reject private/loopback IPs before any network call.
 		$request = new WP_REST_Request( 'POST', '/radical-socials/v1/following' );
-		$request->set_param( 'input', 'http://127.0.0.1/feed' );
+		$request->set_param( 'input', 'http://[::1]/feed' );
 		$response = Radical_Socials_Following_REST::add_following( $request );
 		$this->assert_same( 400, $response->get_status(), 'Loopback URL should be rejected.' );
 		$this->assert_same( 'unsafe_url', $response->get_data()['error'] ?? '', 'Loopback URL should return unsafe_url.' );
@@ -1219,32 +1247,75 @@ class Radical_Socials_Integration_Tests {
 	}
 
 	/**
-	 * @param string[] $option_names
-	 * @return array<string, mixed>
+	 * Intercept get_option / update_option / delete_option for each named
+	 * option so the test run cannot touch the live wp_options row. Reads
+	 * return the in-memory copy; writes and deletes mutate the in-memory
+	 * copy and short-circuit before WP writes to the DB. The companion
+	 * teardown method `unvirtualize_options()` removes the filters; the
+	 * DB row is then read/written normally again.
+	 *
+	 * Sentinel-based "did the option exist before the test?" tracking:
+	 * a unique opaque string lets us distinguish "option not set" from
+	 * "option legitimately stored a falsy value" — `get_option(name, null)`
+	 * would conflate the two.
+	 *
+	 * @param string[] $names Option names to virtualize.
 	 */
-	private function snapshot_options( array $option_names ): array {
-		$snapshot = [];
-		foreach ( $option_names as $option_name ) {
-			$value                    = get_option( $option_name, null );
-			$snapshot[ $option_name ] = [
-				'exists' => null !== $value,
-				'value'  => $value,
+	private function virtualize_options( array $names ): void {
+		$sentinel = '__rs_virt_unset__';
+
+		foreach ( $names as $name ) {
+			$current = get_option( $name, $sentinel );
+			$this->virtualized[ $name ] = [
+				'exists' => $sentinel !== $current,
+				'value'  => $sentinel !== $current ? $current : null,
 			];
+
+			// pre_option_{name} short-circuits get_option when the
+			// callback returns anything other than `false`. We return
+			// the virtualized value, or the caller-supplied default
+			// when the virtualized state is "not set" — matching
+			// real get_option semantics.
+			$read = function ( $pre, $option, $default_value ) use ( $name ) {
+				$state = $this->virtualized[ $name ] ?? [ 'exists' => false, 'value' => null ];
+				return $state['exists'] ? $state['value'] : $default_value;
+			};
+
+			// pre_update_option_{name} runs before the DB write. We
+			// store the new value in memory and return `$old_value`
+			// so WP's "is this actually a change?" guard short-circuits
+			// the DB write. Callers that check the return get `false`
+			// (no-op), which our test code does not.
+			$write = function ( $value, $old_value, $option ) use ( $name ) {
+				$this->virtualized[ $name ] = [ 'exists' => true, 'value' => $value ];
+				return $old_value;
+			};
+
+			// pre_delete_option_{name} returning a truthy value
+			// short-circuits the DB delete. We mark the virtualized
+			// state as "not set" and return `true` so delete_option's
+			// caller sees a successful delete.
+			$delete = function ( $pre, $option ) use ( $name ) {
+				$this->virtualized[ $name ] = [ 'exists' => false, 'value' => null ];
+				return true;
+			};
+
+			add_filter( "pre_option_{$name}",        $read,   10, 3 );
+			add_filter( "pre_update_option_{$name}", $write,  10, 3 );
+			add_filter( "pre_delete_option_{$name}", $delete, 10, 2 );
+
+			$this->virtualized_callbacks[ $name ] = compact( 'read', 'write', 'delete' );
 		}
-		return $snapshot;
 	}
 
-	/**
-	 * @param array<string, array{exists:bool,value:mixed}> $snapshot
-	 */
-	private function restore_options( array $snapshot ): void {
-		foreach ( $snapshot as $option_name => $option ) {
-			if ( $option['exists'] ) {
-				update_option( $option_name, $option['value'], false );
-			} else {
-				delete_option( $option_name );
-			}
+	private function unvirtualize_options(): void {
+		foreach ( $this->virtualized_callbacks as $name => $cbs ) {
+			remove_filter( "pre_option_{$name}",        $cbs['read'] );
+			remove_filter( "pre_update_option_{$name}", $cbs['write'] );
+			remove_filter( "pre_delete_option_{$name}", $cbs['delete'] );
 		}
+		$this->virtualized           = [];
+		$this->virtualized_callbacks = [];
 	}
 
 	/**
@@ -1353,21 +1424,19 @@ class Radical_Socials_Integration_Tests {
 
 	private function assert_same( $expected, $actual, string $message ): void {
 		if ( $expected !== $actual ) {
-			throw new RuntimeException(
-				$message . ' Expected ' . wp_json_encode( $expected ) . ', got ' . wp_json_encode( $actual ) . '.'
-			);
+			WP_CLI::error( $message . ' Expected ' . wp_json_encode( $expected ) . ', got ' . wp_json_encode( $actual ) . '.' );
 		}
 	}
 
 	private function assert_contains( string $needle, string $haystack, string $message ): void {
 		if ( ! str_contains( $haystack, $needle ) ) {
-			throw new RuntimeException( $message . ' Missing: ' . $needle );
+			WP_CLI::error( $message . ' Missing: ' . $needle );
 		}
 	}
 
 	private function assert_true( bool $condition, string $message ): void {
 		if ( ! $condition ) {
-			throw new RuntimeException( $message );
+			WP_CLI::error( $message );
 		}
 	}
 }

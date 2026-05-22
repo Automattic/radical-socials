@@ -8,6 +8,8 @@
  * @package RadicalSocials
  */
 
+defined( 'ABSPATH' ) || exit;
+
 $links = Radical_Socials_Custom_Bar::get_links();
 if ( empty( $links ) ) {
 	return;
@@ -29,7 +31,7 @@ foreach ( $links as $link ) {
 	);
 }
 
-printf(
+return sprintf(
 	'<ul %s>%s</ul>',
 	get_block_wrapper_attributes(),
 	$items
