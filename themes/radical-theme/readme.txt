@@ -48,3 +48,10 @@ Yes. Open *Appearance → Editor → Styles* and pick from Skyline (default), Ne
 == Copyright ==
 
 Radical Theme is free software, and is released under the terms of the GNU General Public License version 2 or (at your option) any later version. See LICENSE for the full license text.
+
+Radical Theme bundles the following resources:
+
+Screenshot image (screenshot.png)
+Copyright 2026 Sarah Norris
+License: GPL-2.0-or-later
+Source: Photograph taken by Sarah Norris, created for this theme.
