@@ -261,15 +261,19 @@ class Radical_Socials_ActivityPub_Fetcher {
 			return [];
 		}
 
-		$user_id = (int) get_option( 'rs_ap_follow_user_id', 0 );
-		if ( ! $user_id ) {
-			// Fall back to the first admin user if the option hasn't been set yet.
-			$admins  = get_users( [ 'role' => 'administrator', 'number' => 1, 'fields' => 'ID' ] );
-			$user_id = $admins ? (int) $admins[0] : 0;
-		}
-		if ( ! $user_id ) {
-			return [];
-		}
+		// In Blog Mode the option may legitimately be 0 (= BLOG_USER_ID),
+		// so distinguish "unset" from "set to zero" before falling back.
+		// get_option() returns the second arg's value when the option
+		// doesn't exist, so a sentinel `false` is the safe "unset" check
+		// here (a stored value is always an int from update_option's
+		// integer cast on lines we control). The fallback resolves to
+		// whichever actor the current site uses for AP — same source of
+		// truth as add_activitypub / unfollow / the REST list path, so
+		// the four code paths can't drift.
+		$stored  = get_option( 'rs_ap_follow_user_id', false );
+		$user_id = false === $stored
+			? self::ap_actor_id()
+			: (int) $stored;
 
 		$all_actors = \Activitypub\Collection\Following::query_all( $user_id )['following'];
 		$total      = count( $all_actors );
@@ -995,5 +999,39 @@ class Radical_Socials_ActivityPub_Fetcher {
 
 	public static function is_available(): bool {
 		return post_type_exists( self::POST_TYPE );
+	}
+
+	/**
+	 * The ActivityPub actor we act as for follow / unfollow / list / poll
+	 * operations.
+	 *
+	 * The AP plugin supports two relevant modes:
+	 *   - Blog Mode: a single site-wide actor; follows are tracked under
+	 *     `Actors::BLOG_USER_ID` (= 0), and individual WP users have no
+	 *     actor of their own (`user_can_activitypub( $real_uid )` is
+	 *     false). Passing a real user id while in Blog Mode is what
+	 *     produces `activitypub_user_not_found` — the AP plugin can't
+	 *     find a local actor for that uid.
+	 *   - User Mode (and Blog+User combined): per-user actors; the
+	 *     logged-in user_id is the right thing to pass.
+	 *
+	 * This helper is the single source of truth so the four callers
+	 * (`add_activitypub`, `list_activitypub`, the unfollow branch of
+	 * `remove_following`, and the outbox poller) can't drift.
+	 */
+	public static function ap_actor_id(): int {
+		if ( ! defined( 'ACTIVITYPUB_BLOG_MODE' ) ) {
+			return get_current_user_id();
+		}
+		$mode = (string) get_option( 'activitypub_actor_mode', '' );
+		if ( ACTIVITYPUB_BLOG_MODE === $mode ) {
+			// BLOG_USER_ID is defined as 0 by the AP plugin; falling
+			// back to the literal int keeps the helper safe if the
+			// constant moves between AP versions.
+			return class_exists( '\\Activitypub\\Collection\\Actors' )
+				? \Activitypub\Collection\Actors::BLOG_USER_ID
+				: 0;
+		}
+		return get_current_user_id();
 	}
 }

@@ -433,12 +433,17 @@ class Radical_Socials_Settings_Page {
 					'errorNetwork'  => __( 'Network error', 'radical-socials' ),
 					'errorUnknown'  => __( 'Unknown error', 'radical-socials' ),
 					'errors'        => [
-						'invalid_url'                   => __( 'Invalid URL — make sure it starts with https://', 'radical-socials' ),
-						'unsafe_url'                    => __( 'URL must be a public HTTP(S) address', 'radical-socials' ),
-						'activitypub_unavailable'       => __( 'ActivityPub plugin is not active — install it to follow Fediverse accounts', 'radical-socials' ),
-						'activitypub_user_not_found'    => __( 'Account not found — check the handle or URL', 'radical-socials' ),
-						'activitypub_already_following' => __( 'Already following', 'radical-socials' ),
-						'already_exists'                => __( 'Already following', 'radical-socials' ),
+						'invalid_url'                       => __( 'Invalid URL — make sure it starts with https://', 'radical-socials' ),
+						'unsafe_url'                        => __( 'URL must be a public HTTP(S) address', 'radical-socials' ),
+						'activitypub_unavailable'           => __( 'ActivityPub plugin is not active — install it to follow Fediverse accounts', 'radical-socials' ),
+						// AP plugin returns `activitypub_user_not_found` for the
+						// LOCAL actor — i.e. this site doesn't have an ActivityPub
+						// identity set up that can act. Different from the remote
+						// "we couldn't find that account" case below.
+						'activitypub_user_not_found'        => __( 'This site is not set up to follow on the Fediverse yet — check the ActivityPub plugin\'s settings', 'radical-socials' ),
+						'activitypub_remote_actor_not_found' => __( 'Account not found — check the handle or URL', 'radical-socials' ),
+						'activitypub_already_following'     => __( 'Already following', 'radical-socials' ),
+						'already_exists'                    => __( 'Already following', 'radical-socials' ),
 					],
 					'importAccountBtn'     => __( 'Import follows', 'radical-socials' ),
 					'importAccountFetching' => __( 'Fetching following list…', 'radical-socials' ),

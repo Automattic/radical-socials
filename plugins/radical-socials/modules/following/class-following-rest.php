@@ -498,7 +498,7 @@ class Radical_Socials_Following_REST {
 		if ( ! class_exists( 'Activitypub\Collection\Following' ) ) {
 			return [];
 		}
-		$uid     = get_current_user_id();
+		$uid     = Radical_Socials_ActivityPub_Fetcher::ap_actor_id();
 		$follows = \Activitypub\Collection\Following::query_all( $uid )['following'];
 		$items   = [];
 		foreach ( $follows as $post ) {
@@ -604,7 +604,7 @@ class Radical_Socials_Following_REST {
 			return new WP_REST_Response( [ 'error' => 'activitypub_unavailable', 'input' => $handle ], 503 );
 		}
 
-		$uid    = get_current_user_id();
+		$uid    = Radical_Socials_ActivityPub_Fetcher::ap_actor_id();
 		$result = \Activitypub\follow( $handle, $uid );
 
 		if ( is_wp_error( $result ) ) {
@@ -614,7 +614,7 @@ class Radical_Socials_Following_REST {
 			], 'activitypub_already_following' === $result->get_error_code() ? 409 : 400 );
 		}
 
-		// Remember which WP user owns ActivityPub follows so the outbox poller can find them.
+		// Remember which actor id owns ActivityPub follows so the outbox poller can find them.
 		update_option( 'rs_ap_follow_user_id', $uid, false );
 
 		return new WP_REST_Response( [
@@ -672,7 +672,7 @@ class Radical_Socials_Following_REST {
 					return new WP_REST_Response( [ 'error' => 'activitypub_unavailable' ], 503 );
 				}
 
-				$result = \Activitypub\unfollow( $url, get_current_user_id() );
+				$result = \Activitypub\unfollow( $url, Radical_Socials_ActivityPub_Fetcher::ap_actor_id() );
 				if ( is_wp_error( $result ) ) {
 					return new WP_REST_Response( [
 						'error' => $result->get_error_code(),
