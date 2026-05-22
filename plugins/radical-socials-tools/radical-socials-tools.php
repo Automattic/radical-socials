@@ -29,6 +29,7 @@ require_once __DIR__ . '/modules/settings/class-settings-page.php';
 require_once __DIR__ . '/modules/frontend-editor/class-frontend-editor.php';
 require_once __DIR__ . '/modules/following/loader.php';
 require_once __DIR__ . '/modules/templates/class-block-templates.php';
+require_once __DIR__ . '/modules/cover-photo/class-cover-photo-binding.php';
 
 // Dev-only modules. The WP_CLI guard keeps the test harness completely
 // inert during browser requests — it never even loads. modules/dev/ is

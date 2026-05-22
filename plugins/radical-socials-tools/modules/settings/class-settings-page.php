@@ -243,12 +243,20 @@ class Radical_Socials_Settings_Page {
 		$user        = wp_get_current_user();
 		$user_update = [ 'ID' => $user->ID ];
 
-		if ( isset( $_POST['blogname'] ) ) {
-			update_option( 'blogname', sanitize_text_field( wp_unslash( $_POST['blogname'] ) ) );
-		}
-
+		// "Name" is one concept on this screen — both the site's public
+		// identity (blogname, federated as the AP actor display name in
+		// Blog Mode) and the current user's display_name. Mirror in both
+		// directions when the user saves so they can't drift again. We
+		// only update blogname when the new value is non-empty so the
+		// user can't accidentally wipe the site title by clearing the
+		// field; the user's display_name is fine to be empty (WP falls
+		// back to user_login).
 		if ( isset( $_POST['rs_display_name'] ) ) {
-			$user_update['display_name'] = sanitize_text_field( wp_unslash( $_POST['rs_display_name'] ) );
+			$new_display                  = sanitize_text_field( wp_unslash( $_POST['rs_display_name'] ) );
+			$user_update['display_name']  = $new_display;
+			if ( '' !== $new_display ) {
+				update_option( 'blogname', $new_display );
+			}
 		}
 
 		if ( isset( $_POST['rs_profile_website'] ) ) {
@@ -284,12 +292,24 @@ class Radical_Socials_Settings_Page {
 
 		// custom_logo is always present in the POST (hidden input).
 		// site-icon.js sets the value to 'false' (string) on remove.
+		//
+		// We also mirror the Site Logo onto `site_icon` because we treat
+		// the Site Logo as the public profile photo for the site. The
+		// ActivityPub plugin's Blog Mode reads `site_icon` first for the
+		// blog actor's avatar, falling back to `custom_logo` only when
+		// `site_icon` is unset — without the mirror, a site that already
+		// had a different Site Icon set (e.g. from Customizer) would
+		// keep federating the old icon as its AP avatar even after the
+		// user picks a new Site Logo here. The mirror keeps the two
+		// surfaces in lockstep.
 		if ( array_key_exists( 'custom_logo', $_POST ) ) {
 			$logo_id = absint( wp_unslash( $_POST['custom_logo'] ) );
 			if ( $logo_id ) {
 				set_theme_mod( 'custom_logo', $logo_id );
+				update_option( 'site_icon', $logo_id );
 			} else {
 				remove_theme_mod( 'custom_logo' );
+				delete_option( 'site_icon' );
 			}
 		}
 
@@ -498,7 +518,12 @@ class Radical_Socials_Settings_Page {
 		$classes_for_preview = 'site-icon-preview wp-clearfix settings-page-preview' . ( $has_logo ? ' has-site-icon' : ' hidden' );
 		$classes_for_button  = $has_logo ? 'button' : 'upload-button button-add-media button-add-site-icon';
 		$classes_for_alt     = $has_logo ? 'upload-button button-add-media button-add-site-icon' : 'button';
-		$display     = $user->display_name ?: $user->user_login;
+		// Name is unified with the site title (see save handler — both
+		// are written together). Prefer the site title for the initial
+		// value because on existing installs blogname has usually been
+		// set (during WP setup) while the admin user's display_name
+		// is often still just the bare login.
+		$display     = get_option( 'blogname' ) ?: ( $user->display_name ?: $user->user_login );
 		$handle      = self::get_profile_handle( $user );
 		$bio         = get_user_meta( $user->ID, 'description', true );
 		$bio_empty   = __( 'Add a short bio so people know what to expect from your profile.', 'radical-socials-tools' );
@@ -507,6 +532,15 @@ class Radical_Socials_Settings_Page {
 		$avatar_id   = (int) get_user_meta( $user->ID, self::PROFILE_AVATAR_META, true );
 		$banner_id   = (int) get_user_meta( $user->ID, self::PROFILE_BANNER_META, true );
 		$avatar_url  = $avatar_id ? wp_get_attachment_image_url( $avatar_id, 'thumbnail' ) : '';
+		// The Site Logo is the authoritative profile photo for the site
+		// (see Site Logo save handler above — we mirror it onto
+		// `site_icon`, which AP reads for its blog actor avatar). If the
+		// per-user rs_profile_avatar_id meta isn't set, fall back to the
+		// Site Logo so the preview shows the same image that's federating
+		// out as the AP profile photo.
+		if ( ! $avatar_url && $logo_id ) {
+			$avatar_url = wp_get_attachment_image_url( $logo_id, 'thumbnail' );
+		}
 		$banner_url  = $banner_id ? wp_get_attachment_image_url( $banner_id, 'large' ) : '';
 		$initial     = strtoupper( substr( trim( $display ), 0, 1 ) );
 		$initial     = $initial ?: 'R';
@@ -678,93 +712,12 @@ class Radical_Socials_Settings_Page {
 							</div>
 						</section>
 
-						<?php if ( current_user_can( 'upload_files' ) ) : ?>
 						<section class="rs-settings-panel">
-							<h2><?php esc_html_e( 'Photos', 'radical-socials-tools' ); ?></h2>
-							<div class="rs-media-grid">
-								<div
-									class="rs-media-control"
-									data-rs-media-control
-									data-rs-media-target="avatar"
-									data-empty-label="<?php esc_attr_e( 'Profile photo', 'radical-socials-tools' ); ?>"
-									data-add-text="<?php esc_attr_e( 'Add photo', 'radical-socials-tools' ); ?>"
-									data-change-text="<?php esc_attr_e( 'Change photo', 'radical-socials-tools' ); ?>"
-								>
-									<div class="rs-media-preview rs-media-preview-avatar<?php echo $avatar_url ? ' has-image' : ''; ?>" data-rs-media-preview>
-										<?php if ( $avatar_url ) : ?>
-											<img src="<?php echo esc_url( $avatar_url ); ?>" alt="" />
-										<?php else : ?>
-											<span><?php esc_html_e( 'Profile photo', 'radical-socials-tools' ); ?></span>
-										<?php endif; ?>
-									</div>
-									<input type="hidden" name="rs_profile_avatar_id" value="<?php echo esc_attr( $avatar_id ?: '' ); ?>" data-rs-media-input>
-									<div class="rs-media-actions">
-										<button
-											type="button"
-											class="button"
-											data-rs-media-open
-											data-title="<?php esc_attr_e( 'Select profile photo', 'radical-socials-tools' ); ?>"
-											data-button="<?php esc_attr_e( 'Use this photo', 'radical-socials-tools' ); ?>"
-										>
-											<?php echo $avatar_url ? esc_html__( 'Change photo', 'radical-socials-tools' ) : esc_html__( 'Add photo', 'radical-socials-tools' ); ?>
-										</button>
-										<button type="button" class="button button-link-delete<?php echo $avatar_url ? '' : ' hidden'; ?>" data-rs-media-remove>
-											<?php esc_html_e( 'Remove', 'radical-socials-tools' ); ?>
-										</button>
-									</div>
-								</div>
-
-								<div
-									class="rs-media-control"
-									data-rs-media-control
-									data-rs-media-target="cover"
-									data-empty-label="<?php esc_attr_e( 'Cover photo', 'radical-socials-tools' ); ?>"
-									data-add-text="<?php esc_attr_e( 'Add cover', 'radical-socials-tools' ); ?>"
-									data-change-text="<?php esc_attr_e( 'Change cover', 'radical-socials-tools' ); ?>"
-								>
-									<div class="rs-media-preview rs-media-preview-cover<?php echo $banner_url ? ' has-image' : ''; ?>" data-rs-media-preview>
-										<?php if ( $banner_url ) : ?>
-											<img src="<?php echo esc_url( $banner_url ); ?>" alt="" />
-										<?php else : ?>
-											<span><?php esc_html_e( 'Cover photo', 'radical-socials-tools' ); ?></span>
-										<?php endif; ?>
-									</div>
-									<input type="hidden" name="rs_profile_banner_id" value="<?php echo esc_attr( $banner_id ?: '' ); ?>" data-rs-media-input>
-									<div class="rs-media-actions">
-										<button
-											type="button"
-											class="button"
-											data-rs-media-open
-											data-title="<?php esc_attr_e( 'Select cover photo', 'radical-socials-tools' ); ?>"
-											data-button="<?php esc_attr_e( 'Use this cover', 'radical-socials-tools' ); ?>"
-										>
-											<?php echo $banner_url ? esc_html__( 'Change cover', 'radical-socials-tools' ) : esc_html__( 'Add cover', 'radical-socials-tools' ); ?>
-										</button>
-										<button type="button" class="button button-link-delete<?php echo $banner_url ? '' : ' hidden'; ?>" data-rs-media-remove>
-											<?php esc_html_e( 'Remove', 'radical-socials-tools' ); ?>
-										</button>
-									</div>
-								</div>
-							</div>
-						</section>
-						<?php endif; ?>
-
-						<section class="rs-settings-panel">
-							<h2><?php esc_html_e( 'Site', 'radical-socials-tools' ); ?></h2>
-							<div class="rs-field">
-								<label for="blogname"><?php esc_html_e( 'Site title', 'radical-socials-tools' ); ?></label>
-								<input
-									name="blogname"
-									type="text"
-									id="blogname"
-									value="<?php echo esc_attr( get_option( 'blogname' ) ); ?>"
-									class="regular-text"
-								/>
-							</div>
+							<h2><?php esc_html_e( 'Site logo', 'radical-socials-tools' ); ?></h2>
 
 							<?php if ( current_user_can( 'upload_files' ) ) : ?>
 							<div class="rs-field hide-if-no-js site-icon-section">
-								<label><?php esc_html_e( 'Site logo', 'radical-socials-tools' ); ?></label>
+								<label class="screen-reader-text"><?php esc_html_e( 'Site logo', 'radical-socials-tools' ); ?></label>
 								<style>
 								:root { --site-icon-url: url( '<?php echo esc_url( $logo_url ); ?>' ); }
 								</style>
@@ -823,6 +776,45 @@ class Radical_Socials_Settings_Page {
 							</div>
 							<?php endif; ?>
 						</section>
+
+						<?php if ( current_user_can( 'upload_files' ) ) : ?>
+						<section class="rs-settings-panel">
+							<h2><?php esc_html_e( 'Cover photo', 'radical-socials-tools' ); ?></h2>
+							<div class="rs-media-grid">
+								<div
+									class="rs-media-control"
+									data-rs-media-control
+									data-rs-media-target="cover"
+									data-empty-label="<?php esc_attr_e( 'Cover photo', 'radical-socials-tools' ); ?>"
+									data-add-text="<?php esc_attr_e( 'Add cover', 'radical-socials-tools' ); ?>"
+									data-change-text="<?php esc_attr_e( 'Change cover', 'radical-socials-tools' ); ?>"
+								>
+									<div class="rs-media-preview rs-media-preview-cover<?php echo $banner_url ? ' has-image' : ''; ?>" data-rs-media-preview>
+										<?php if ( $banner_url ) : ?>
+											<img src="<?php echo esc_url( $banner_url ); ?>" alt="" />
+										<?php else : ?>
+											<span><?php esc_html_e( 'Cover photo', 'radical-socials-tools' ); ?></span>
+										<?php endif; ?>
+									</div>
+									<input type="hidden" name="rs_profile_banner_id" value="<?php echo esc_attr( $banner_id ?: '' ); ?>" data-rs-media-input>
+									<div class="rs-media-actions">
+										<button
+											type="button"
+											class="button"
+											data-rs-media-open
+											data-title="<?php esc_attr_e( 'Select cover photo', 'radical-socials-tools' ); ?>"
+											data-button="<?php esc_attr_e( 'Use this cover', 'radical-socials-tools' ); ?>"
+										>
+											<?php echo $banner_url ? esc_html__( 'Change cover', 'radical-socials-tools' ) : esc_html__( 'Add cover', 'radical-socials-tools' ); ?>
+										</button>
+										<button type="button" class="button button-link-delete<?php echo $banner_url ? '' : ' hidden'; ?>" data-rs-media-remove>
+											<?php esc_html_e( 'Remove', 'radical-socials-tools' ); ?>
+										</button>
+									</div>
+								</div>
+							</div>
+						</section>
+						<?php endif; ?>
 					</div>
 				</div>
 				<?php submit_button(); ?>
