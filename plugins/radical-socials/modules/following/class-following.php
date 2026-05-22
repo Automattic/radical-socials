@@ -97,9 +97,28 @@ class Radical_Socials_Following {
 	// ── Blocks ────────────────────────────────────────────────────────────────
 
 	public static function register_blocks(): void {
-		register_block_type( __DIR__ . '/blocks/favorite-feeds' );
-		register_block_type( __DIR__ . '/blocks/following-link' );
-		register_block_type( __DIR__ . '/blocks/favorites-link' );
+		// Load the render functions before register_block_type so the
+		// callbacks resolve. We use function-based render callbacks
+		// (matching WP core's wp-includes/blocks/* pattern) instead of
+		// the file-template `render: file:...` shortcut, because the
+		// latter is incompatible with phpcs's EscapeOutput sniff for
+		// get_block_wrapper_attributes() usage.
+		require_once __DIR__ . '/blocks/favorite-feeds/render.php';
+		require_once __DIR__ . '/blocks/following-link/render.php';
+		require_once __DIR__ . '/blocks/favorites-link/render.php';
+
+		register_block_type(
+			__DIR__ . '/blocks/favorite-feeds',
+			[ 'render_callback' => 'radical_socials_render_favorite_feeds' ]
+		);
+		register_block_type(
+			__DIR__ . '/blocks/following-link',
+			[ 'render_callback' => 'radical_socials_render_following_link' ]
+		);
+		register_block_type(
+			__DIR__ . '/blocks/favorites-link',
+			[ 'render_callback' => 'radical_socials_render_favorites_link' ]
+		);
 		register_block_type( __DIR__ . '/blocks/like-button' );
 
 		// One insertion path per hooked block, per anchor:

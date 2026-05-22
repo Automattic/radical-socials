@@ -47,7 +47,11 @@ class Radical_Socials_Custom_Bar {
 	}
 
 	public static function register_blocks(): void {
-		register_block_type( __DIR__ . '/blocks/social-menu' );
+		require_once __DIR__ . '/blocks/social-menu/render.php';
+		register_block_type(
+			__DIR__ . '/blocks/social-menu',
+			[ 'render_callback' => 'radical_socials_render_social_menu' ]
+		);
 	}
 
 	/**
