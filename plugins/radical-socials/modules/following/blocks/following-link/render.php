@@ -18,10 +18,6 @@ if ( ! Radical_Socials_Following::can_view_following() ) {
 
 $following_page = get_page_by_path( 'following', OBJECT, 'page' );
 $url            = $following_page ? get_permalink( $following_page->ID ) : home_url( '/following/' );
-
-return sprintf(
-	'<li %s><a class="wp-block-navigation-item__content" href="%s">%s</a></li>',
-	get_block_wrapper_attributes( [ 'class' => 'wp-block-navigation-item wp-block-navigation-link' ] ),
-	esc_url( $url ),
-	esc_html__( 'Following', 'radical-socials' )
-);
+?>
+<li <?php echo get_block_wrapper_attributes( [ 'class' => 'wp-block-navigation-item wp-block-navigation-link' ] ); ?>><a class="wp-block-navigation-item__content" href="<?php echo esc_url( $url ); ?>"><?php esc_html_e( 'Following', 'radical-socials' ); ?></a></li>
+<?php

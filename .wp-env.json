@@ -5,7 +5,6 @@
   "testsPort": 8891,
   "plugins": [
     "./plugins/radical-socials",
-    "./plugins/radical-socials-dev",
     "https://downloads.wordpress.org/plugin/query-monitor.latest-stable.zip",
     "https://downloads.wordpress.org/plugin/activitypub.latest-stable.zip"
   ],

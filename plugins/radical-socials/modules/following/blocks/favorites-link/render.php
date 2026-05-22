@@ -18,10 +18,6 @@ if ( ! Radical_Socials_Following::can_view_following() ) {
 
 $favorites_page = get_page_by_path( 'favorites', OBJECT, 'page' );
 $url            = $favorites_page ? get_permalink( $favorites_page->ID ) : home_url( '/favorites/' );
-
-return sprintf(
-	'<li %s><a class="wp-block-navigation-item__content" href="%s">%s</a></li>',
-	get_block_wrapper_attributes( [ 'class' => 'wp-block-navigation-item wp-block-navigation-link' ] ),
-	esc_url( $url ),
-	esc_html__( 'Favorites', 'radical-socials' )
-);
+?>
+<li <?php echo get_block_wrapper_attributes( [ 'class' => 'wp-block-navigation-item wp-block-navigation-link' ] ); ?>><a class="wp-block-navigation-item__content" href="<?php echo esc_url( $url ); ?>"><?php esc_html_e( 'Favorites', 'radical-socials' ); ?></a></li>
+<?php

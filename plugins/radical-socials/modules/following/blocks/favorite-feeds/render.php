@@ -59,17 +59,10 @@ if ( empty( $items ) ) {
 	return;
 }
 
-$items_html = '';
-foreach ( $items as $item ) {
-	$items_html .= sprintf(
-		'<li class="cat-item"><a href="%s" target="_blank" rel="noopener noreferrer">%s</a></li>',
-		esc_url( $item['url'] ),
-		esc_html( $item['title'] )
-	);
-}
-
-return sprintf(
-	'<ul %s>%s</ul>',
-	get_block_wrapper_attributes( [ 'class' => 'wp-block-categories wp-block-categories-list' ] ),
-	$items_html
-);
+?>
+<ul <?php echo get_block_wrapper_attributes( [ 'class' => 'wp-block-categories wp-block-categories-list' ] ); ?>>
+	<?php foreach ( $items as $item ) : ?>
+		<li class="cat-item"><a href="<?php echo esc_url( $item['url'] ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( $item['title'] ); ?></a></li>
+	<?php endforeach; ?>
+</ul>
+<?php
