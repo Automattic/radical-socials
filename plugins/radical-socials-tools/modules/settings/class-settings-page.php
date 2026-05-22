@@ -1069,9 +1069,6 @@ class Radical_Socials_Settings_Page {
 		$ap_error       = 'ap_install_error' === ( $result['kind'] ?? '' ) ? (string) ( $result['error'] ?? '' ) : '';
 		$handle_saved   = 'handle_saved' === ( $result['kind'] ?? '' );
 		?>
-		<p class="rs-welcome-intro">
-			<?php esc_html_e( 'A few quick steps and your site is ready to read, post, and federate. You can come back to this tab any time — completed steps will stay checked.', 'radical-socials-tools' ); ?>
-		</p>
 
 		<?php if ( $ap_installed ) : ?>
 			<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'ActivityPub installed and activated.', 'radical-socials-tools' ); ?></p></div>
@@ -1116,7 +1113,7 @@ class Radical_Socials_Settings_Page {
 						$host = wp_parse_url( home_url(), PHP_URL_HOST );
 						?>
 						<p><?php esc_html_e( 'ActivityPub is active. This is the @handle that other Fediverse accounts will use to follow you:', 'radical-socials-tools' ); ?></p>
-						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="rs-welcome-step__actions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="rs-welcome-step__actions" style="width:100%">
 							<input type="hidden" name="action" value="rs_save_handle" />
 							<?php wp_nonce_field( 'rs_save_handle' ); ?>
 							<span class="rs-welcome-handle-preview">@<input
@@ -1125,7 +1122,7 @@ class Radical_Socials_Settings_Page {
 								value="<?php echo esc_attr( $blog_identifier ); ?>"
 								pattern="[A-Za-z0-9_\-]+"
 								maxlength="40"
-								style="border:0;background:transparent;width:8em;font-family:inherit"
+								style="border:0;background:transparent;font-family:inherit"
 							/>@<?php echo esc_html( $host ); ?></span>
 							<button type="submit" class="button button-secondary"><?php esc_html_e( 'Save handle', 'radical-socials-tools' ); ?></button>
 						</form>
@@ -1138,7 +1135,7 @@ class Radical_Socials_Settings_Page {
 				<div class="rs-welcome-step__marker"><?php echo esc_html( $step_marker( 2 ) ); ?></div>
 				<div class="rs-welcome-step__body">
 					<h2><?php esc_html_e( 'Add accounts to follow', 'radical-socials-tools' ); ?></h2>
-					<p><?php esc_html_e( 'Pick whichever path matches your existing feeds. You can use more than one — they all land in the same unified timeline.', 'radical-socials-tools' ); ?></p>
+					<p><?php esc_html_e( 'Add the feeds that will show on the following page', 'radical-socials-tools' ); ?></p>
 
 					<div class="rs-welcome-step__addbox">
 						<strong><?php esc_html_e( 'Paste feeds or handles', 'radical-socials-tools' ); ?></strong>
@@ -1162,9 +1159,9 @@ class Radical_Socials_Settings_Page {
 
 					<?php if ( $ap_active ) : ?>
 					<div class="rs-welcome-step__addbox">
-						<strong><?php esc_html_e( 'Import from a Mastodon (or any ActivityPub) account', 'radical-socials-tools' ); ?></strong>
+						<strong><?php esc_html_e( 'Import fediverse followed accounts', 'radical-socials-tools' ); ?></strong>
 						<p class="description" style="margin:4px 0 8px">
-							<?php esc_html_e( 'Pulls the account\'s public following list and adds each one as a feed. The account\'s "Show following" privacy setting must be on.', 'radical-socials-tools' ); ?>
+							<?php esc_html_e( 'The account\'s "Show following" privacy setting must be on.. Works for Mastodon or any ActivityPub account', 'radical-socials-tools' ); ?>
 						</p>
 						<input type="text" id="rs-import-account-input" class="regular-text" placeholder="@you@mastodon.social" />
 						<button id="rs-import-account-btn" type="button" class="button button-secondary"><?php esc_html_e( 'Import follows', 'radical-socials-tools' ); ?></button>
@@ -1178,10 +1175,12 @@ class Radical_Socials_Settings_Page {
 					<div class="rs-welcome-step__addbox">
 						<strong><?php esc_html_e( 'Import an OPML file', 'radical-socials-tools' ); ?></strong>
 						<p class="description" style="margin:4px 0 8px">
-							<?php esc_html_e( 'If you\'re moving from another feed reader, export your subscriptions there and drop the file here.', 'radical-socials-tools' ); ?>
+							<?php esc_html_e( 'Export your RSS feeds from another reader and import them here.', 'radical-socials-tools' ); ?>
 						</p>
-						<input type="file" id="rs-opml-file" accept=".opml,.xml" style="margin-bottom:8px;display:block" />
-						<button id="rs-opml-import-btn" type="button" class="button button-secondary"><?php esc_html_e( 'Import OPML', 'radical-socials-tools' ); ?></button>
+						<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+							<input type="file" id="rs-opml-file" accept=".opml,.xml" />
+							<button id="rs-opml-import-btn" type="button" class="button button-secondary"><?php esc_html_e( 'Import OPML', 'radical-socials-tools' ); ?></button>
+						</div>
 					</div>
 
 					<?php if ( class_exists( 'Radical_Socials_WPCOM_OAuth' ) && Radical_Socials_WPCOM_OAuth::is_configured() ) : ?>
@@ -1198,9 +1197,6 @@ class Radical_Socials_Settings_Page {
 					</div>
 					<?php endif; ?>
 
-					<div class="rs-welcome-step__actions" style="margin-top:14px">
-						<a href="#rs-welcome-step-3" class="button button-link"><?php esc_html_e( 'Skip for now', 'radical-socials-tools' ); ?></a>
-					</div>
 				</div>
 			</li>
 
@@ -1209,7 +1205,7 @@ class Radical_Socials_Settings_Page {
 				<div class="rs-welcome-step__marker"><?php echo esc_html( $step_marker( 3 ) ); ?></div>
 				<div class="rs-welcome-step__body">
 					<h2><?php esc_html_e( 'Post your first post', 'radical-socials-tools' ); ?></h2>
-					<p><?php esc_html_e( 'Your home page is also your editor — there\'s a composer right at the top. Write anything; once you publish, it appears in your own timeline and (with ActivityPub on) lands in your Fediverse followers\' feeds.', 'radical-socials-tools' ); ?></p>
+					<p><?php esc_html_e( 'That\'s it! Start writing your first post from your home page, it appears in your own timeline and (with ActivityPub on) lands in your Fediverse followers\' feeds.', 'radical-socials-tools' ); ?></p>
 					<div class="rs-welcome-step__actions">
 						<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="button button-primary"><?php esc_html_e( 'Go to my home page', 'radical-socials-tools' ); ?></a>
 					</div>

@@ -171,7 +171,14 @@
 }
 
 .rs-welcome-handle-preview {
-	display: inline-block;
+	/* Flex so the inner @-input-@host parts can size relative to the
+	 * span itself, and `flex: 1` so the span fills the form row next
+	 * to the Save button instead of shrinking to its content (which
+	 * made the input field too narrow to even show the placeholder). */
+	display: flex;
+	align-items: center;
+	flex: 1;
+	min-width: 0;
 	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 	background: #f6f7f7;
 	padding: 4px 8px;
@@ -179,8 +186,13 @@
 	border: 1px solid #dcdcde;
 }
 
+.rs-welcome-handle-preview input[type="text"] {
+	width: 30%;
+	min-width: 0;
+}
+
 .rs-welcome-step__addbox {
-	margin-top: 8px;
+	margin-top: 16px;
 	padding-top: 12px;
 	border-top: 1px dashed #dcdcde;
 }
