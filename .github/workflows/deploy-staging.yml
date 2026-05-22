@@ -39,8 +39,8 @@ jobs:
             --exclude node_modules/ \
             --exclude src/ \
             --exclude .gitignore \
-            ./plugins/radical-socials/ \
-            /htdocs/wp-content/plugins/radical-socials/
+            ./plugins/radical-socials-tools/ \
+            /htdocs/wp-content/plugins/radical-socials-tools/
           bye
           EOF
 
