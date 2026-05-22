@@ -3,13 +3,14 @@
  * Frontend Editor
  *
  * Registers the `radical-socials/frontend-editor` block and the
- * `radical-socials-frontend` script/style handles. The block.json
- * references those handles as `viewScript`/`viewStyle`, so WordPress
- * auto-enqueues them only when the block is actually rendered on the
- * front end. That matters: the style depends on `wp-edit-blocks` and
- * `wp-format-library`, both of which carry broad block-editor
- * selectors — global enqueue would bleed editor chrome onto every
- * front-end page.
+ * `radical-socials-frontend` script/style handles. block.json wires
+ * those handles as `viewScript`/`viewStyle`, so WordPress auto-enqueues
+ * them whenever the block renders. We additionally enqueue the same
+ * handles on every front-end page for users with publish capability,
+ * so the Custom Bar "Create" overlay can be opened from anywhere — not
+ * just pages that happen to contain the block. The dual wiring relies
+ * on WP's normal handle deduplication; if both paths fire, the script
+ * is still only sent to the browser once.
  *
  * The handles are only registered when the current user can publish
  * posts. For everyone else the view-* references in block.json resolve
@@ -32,6 +33,18 @@ class Radical_Socials_Frontend_Editor {
 		// and tries to resolve viewScript/viewStyle handles.
 		add_action( 'init', [ self::class, 'register_assets' ], 9 );
 		add_action( 'init', [ self::class, 'register_block' ] );
+
+		// Always-on enqueue for the Create button + modal. The Custom
+		// Bar's Create item is itself gated on `publish_posts`, so a
+		// reader/visitor never sees the trigger and the script payload
+		// only lands for accounts that can actually use it.
+		add_action( 'wp_enqueue_scripts', [ self::class, 'enqueue_for_publishers' ] );
+
+		// Auto-inject the composer block onto the home / front page when
+		// no theme template already places it. Runs at render time so
+		// theme overrides (placing the block themselves) take precedence
+		// automatically.
+		add_filter( 'render_block', [ self::class, 'maybe_inject_into_main' ], 10, 2 );
 	}
 
 	private static function current_user_can_publish(): bool {
@@ -111,6 +124,131 @@ class Radical_Socials_Frontend_Editor {
 			return '';
 		}
 		return '<div id="radical-socials-editor"></div>';
+	}
+
+	/**
+	 * Enqueue the frontend script + style on every front-end page for
+	 * publish-capable users so the Create overlay can be triggered from
+	 * the Custom Bar regardless of which template is rendering. When the
+	 * editor block IS present on the same page, the block's viewScript
+	 * declaration also asks for the same handles — wp_enqueue_script's
+	 * dedup-by-handle handles that cleanly.
+	 */
+	public static function enqueue_for_publishers(): void {
+		if ( ! self::current_user_can_publish() ) {
+			return;
+		}
+		if ( ! wp_script_is( self::SCRIPT_HANDLE, 'registered' ) ) {
+			// register_assets() bails when the build asset file is
+			// missing (fresh checkout pre-`npm run build`). Mirror that
+			// — nothing to enqueue means the trigger script wouldn't
+			// run anyway.
+			return;
+		}
+		wp_enqueue_script( self::SCRIPT_HANDLE );
+		wp_enqueue_style( self::STYLE_HANDLE );
+	}
+
+	/**
+	 * On the home / front-page request, inject our composer as the
+	 * first child of the page's `<main>` element when no relevant theme
+	 * template already places it. Per-request cached so the
+	 * candidate-template scan runs at most once.
+	 *
+	 * Targets the `core/group` block with `tagName: main`. Themes that
+	 * write a bare `<main>` HTML tag instead of a Group block won't be
+	 * matched — that's the "if there is no main tag, we don't append it"
+	 * branch of the rule, applied conservatively to avoid mangling
+	 * HTML we don't fully understand.
+	 *
+	 * @param string $block_content  Rendered HTML of one block.
+	 * @param array  $block          Parsed block (name + attrs + …).
+	 */
+	public static function maybe_inject_into_main( string $block_content, array $block ): string {
+		// Cheapest checks first: bail before WP's query state lookups
+		// on the >99% of blocks we don't care about.
+		if ( 'core/group' !== ( $block['blockName'] ?? '' ) ) {
+			return $block_content;
+		}
+		if ( 'main' !== ( $block['attrs']['tagName'] ?? '' ) ) {
+			return $block_content;
+		}
+		if ( ! is_front_page() && ! is_home() ) {
+			return $block_content;
+		}
+		if ( ! self::should_auto_inject() ) {
+			return $block_content;
+		}
+
+		// Render the editor block ourselves so the result is plain HTML
+		// ready to splice into the parent's rendered output. do_blocks
+		// also pulls the block's viewScript/viewStyle through the
+		// enqueue pipeline as a side-effect — same handles our
+		// enqueue_for_publishers() already wired in, deduped at
+		// enqueue time.
+		$editor_html = do_blocks( '<!-- wp:radical-socials/frontend-editor /-->' );
+		if ( '' === trim( $editor_html ) ) {
+			return $block_content;
+		}
+
+		// Insert right after the opening <main …> tag. preg_replace
+		// returns null on regex error — keep the original output in
+		// that pathological case rather than blowing up the page.
+		$updated = preg_replace(
+			'~(<main\b[^>]*>)~i',
+			'$1' . $editor_html,
+			$block_content,
+			1
+		);
+		return is_string( $updated ) ? $updated : $block_content;
+	}
+
+	/**
+	 * Decide once per request whether to inject the composer. The
+	 * answer is "yes" only when none of the four candidate templates
+	 * for the home-page request already includes the composer block —
+	 * matching the spec: front-page → blog → home → index, in that
+	 * priority order. If any of them place the block themselves, we
+	 * step out of the way entirely.
+	 *
+	 * The lookup goes through `get_block_templates` so user-customized
+	 * templates stored in the database (wp_template post overrides
+	 * created by the Site Editor) are honored alongside theme files.
+	 */
+	private static function should_auto_inject(): bool {
+		static $cached = null;
+		if ( null !== $cached ) {
+			return $cached;
+		}
+
+		// Restrict the slug scan to the templates that would actually
+		// render for the home URL given the current reading settings.
+		// `blog` isn't part of WP's standard hierarchy, but some themes
+		// use it as a custom slug, so honor it as the user requested.
+		$show_on_front = (string) get_option( 'show_on_front', 'posts' );
+		$candidates    = 'page' === $show_on_front
+			? [ 'front-page', 'index' ]
+			: [ 'front-page', 'home', 'blog', 'index' ];
+
+		if ( ! function_exists( 'get_block_templates' ) ) {
+			$cached = false;
+			return $cached;
+		}
+
+		$templates = get_block_templates(
+			[ 'slug__in' => $candidates ],
+			'wp_template'
+		);
+
+		foreach ( $templates as $tpl ) {
+			if ( isset( $tpl->content ) && false !== strpos( (string) $tpl->content, 'wp:radical-socials/frontend-editor' ) ) {
+				$cached = false;
+				return $cached;
+			}
+		}
+
+		$cached = true;
+		return $cached;
 	}
 }
 
