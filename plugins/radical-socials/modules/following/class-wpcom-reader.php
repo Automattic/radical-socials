@@ -144,7 +144,7 @@ class Radical_Socials_WPCOM_Reader {
 			'content'         => (string) ( $post['content'] ?? '' ),
 			'excerpt'         => wp_strip_all_tags( (string) ( $post['excerpt'] ?? '' ) ),
 			'date'            => $post['date'] ?? current_time( 'c' ),
-			'source_name'     => wp_strip_all_tags( $post['site_name'] ?? parse_url( $post['URL'] ?? '', PHP_URL_HOST ) ),
+			'source_name'     => wp_strip_all_tags( $post['site_name'] ?? wp_parse_url( $post['URL'] ?? '', PHP_URL_HOST ) ),
 			'source_url'      => esc_url_raw( $post['site_URL'] ?? '' ),
 			'thumbnail_url'   => esc_url_raw( $thumbnail ),
 			'guid'            => md5( $post['URL'] ?? uniqid( 'wpcom_', true ) ),

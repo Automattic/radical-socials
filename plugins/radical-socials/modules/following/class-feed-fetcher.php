@@ -274,7 +274,7 @@ class Radical_Socials_Feed_Fetcher {
 
 		if ( $post_id && ! is_wp_error( $post_id ) ) {
 			// Assign source and type taxonomy terms.
-			$source_name = $item['source_name'] ?: parse_url( $item['source_url'] ?? '', PHP_URL_HOST );
+			$source_name = $item['source_name'] ?: wp_parse_url( $item['source_url'] ?? '', PHP_URL_HOST );
 			if ( $source_name ) {
 				wp_set_post_terms( $post_id, [ $source_name ], 'rs_source' );
 			}

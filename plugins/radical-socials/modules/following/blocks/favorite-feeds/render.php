@@ -10,6 +10,8 @@
  * @package RadicalSocials
  */
 
+defined( 'ABSPATH' ) || exit;
+
 $favorites = (array) get_option( 'rs_following_favorites', [] );
 if ( empty( $favorites ) ) {
 	return;
@@ -66,7 +68,7 @@ foreach ( $items as $item ) {
 	);
 }
 
-printf(
+return sprintf(
 	'<ul %s>%s</ul>',
 	get_block_wrapper_attributes( [ 'class' => 'wp-block-categories wp-block-categories-list' ] ),
 	$items_html

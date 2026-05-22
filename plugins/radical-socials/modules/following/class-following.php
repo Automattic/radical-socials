@@ -615,7 +615,8 @@ class Radical_Socials_Following {
 		// (Russian, Arabic, Polish, etc.), which only resolve correctly
 		// when we know the count server-side; the refresh count is set
 		// client-side, so we ship both forms.
-		$new_posts_forms = _n_noop( '1 new post', '%d new posts', 'radical-socials' );
+		/* translators: %d: number of new posts available in the feed. */
+		$new_posts_forms = _n_noop( '%d new post', '%d new posts', 'radical-socials' );
 		wp_interactivity_state( 'radical-socials/following', [
 			'refreshUrl'           => rest_url( 'radical-socials/v1/following/refresh' ),
 			'nonce'                => is_user_logged_in() ? wp_create_nonce( 'wp_rest' ) : '',

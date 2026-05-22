@@ -125,7 +125,7 @@ class Radical_Socials_RSS_Fetcher {
 				'content'         => $raw_content,
 				'excerpt'         => wp_trim_words( wp_strip_all_tags( (string) $item->get_description() ), 30 ),
 				'date'            => $item->get_date( 'c' ) ?: current_time( 'c' ),
-				'source_name'     => $channel_title ?: parse_url( $feed_url, PHP_URL_HOST ),
+				'source_name'     => $channel_title ?: wp_parse_url( $feed_url, PHP_URL_HOST ),
 				'source_url'      => $channel_url,
 				'thumbnail_url'   => $thumbnail,
 				'guid'            => md5( $url ),

@@ -477,8 +477,8 @@ class Radical_Socials_ActivityPub_Fetcher {
 		$content = $object['content'] ?? $object['summary'] ?? '';
 		$name    = $object['name'] ?? '';
 
-		$actor_name = parse_url( $actor_url, PHP_URL_HOST ) ?? '';
-		$actor_path = ltrim( parse_url( $actor_url, PHP_URL_PATH ) ?? '', '/' );
+		$actor_name = wp_parse_url( $actor_url, PHP_URL_HOST ) ?? '';
+		$actor_path = ltrim( wp_parse_url( $actor_url, PHP_URL_PATH ) ?? '', '/' );
 		if ( $actor_path ) {
 			$actor_name = $actor_path . '@' . $actor_name;
 		}
@@ -772,8 +772,8 @@ class Radical_Socials_ActivityPub_Fetcher {
 	 * and outbox normalizers.
 	 */
 	private static function actor_handle_from_url( string $actor_url ): string {
-		$host = parse_url( $actor_url, PHP_URL_HOST ) ?? '';
-		$path = ltrim( parse_url( $actor_url, PHP_URL_PATH ) ?? '', '/' );
+		$host = wp_parse_url( $actor_url, PHP_URL_HOST ) ?? '';
+		$path = ltrim( wp_parse_url( $actor_url, PHP_URL_PATH ) ?? '', '/' );
 		if ( '' === $path ) {
 			return $host;
 		}
@@ -931,8 +931,8 @@ class Radical_Socials_ActivityPub_Fetcher {
 
 		// Fallback: parse "user@host" from the parent URL (Mastodon-style).
 		if ( '' === $display ) {
-			$host = parse_url( $parent_url, PHP_URL_HOST ) ?: '';
-			$path = ltrim( parse_url( $parent_url, PHP_URL_PATH ) ?: '', '/' );
+			$host = wp_parse_url( $parent_url, PHP_URL_HOST ) ?: '';
+			$path = ltrim( wp_parse_url( $parent_url, PHP_URL_PATH ) ?: '', '/' );
 			if ( $host && preg_match( '~^(?:@|users/)([^/]+)~', $path, $m ) ) {
 				$display = '@' . $m[1] . '@' . $host;
 			}

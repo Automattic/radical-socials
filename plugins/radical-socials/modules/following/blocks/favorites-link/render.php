@@ -8,6 +8,8 @@
  * @package RadicalSocials
  */
 
+defined( 'ABSPATH' ) || exit;
+
 // Mirrors /following/ access: hide the link when the current viewer can't see
 // the feed-item area (logged-out + public-following option off).
 if ( ! Radical_Socials_Following::can_view_following() ) {
@@ -17,7 +19,7 @@ if ( ! Radical_Socials_Following::can_view_following() ) {
 $favorites_page = get_page_by_path( 'favorites', OBJECT, 'page' );
 $url            = $favorites_page ? get_permalink( $favorites_page->ID ) : home_url( '/favorites/' );
 
-printf(
+return sprintf(
 	'<li %s><a class="wp-block-navigation-item__content" href="%s">%s</a></li>',
 	get_block_wrapper_attributes( [ 'class' => 'wp-block-navigation-item wp-block-navigation-link' ] ),
 	esc_url( $url ),
