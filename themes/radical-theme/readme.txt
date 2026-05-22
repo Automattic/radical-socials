@@ -51,7 +51,7 @@ Radical Socials is free software, and is released under the terms of the GNU Gen
 
 Radical Socials bundles the following resources:
 
-Screenshot image (screenshot.png)
+Screenshot image (screenshot.jpg)
 Copyright 2026 Sarah Norris
 License: GPL-2.0-or-later
 Source: Photograph taken by Sarah Norris, created for this theme.
