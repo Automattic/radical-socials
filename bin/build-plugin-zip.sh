@@ -79,6 +79,8 @@ rsync -a \
     --exclude='*.map' \
     --exclude='/node_modules/' \
     --exclude='/package-lock.json' \
+    --exclude='/package.json' \
+    --exclude='/webpack.config.js' \
     --exclude='/modules/dev/' \
     --exclude='/.wordpress-org/' \
     --exclude='*.test.js' \
