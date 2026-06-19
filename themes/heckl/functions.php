@@ -30,6 +30,34 @@ if ( ! function_exists( 'radical_theme_style' ) ) :
 endif;
 add_action( 'wp_enqueue_scripts', 'radical_theme_style', 20 );
 
+if ( ! function_exists( 'heckl_is_tools_plugin_active' ) ) :
+	/**
+	 * Check whether Heckl Tools is active without depending on when its
+	 * taxonomies are registered. The Site Editor can evaluate theme patterns
+	 * before plugin-provided taxonomies are available to taxonomy_exists().
+	 *
+	 * @return bool
+	 */
+	function heckl_is_tools_plugin_active(): bool {
+		$plugin_file = 'heckl-tools/heckl-tools.php';
+
+		if ( defined( 'HECKL_REWRITE_VERSION' ) ) {
+			return true;
+		}
+
+		if ( in_array( $plugin_file, (array) get_option( 'active_plugins', [] ), true ) ) {
+			return true;
+		}
+
+		if ( is_multisite() ) {
+			$network_active_plugins = (array) get_site_option( 'active_sitewide_plugins', [] );
+			return isset( $network_active_plugins[ $plugin_file ] );
+		}
+
+		return false;
+	}
+endif;
+
 if ( ! function_exists( 'radical_theme_editor_inline_css' ) ) :
 	/**
 	 * Inject a small CSS rule into the block editor canvas (Site Editor
