@@ -110,21 +110,31 @@ class Radical_Socials_WebSub_Subscriber {
 			return new WP_REST_Response( 'unknown_topic', 200 );
 		}
 
-		// Verify HMAC-SHA256 signature when we have a shared secret.
-		if ( isset( $subs[ $topic ]['secret'] ) ) {
-			$secret    = $subs[ $topic ]['secret'];
-			$signature = $request->get_header( 'x_hub_signature' );
+		// Verify the HMAC-SHA256 signature. subscribe() always registers a
+		// per-subscription secret, so a notification for a topic with no stored
+		// secret cannot be authenticated and must be refused rather than
+		// ingested unsigned — otherwise anyone who knows the (public) topic URL
+		// could POST arbitrary feed content to this endpoint. A secret-less
+		// entry only occurs for legacy string-format subscriptions; those are
+		// re-subscribed (and gain a secret) on the next renewal pass.
+		$secret = ( isset( $subs[ $topic ] ) && is_array( $subs[ $topic ] ) && isset( $subs[ $topic ]['secret'] ) )
+			? (string) $subs[ $topic ]['secret']
+			: '';
 
-			if ( ! $signature ) {
-				return new WP_REST_Response( 'missing_signature', 200 );
-			}
+		if ( '' === $secret ) {
+			return new WP_REST_Response( 'unverifiable_topic', 200 );
+		}
 
-			[ $algo, $provided_hash ] = explode( '=', $signature, 2 ) + [ '', '' ];
-			$expected_hash = hash_hmac( 'sha256', $body, $secret );
+		$signature = $request->get_header( 'x_hub_signature' );
+		if ( ! $signature ) {
+			return new WP_REST_Response( 'missing_signature', 200 );
+		}
 
-			if ( 'sha256' !== $algo || ! hash_equals( $expected_hash, $provided_hash ) ) {
-				return new WP_REST_Response( 'invalid_signature', 200 );
-			}
+		[ $algo, $provided_hash ] = explode( '=', $signature, 2 ) + [ '', '' ];
+		$expected_hash = hash_hmac( 'sha256', $body, $secret );
+
+		if ( 'sha256' !== $algo || ! hash_equals( $expected_hash, $provided_hash ) ) {
+			return new WP_REST_Response( 'invalid_signature', 200 );
 		}
 
 		// Use SimplePie to parse the pushed Atom/RSS fragment. wp-includes/feed.php
