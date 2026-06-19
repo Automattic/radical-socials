@@ -311,10 +311,15 @@ class Radical_Socials_Following {
 
 	public static function register_taxonomy(): void {
 		$shared = [
-			'public'             => false,
+			'public'             => true,
 			'publicly_queryable' => true,
-			'show_ui'            => false,
+			'show_ui'            => true,
+			'show_in_menu'       => false,
+			'show_in_nav_menus'  => false,
+			'show_tagcloud'      => false,
+			'show_admin_column'  => false,
 			'show_in_rest'       => true,
+			'meta_box_cb'        => false,
 			'rewrite'            => false,
 			'hierarchical'       => false,
 		];
