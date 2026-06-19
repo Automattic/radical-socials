@@ -53,6 +53,10 @@ foreach (
 		'esc_html'     => fn( $t ) => htmlspecialchars( (string) $t, ENT_QUOTES ),
 		'esc_attr'     => fn( $t ) => htmlspecialchars( (string) $t, ENT_QUOTES ),
 		'esc_url'      => fn( $t ) => (string) $t,
+		// The generated templates are registered by the plugin and only ever
+		// render when it's active, so plugin-gated pattern branches are always
+		// included when flattening.
+		'heckl_is_tools_plugin_active' => fn() => true,
 	] as $name => $impl
 ) {
 	if ( ! function_exists( $name ) ) {
