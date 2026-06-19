@@ -37,6 +37,15 @@ class Radical_Socials_OPML {
 			return [];
 		}
 
+		// Reject any document carrying a DOCTYPE. OPML has no legitimate DTD,
+		// and a DOCTYPE is the only vehicle for entity declarations — refusing
+		// it closes off XXE / entity-expansion regardless of the underlying
+		// libxml version or build config (belt-and-suspenders on LIBXML_NONET,
+		// which only blocks network-fetched entities).
+		if ( null !== $doc->doctype ) {
+			return [];
+		}
+
 		$body = $doc->getElementsByTagName( 'body' )->item( 0 );
 		if ( ! $body ) {
 			return [];
