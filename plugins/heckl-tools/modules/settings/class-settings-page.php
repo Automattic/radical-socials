@@ -518,7 +518,7 @@ class Radical_Socials_Settings_Page {
 					'colName'       => __( 'Name', 'heckl-tools' ),
 					'colHealth'     => __( 'Status', 'heckl-tools' ),
 					'colType'       => __( 'Type', 'heckl-tools' ),
-					'colCategories' => __( 'Tags', 'heckl-tools' ),
+					'colCategories' => __( 'Categories', 'heckl-tools' ),
 					'healthOk'      => __( 'Healthy — replied in {ms} ms (checked {ago} ago)', 'heckl-tools' ),
 					'healthSlow'    => __( 'Slow — replied in {ms} ms (checked {ago} ago). If this stays in the orange, consider removing it.', 'heckl-tools' ),
 					'healthFailed'  => __( 'Failed: {error} (last attempt {ago} ago)', 'heckl-tools' ),
@@ -909,10 +909,14 @@ class Radical_Socials_Settings_Page {
 				overflow-wrap: anywhere;
 				vertical-align: top;
 			}
-			.rs-following-table .rs-col-fav { width: 28px; }
-			.rs-following-table .rs-col-health { width: 42px; }
+			.rs-following-table th {
+				overflow-wrap: normal;
+				white-space: nowrap;
+			}
+			.rs-following-table .rs-col-fav { width: 44px; }
+			.rs-following-table .rs-col-health { width: 58px; }
 			.rs-following-table .rs-col-type { width: 60px; }
-			.rs-following-table .rs-col-categories { width: 56px; }
+			.rs-following-table .rs-col-categories { width: 88px; }
 			.rs-following-table .rs-col-actions { width: 72px; text-align: right; }
 			.rs-following-table tbody tr:nth-child(even) td { background: #f6f7f7; }
 			.rs-type-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
