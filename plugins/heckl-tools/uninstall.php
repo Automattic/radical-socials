@@ -40,6 +40,7 @@ $heckl_always_delete_options = [
 	'rs_rss_fetch_offset',
 	'rs_ap_outbox_offset',
 	'rs_ap_follow_user_id',
+	'rs_auto_pretty_permalinks',
 ];
 foreach ( $heckl_always_delete_options as $heckl_option ) {
 	delete_option( $heckl_option );
@@ -130,6 +131,7 @@ $heckl_purge_options = [
 	// Privacy / visibility flags.
 	'rs_following_public',
 	'rs_purge_on_uninstall',
+	'rs_auto_pretty_permalinks',
 	// WP.com OAuth token + state.
 	'rs_wpcom_access_token',
 	'rs_wpcom_oauth_state',

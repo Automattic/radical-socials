@@ -408,6 +408,12 @@ class Radical_Socials_Settings_Page {
 			! empty( $_POST['rs_purge_on_uninstall'] ),
 			false
 		);
+		$enable_pretty = ! empty( $_POST['rs_auto_pretty_permalinks'] );
+		update_option( 'rs_auto_pretty_permalinks', $enable_pretty, false );
+		if ( $enable_pretty && function_exists( 'heckl_set_pretty_permalinks_if_plain' ) && heckl_set_pretty_permalinks_if_plain() ) {
+			flush_rewrite_rules();
+		}
+
 		self::set_notice( [ 'saved' => true ] );
 		wp_safe_redirect( admin_url( 'admin.php?page=heckl-settings&tab=following' ) );
 		exit;
@@ -948,6 +954,8 @@ class Radical_Socials_Settings_Page {
 					$following_url     = $following_page ? get_permalink( $following_page->ID ) : home_url( '/following/' );
 					$following_public  = (bool) get_option( Radical_Socials_Following::PUBLIC_OPTION, false );
 					$purge_on_uninstall = (bool) get_option( 'rs_purge_on_uninstall', false );
+					$auto_pretty_permalinks = (bool) get_option( 'rs_auto_pretty_permalinks', false );
+					$is_plain_permalinks = '' === (string) get_option( 'permalink_structure', '' );
 					?>
 					<p class="description"><?php printf(
 						/* translators: %s: link to the /following page */
@@ -972,6 +980,22 @@ class Radical_Socials_Settings_Page {
 								<?php esc_html_e( 'Delete feed data on uninstall', 'heckl-tools' ); ?>
 								<br>
 								<span class="description"><?php esc_html_e( 'Off: keep follows, favorites, and imported items.', 'heckl-tools' ); ?></span>
+							</span>
+						</label>
+						<label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px">
+							<input type="checkbox" name="rs_auto_pretty_permalinks" value="1" <?php checked( $auto_pretty_permalinks || ! $is_plain_permalinks ); ?> <?php disabled( ! $is_plain_permalinks ); ?> />
+							<span>
+								<?php esc_html_e( 'Use pretty permalinks for Heckl URLs', 'heckl-tools' ); ?>
+								<br>
+								<span class="description">
+									<?php
+									if ( $is_plain_permalinks ) {
+										esc_html_e( 'Saving this sets Plain permalinks to /%postname%/ so /following/ and /favorites/ resolve.', 'heckl-tools' );
+									} else {
+										esc_html_e( 'Your site already uses a non-Plain permalink structure.', 'heckl-tools' );
+									}
+									?>
+								</span>
 							</span>
 						</label>
 						<p style="margin:10px 0 0">

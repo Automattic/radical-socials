@@ -72,6 +72,27 @@ function heckl_register_rewrite_objects(): void {
 	Radical_Socials_Favorites::extend_taxonomies();
 }
 
+/**
+ * Switch Plain permalinks to a structure that supports Heckl's pretty URLs.
+ *
+ * This is called only after an explicit admin choice. Existing non-Plain
+ * permalink structures are preserved.
+ */
+function heckl_set_pretty_permalinks_if_plain(): bool {
+	if ( '' !== (string) get_option( 'permalink_structure', '' ) ) {
+		return false;
+	}
+
+	global $wp_rewrite;
+	if ( $wp_rewrite instanceof WP_Rewrite ) {
+		$wp_rewrite->set_permalink_structure( '/%postname%/' );
+	} else {
+		update_option( 'permalink_structure', '/%postname%/' );
+	}
+
+	return true;
+}
+
 function heckl_activate(): void {
 	heckl_register_rewrite_objects();
 
@@ -82,18 +103,11 @@ function heckl_activate(): void {
 	// sites doesn't get hijacked to every Welcome page in turn.
 	set_transient( 'rs_welcome_redirect_' . get_current_user_id(), 1, MINUTE_IN_SECONDS );
 
-	// Pretty permalinks are required for WebFinger (/.well-known/webfinger),
-	// the ActivityPub actor JSON, and our own /following/ + /favorites/ URLs
-	// to resolve. If the site is still on the WP default ("Plain"), pick a
-	// sensible structure for the user. Never override an existing choice —
-	// site owners who have deliberately set a different structure keep it.
-	if ( '' === (string) get_option( 'permalink_structure', '' ) ) {
-		global $wp_rewrite;
-		if ( $wp_rewrite instanceof WP_Rewrite ) {
-			$wp_rewrite->set_permalink_structure( '/%postname%/' );
-		} else {
-			update_option( 'permalink_structure', '/%postname%/' );
-		}
+	// Pretty permalinks improve Heckl's /following/ and /favorites/ URLs,
+	// but changing a site's permalink structure is a site-wide behaviour
+	// change. Only apply it after the admin explicitly enables the option.
+	if ( get_option( 'rs_auto_pretty_permalinks', false ) ) {
+		heckl_set_pretty_permalinks_if_plain();
 	}
 
 	flush_rewrite_rules();
