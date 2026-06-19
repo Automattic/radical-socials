@@ -41,17 +41,18 @@ ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 cd "$ROOT"
 
 case "$COMPONENT" in
-    plugin)
-        TAG="plugin-v$VERSION"
-        PLUGIN_FILE="plugins/heckl-tools/heckl-tools.php"
-        README_FILE="plugins/heckl-tools/readme.txt"
-        FILES=("$PLUGIN_FILE" "$README_FILE")
-        ;;
-    theme)
-        TAG="theme-v$VERSION"
-        STYLE_FILE="themes/heckl/style.css"
-        FILES=("$STYLE_FILE")
-        ;;
+	plugin)
+		TAG="plugin-v$VERSION"
+		PLUGIN_FILE="plugins/heckl-tools/heckl-tools.php"
+		README_FILE="plugins/heckl-tools/readme.txt"
+		FILES=("$PLUGIN_FILE" "$README_FILE")
+		;;
+	theme)
+		TAG="theme-v$VERSION"
+		STYLE_FILE="themes/heckl/style.css"
+		README_FILE="themes/heckl/readme.txt"
+		FILES=("$STYLE_FILE" "$README_FILE")
+		;;
     *)
         usage
         ;;
@@ -74,10 +75,11 @@ echo "→ Bumping $COMPONENT version to $VERSION …"
 # Each pattern matches the existing header line and rewrites just the value,
 # preserving the surrounding whitespace/formatting.
 if [ "$COMPONENT" = "plugin" ]; then
-    perl -i -pe "s/^(\s*\*\s*Version:\s*).*/\${1}$VERSION/" "$PLUGIN_FILE"
-    perl -i -pe "s/^(Stable tag:\s*).*/\${1}$VERSION/"      "$README_FILE"
+	perl -i -pe "s/^(\s*\*\s*Version:\s*).*/\${1}$VERSION/" "$PLUGIN_FILE"
+	perl -i -pe "s/^(Stable tag:\s*).*/\${1}$VERSION/"      "$README_FILE"
 else
-    perl -i -pe "s/^(Version:\s*).*/\${1}$VERSION/" "$STYLE_FILE"
+	perl -i -pe "s/^(Version:\s*).*/\${1}$VERSION/" "$STYLE_FILE"
+	perl -i -pe "s/^(Stable tag:\s*).*/\${1}$VERSION/" "$README_FILE"
 fi
 
 # Confirm the bump actually changed something — guards against a header whose

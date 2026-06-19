@@ -4,14 +4,14 @@
 # submission to the WordPress.org plugin directory.
 #
 # - Runs a fresh production build (wp-scripts build).
-# - Stages the plugin under dist/staging/heckl/ and excludes:
+# - Stages the plugin under dist/staging/heckl-tools/ and excludes:
 #     * source maps (*.map) — dev artifact, doubles the zip size
 #     * modules/dev/        — WP-CLI test harness, not for end users
 #     * OS / IDE droppings (.DS_Store, Thumbs.db)
 #     * editor backups / temp files (*~, *.bak, *.orig, *.swp)
 # - Keeps src/ alongside build/ so we satisfy wp.org guideline #4
 #   ("include the source code for any minified/bundled assets").
-# - Outputs dist/heckl-<version>.zip with the version pulled
+# - Outputs dist/heckl-tools-<version>.zip with the version pulled
 #   straight from the plugin header so the filename never drifts from
 #   the Stable tag in readme.txt.
 #
@@ -63,7 +63,7 @@ rm -rf "$PLUGIN_DIR/build"
 ( cd "$ROOT" && npm run build --silent )
 
 # Flatten theme templates into plugin-default block templates. The output
-# lives under plugins/heckl/templates/ and is gitignored — it
+# lives under plugins/heckl-tools/templates/ and is gitignored — it
 # must be regenerated for every zip so the shipped fallback templates
 # match the current state of heckl.
 echo "→ Flattening theme templates into plugin defaults…"
@@ -108,7 +108,7 @@ if [ -n "$LEAKED" ]; then
 fi
 
 # Build the zip from the parent of the staged directory so the top-level
-# folder inside the archive is heckl/ (what wp.org expects).
+# folder inside the archive is heckl-tools/ (what wp.org expects).
 rm -f "$ZIP_PATH"
 echo "→ Zipping to $ZIP_PATH …"
 ( cd "$STAGE_DIR" && zip -rq "$ZIP_PATH" heckl-tools )

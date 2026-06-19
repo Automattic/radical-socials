@@ -13,7 +13,7 @@
  * Solution: at build time, take the theme's authoritative version of each
  * plugin-specific template, inline every `<!-- wp:template-part -->` and
  * `<!-- wp:pattern -->` reference, and write the resulting self-contained
- * HTML into plugins/heckl/templates/. The plugin then registers
+ * HTML into plugins/heckl-tools/templates/. The plugin then registers
  * each one via register_block_template() (WP 6.7+). When the active theme
  * provides its own archive-rs_feed_item.html, WP's normal theme-over-plugin
  * resolution applies and the theme version wins.

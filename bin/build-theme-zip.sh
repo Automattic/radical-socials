@@ -43,6 +43,16 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
+STABLE_TAG="$(
+    grep -E '^[[:space:]]*Stable tag:' "$THEME_DIR/readme.txt" \
+        | head -n1 \
+        | sed -E 's/.*Stable tag:[[:space:]]*([^[:space:]]+).*/\1/'
+)"
+if [ "$STABLE_TAG" != "$VERSION" ]; then
+    echo "✘ Stable tag (\"$STABLE_TAG\") in readme.txt does not match theme Version (\"$VERSION\")" >&2
+    exit 1
+fi
+
 ZIP_PATH="$DIST_DIR/heckl-$VERSION.zip"
 
 echo "→ Staging theme files at $STAGE_DIR/heckl …"

@@ -1,8 +1,8 @@
 # Heckl
 
-A WordPress plugin that turns a fresh WordPress site into a personal social-feed reader: follow people across the Fediverse (via the [ActivityPub plugin](https://wordpress.org/plugins/activitypub/)), RSS / Atom feeds (with WebSub push), and WordPress.com Reader subscriptions — all on one unified Following timeline. Ships with a frontend post composer, a Favorites bookmark list, a lightweight in-app Custom Bar replacing the frontend admin bar, and plugin-default block templates so the Following / Favorites archives have a working layout on any block theme.
+A WordPress plugin and theme that turn a fresh WordPress site into a personal social-feed reader: follow people across the Fediverse (via the [ActivityPub plugin](https://wordpress.org/plugins/activitypub/)), RSS / Atom feeds (with WebSub push), and WordPress.com Reader subscriptions — all on one unified Following timeline. Heckl Tools ships with a frontend post composer, a Favorites bookmark list, a lightweight in-app Custom Bar replacing the frontend admin bar, and plugin-default block templates so the Following / Favorites archives have a working layout on any block theme.
 
-This monorepo contains both the plugin and its companion block theme (`heckl`). The plugin is the product; the theme is an optional design layer.
+This monorepo contains both the Heckl Tools plugin and the standalone Heckl block theme. The plugin is the product; the theme is an optional design layer.
 
 User-facing docs live in [`plugins/heckl-tools/readme.txt`](./plugins/heckl-tools/readme.txt) and [`themes/heckl/readme.txt`](./themes/heckl/readme.txt).
 
@@ -53,7 +53,7 @@ plugins/heckl-tools/   The plugin (the product).
     dev/                   WP-CLI test harness (excluded from release zips).
   src/                     Webpack source for the admin / frontend JS bundles.
   templates/               Generated flattened templates (gitignored).
-themes/heckl/      Companion block theme — the source of truth for
+themes/heckl/      Standalone block theme — the source of truth for
                            plugin-default templates.
 bin/                       Release / build scripts.
 ```

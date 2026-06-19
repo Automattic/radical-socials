@@ -14,19 +14,19 @@ A block theme for personal feed readers and social-style content sites, with lay
 
 Heckl is a block theme designed for sites that present a stream of content rather than a traditional blog: photo grids, vertical video reels, micro-blog timelines, and feed-reader views. The default layout is a three-column structure (navigation / main feed / sidebar) with four packaged style variations (Skyline, Neon Reel, Gallery Pop, Timeline) so the same theme can present as Instagram-style, Tumblr-style, or text-feed-style without theme switching.
 
-Works on its own as a regular block theme for any WordPress site. Pairs with the [Heckl plugin](https://wordpress.org/plugins/heckl/), which adds a Following timeline (RSS / ActivityPub / WordPress.com Reader), a Favorites bookmark list, and a frontend post composer — when that plugin is active, the theme's templates light up with feed-item layouts, taxonomy filters, and a social-style post composer; when it's absent, the theme renders a normal block-themed blog.
+Works on its own as a regular block theme for any WordPress site. Pairs with the [Heckl Tools plugin](https://wordpress.org/plugins/heckl-tools/), which adds a Following timeline (RSS / ActivityPub / WordPress.com Reader), a Favorites bookmark list, and a frontend post composer — when that plugin is active, the theme's templates light up with feed-item layouts, taxonomy filters, and a social-style post composer; when it's absent, the theme renders a normal block-themed blog.
 
 == Installation ==
 
 1. In the WordPress admin, go to *Appearance → Themes → Add New*.
 2. Search for "Heckl", install, and activate.
-3. (Optional) Install the [Heckl plugin](https://wordpress.org/plugins/heckl/) for the full feed-reader / social-site experience.
+3. (Optional) Install the [Heckl Tools plugin](https://wordpress.org/plugins/heckl-tools/) for the full feed-reader / social-site experience.
 
 == Frequently Asked Questions ==
 
 = Do I need the Heckl plugin? =
 
-No. The theme works standalone as a regular block theme. The plugin adds the Following timeline, Favorites bookmark list, and frontend post composer; without it, the theme presents your posts and pages with the same three-column layout but no feed/follow features.
+No. The theme works standalone as a regular block theme. Heckl Tools adds the Following timeline, Favorites bookmark list, and frontend post composer; without it, the theme presents your posts and pages with the same three-column layout but no feed/follow features.
 
 = Why are some templates ("Feed Items archive", "Favorites archive") not visible? =
 
