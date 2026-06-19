@@ -504,8 +504,13 @@ class Radical_Socials_Settings_Page {
 				'nonce'         => $nonce,
 				'i18n'          => [
 					'loading'       => __( 'Loading…', 'heckl-tools' ),
-					'loadError'     => __( 'Could not load following list.', 'heckl-tools' ),
-					'empty'         => __( 'Not following anything yet. Add feeds or accounts above.', 'heckl-tools' ),
+					'loadErrorNetwork' => __( 'Could not reach the Following API. Reload this page and try again.', 'heckl-tools' ),
+					'loadErrorAuth' => __( 'Your session expired. Reload this page and sign in again.', 'heckl-tools' ),
+					'loadErrorNotFound' => __( 'Following API not found. Re-save permalinks, then reload this page.', 'heckl-tools' ),
+					'loadErrorServer' => __( 'Following API failed. Check the site logs, then reload this page.', 'heckl-tools' ),
+					'loadErrorWithMessage' => __( 'Could not load feeds: {message}', 'heckl-tools' ),
+					'loadErrorWithStatus' => __( 'Could not load feeds. HTTP {status}.', 'heckl-tools' ),
+					'empty'         => __( 'No feeds yet. Add one on the left.', 'heckl-tools' ),
 					'remove'        => __( 'Remove', 'heckl-tools' ),
 					'deleteConfirm' => __( "Remove \"{name}\" ({url})?\n\nThis will also delete all saved posts from this feed.", 'heckl-tools' ),
 					'deleteError'   => __( 'Could not remove item. Please try again.', 'heckl-tools' ),
@@ -513,7 +518,7 @@ class Radical_Socials_Settings_Page {
 					'colName'       => __( 'Name', 'heckl-tools' ),
 					'colHealth'     => __( 'Status', 'heckl-tools' ),
 					'colType'       => __( 'Type', 'heckl-tools' ),
-					'colCategories' => __( 'Categories', 'heckl-tools' ),
+					'colCategories' => __( 'Tags', 'heckl-tools' ),
 					'healthOk'      => __( 'Healthy — replied in {ms} ms (checked {ago} ago)', 'heckl-tools' ),
 					'healthSlow'    => __( 'Slow — replied in {ms} ms (checked {ago} ago). If this stays in the orange, consider removing it.', 'heckl-tools' ),
 					'healthFailed'  => __( 'Failed: {error} (last attempt {ago} ago)', 'heckl-tools' ),
@@ -885,21 +890,36 @@ class Radical_Socials_Settings_Page {
 			<style>
 			.rs-following-layout {
 				display: grid;
-				grid-template-columns: 2fr 3fr;
-				gap: 32px;
+				grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.65fr);
+				gap: 24px;
 				align-items: start;
 				margin-top: 20px;
 			}
 			@media (max-width: 960px) {
 				.rs-following-layout { grid-template-columns: 1fr; }
 			}
-			.rs-following-table { margin-top: 0; }
+			.rs-following-table {
+				margin-top: 0;
+				table-layout: fixed;
+				width: 100%;
+			}
+			.rs-following-table th,
+			.rs-following-table td {
+				box-sizing: border-box;
+				overflow-wrap: anywhere;
+				vertical-align: top;
+			}
+			.rs-following-table .rs-col-fav { width: 28px; }
+			.rs-following-table .rs-col-health { width: 42px; }
+			.rs-following-table .rs-col-type { width: 60px; }
+			.rs-following-table .rs-col-categories { width: 56px; }
+			.rs-following-table .rs-col-actions { width: 72px; text-align: right; }
 			.rs-following-table tbody tr:nth-child(even) td { background: #f6f7f7; }
 			.rs-type-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
 			.rs-type-rss         { background: #f0f6fc; color: #0073aa; }
 			.rs-type-activitypub { background: #f3f0ff; color: #6b21a8; }
 			.rs-type-wpcom       { background: #f0fff4; color: #166534; }
-			.rs-category-tag { display: inline-block; margin: 1px 3px 1px 0; padding: 1px 7px; border-radius: 3px; font-size: 11px; background: #fef9e7; color: #7c5e00; border: 1px solid #f0d060; }
+			.rs-category-tag { display: inline-block; box-sizing: border-box; max-width: 100%; margin: 1px 3px 1px 0; padding: 1px 5px; overflow: hidden; border-radius: 3px; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; background: #fef9e7; color: #7c5e00; border: 1px solid #f0d060; }
 			.rs-error { color: #dc3232; }
 
 			/* Signal-strength indicator. Three bars; CSS selects how many are active
@@ -927,27 +947,27 @@ class Radical_Socials_Settings_Page {
 					?>
 					<p class="description"><?php printf(
 						/* translators: %s: link to the /following page */
-						esc_html__( 'Configure what appears at %s. Each source type stacks on top of the last — connect more to see more.', 'heckl-tools' ),
+						esc_html__( 'Manage what appears at %s.', 'heckl-tools' ),
 						'<a href="' . esc_url( $following_url ) . '" target="_blank" rel="noopener">' . esc_html( $following_url ) . '</a>'
 					); ?></p>
 
 					<form method="post" style="margin:16px 0 24px;padding:12px 14px;border:1px solid #dcdcde;border-radius:4px;background:#f6f7f7">
 						<?php wp_nonce_field( 'rs_following_privacy_save', 'rs_following_privacy_nonce' ); ?>
-						<strong style="display:block;margin-bottom:6px"><?php esc_html_e( 'Privacy', 'heckl-tools' ); ?></strong>
+						<strong style="display:block;margin-bottom:6px"><?php esc_html_e( 'Visibility and data', 'heckl-tools' ); ?></strong>
 						<label style="display:flex;gap:8px;align-items:flex-start">
 							<input type="checkbox" name="rs_following_public" value="1" <?php checked( $following_public ); ?> />
 							<span>
-								<?php esc_html_e( 'Allow logged-out visitors to see the Following page', 'heckl-tools' ); ?>
+								<?php esc_html_e( 'Show Following to visitors', 'heckl-tools' ); ?>
 								<br>
-								<span class="description"><?php esc_html_e( 'When off, /following/ and its items return 404 for logged-out visitors, and the Following menu link is hidden for them.', 'heckl-tools' ); ?></span>
+								<span class="description"><?php esc_html_e( 'Off: only logged-in users can view it.', 'heckl-tools' ); ?></span>
 							</span>
 						</label>
 						<label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px">
 							<input type="checkbox" name="rs_purge_on_uninstall" value="1" <?php checked( $purge_on_uninstall ); ?> />
 							<span>
-								<?php esc_html_e( 'Delete all data when the plugin is uninstalled', 'heckl-tools' ); ?>
+								<?php esc_html_e( 'Delete feed data on uninstall', 'heckl-tools' ); ?>
 								<br>
-								<span class="description"><?php esc_html_e( 'Off by default. When off, uninstalling removes only plugin settings; your imported feeds, favorites, and follows are preserved. Turn this on if you want a true wipe — note that your imported social-media archives (potentially your only copy) would also be deleted.', 'heckl-tools' ); ?></span>
+								<span class="description"><?php esc_html_e( 'Off: keep follows, favorites, and imported items.', 'heckl-tools' ); ?></span>
 							</span>
 						</label>
 						<p style="margin:10px 0 0">
@@ -962,7 +982,7 @@ class Radical_Socials_Settings_Page {
 							<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=heckl-settings&rs_action=wpcom_disconnect' ), 'rs_wpcom_disconnect' ) ); ?>" class="button button-small button-secondary" style="margin-left:8px"><?php esc_html_e( 'Disconnect', 'heckl-tools' ); ?></a>
 						<?php else : ?>
 							<a href="<?php echo esc_url( Radical_Socials_WPCOM_OAuth::connect_url() ); ?>" class="button button-primary"><?php esc_html_e( 'Connect WP.com Account', 'heckl-tools' ); ?></a>
-							<span class="description" style="margin-left:8px"><?php esc_html_e( 'Unlocks WP.com sites, Bluesky accounts, and the full WP.com Reader.', 'heckl-tools' ); ?></span>
+							<span class="description" style="margin-left:8px"><?php esc_html_e( 'Add WP.com Reader.', 'heckl-tools' ); ?></span>
 						<?php endif; ?>
 					</p>
 					<?php endif; ?>
@@ -972,14 +992,13 @@ class Radical_Socials_Settings_Page {
 						<label for="rs-add-input"><strong><?php esc_html_e( 'Add feeds or accounts', 'heckl-tools' ); ?></strong></label>
 						<p class="description" style="margin-bottom:8px">
 							<?php if ( $ap_active ) : ?>
-								<?php esc_html_e( 'One per line. RSS/Atom URLs or ActivityPub handles (e.g. @someone@mastodon.social).', 'heckl-tools' ); ?><br>
-								<?php esc_html_e( 'ActivityPub supports: Mastodon, Pixelfed, Misskey, Pleroma, Peertube, Lemmy, Friendica, Hubzilla, and any ActivityPub-compatible account.', 'heckl-tools' ); ?>
+								<?php esc_html_e( 'One RSS URL or Fediverse handle per line.', 'heckl-tools' ); ?>
 							<?php else : ?>
-								<?php esc_html_e( 'One per line. RSS/Atom feed URLs.', 'heckl-tools' ); ?><br>
+								<?php esc_html_e( 'One RSS/Atom URL per line.', 'heckl-tools' ); ?><br>
 								<?php
 								printf(
 									/* translators: %s: link to the ActivityPub plugin install screen */
-									esc_html__( 'Install the %s to also follow Mastodon, Pixelfed, and other Fediverse accounts.', 'heckl-tools' ),
+									esc_html__( 'Install %s to follow Fediverse accounts too.', 'heckl-tools' ),
 									'<a href="' . esc_url( self_admin_url( 'plugin-install.php?s=activitypub&tab=search&type=term' ) ) . '">' . esc_html__( 'ActivityPub plugin', 'heckl-tools' ) . '</a>'
 								);
 								?>
@@ -998,10 +1017,9 @@ class Radical_Socials_Settings_Page {
 
 					<?php if ( $ap_active ) : ?>
 					<div style="margin-top:24px">
-						<strong><?php esc_html_e( 'Import follows from an account', 'heckl-tools' ); ?></strong>
+						<strong><?php esc_html_e( 'Import follows', 'heckl-tools' ); ?></strong>
 						<p class="description" style="margin:4px 0 8px">
-							<?php esc_html_e( 'Enter your Mastodon (or any ActivityPub) handle and we\'ll add everyone you follow as feeds.', 'heckl-tools' ); ?><br>
-							<?php esc_html_e( 'Note: your following list must be set to public in your account\'s privacy settings.', 'heckl-tools' ); ?>
+							<?php esc_html_e( 'Add follows from a public Fediverse account.', 'heckl-tools' ); ?>
 						</p>
 						<input type="text" id="rs-import-account-input" class="regular-text" placeholder="@you@mastodon.social">
 						<button id="rs-import-account-btn" type="button" class="button button-secondary">
@@ -1017,7 +1035,7 @@ class Radical_Socials_Settings_Page {
 					<div style="margin-top:24px">
 						<strong><?php esc_html_e( 'Import OPML', 'heckl-tools' ); ?></strong>
 						<p class="description" style="margin:4px 0 8px">
-							<?php esc_html_e( 'Adds new feeds and backfills titles, URLs, and categories for any feeds already in your list that are missing that information.', 'heckl-tools' ); ?>
+							<?php esc_html_e( 'Upload feeds from another reader.', 'heckl-tools' ); ?>
 						</p>
 						<input type="file" id="rs-opml-file" accept=".opml,.xml" style="margin-bottom:8px;display:block">
 						<button id="rs-opml-import-btn" type="button" class="button button-secondary">
@@ -1028,7 +1046,7 @@ class Radical_Socials_Settings_Page {
 					<div style="margin-top:16px">
 						<strong><?php esc_html_e( 'Export OPML', 'heckl-tools' ); ?></strong>
 						<p class="description" style="margin:4px 0 8px">
-							<?php esc_html_e( 'Downloads all your RSS subscriptions as an OPML file, including titles, feed URLs, site URLs, and any categories.', 'heckl-tools' ); ?>
+							<?php esc_html_e( 'Download your RSS subscriptions.', 'heckl-tools' ); ?>
 						</p>
 						<a id="rs-opml-export-link" class="button button-secondary" download>
 							<?php esc_html_e( 'Export OPML', 'heckl-tools' ); ?>

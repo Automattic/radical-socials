@@ -121,12 +121,9 @@ Heckl Tools does not collect, store, or transmit usage analytics, telemetry, or 
 
 == Screenshots ==
 
-1. Unified Following timeline — ActivityPub, RSS, and WordPress.com Reader items merged into a single feed with social-style cards.
-2. Frontend post composer — an inline editor that publishes through the REST API without leaving the front end.
-3. Custom Bar — a lightweight Home / Create / Profile bar that replaces the WordPress admin bar for logged-in visitors.
-4. Settings → Following — manage Fediverse follows, RSS subscriptions, WordPress.com Reader subscriptions, and OPML import / export from one screen.
-5. Onboarding wizard — guided first-run flow with one-click ActivityPub install and add-your-first-feed prompts.
-6. Favorites archive — a permanent bookmark list for items that have rolled off the live feed.
+1. Welcome wizard — connect the Fediverse, add feeds, and publish your first post.
+2. Profile settings — set the name, handle, bio, site logo, and cover photo shown on your social site.
+3. Following settings — manage visibility, feeds, imports, exports, and the live feed list.
 
 == Upgrade Notice ==
 

@@ -30,8 +30,8 @@
 			const res   = await apiFetch( 'GET', api );
 			const items = await res.json();
 			renderTable( items );
-		} catch {
-			wrap.innerHTML = '<p class="rs-error">' + rsFollowing.i18n.loadError + '</p>';
+		} catch ( error ) {
+			showMessage( wrap, loadErrorMessage( error ), 'rs-error' );
 		}
 	}
 
@@ -50,12 +50,12 @@
 		table.innerHTML = `
 			<thead>
 				<tr>
-					<th>${ rsFollowing.i18n.colFav }</th>
-					<th>${ rsFollowing.i18n.colHealth }</th>
-					<th>${ rsFollowing.i18n.colName }</th>
-					<th>${ rsFollowing.i18n.colType }</th>
-					<th>${ rsFollowing.i18n.colCategories }</th>
-					<th></th>
+					<th class="rs-col-fav">${ rsFollowing.i18n.colFav }</th>
+					<th class="rs-col-health">${ rsFollowing.i18n.colHealth }</th>
+					<th class="rs-col-name">${ rsFollowing.i18n.colName }</th>
+					<th class="rs-col-type">${ rsFollowing.i18n.colType }</th>
+					<th class="rs-col-categories">${ rsFollowing.i18n.colCategories }</th>
+					<th class="rs-col-actions"></th>
 				</tr>
 			</thead>
 			<tbody></tbody>`;
@@ -74,6 +74,7 @@
 
 		// ★ Star cell
 		const tdStar  = document.createElement( 'td' );
+		tdStar.className = 'rs-col-fav';
 		const starBtn = document.createElement( 'button' );
 		starBtn.type      = 'button';
 		starBtn.className = 'button-link rs-star-btn' + ( item.starred ? ' rs-starred' : '' );
@@ -85,6 +86,7 @@
 
 		// Name cell — title links to homepage, feed URL shown below
 		const tdName = document.createElement( 'td' );
+		tdName.className = 'rs-col-name';
 		if ( item.title ) {
 			const nameLink       = document.createElement( 'a' );
 			nameLink.href        = item.source_url || item.url;
@@ -104,29 +106,20 @@
 
 		// Health (signal strength) cell
 		const tdHealth = document.createElement( 'td' );
+		tdHealth.className = 'rs-col-health';
 		tdHealth.appendChild( renderHealthIcon( item.health ) );
 
 		// Type cell
 		const tdType = document.createElement( 'td' );
+		tdType.className = 'rs-col-type';
 		const badge  = document.createElement( 'span' );
 		badge.className   = 'rs-type-badge rs-type-' + item.type;
 		badge.textContent = TYPE_LABELS[ item.type ] || item.type;
 		tdType.appendChild( badge );
 
-		// Categories cell
-		const tdCats = document.createElement( 'td' );
-		const cats   = item.categories || [];
-		if ( cats.length ) {
-			cats.forEach( cat => {
-				const tag = document.createElement( 'span' );
-				tag.className   = 'rs-category-tag';
-				tag.textContent = cat;
-				tdCats.appendChild( tag );
-			} );
-		}
-
 		// Remove cell
 		const tdDel = document.createElement( 'td' );
+		tdDel.className = 'rs-col-actions';
 		const delBtn = document.createElement( 'button' );
 		delBtn.type      = 'button';
 		delBtn.className = 'button button-small rs-delete-btn';
@@ -138,9 +131,23 @@
 		tr.appendChild( tdHealth );
 		tr.appendChild( tdName );
 		tr.appendChild( tdType );
-		tr.appendChild( tdCats );
+		tr.appendChild( buildCategoriesCell( item ) );
 		tr.appendChild( tdDel );
 		return tr;
+	}
+
+	function buildCategoriesCell( item ) {
+		const tdCats = document.createElement( 'td' );
+		tdCats.className = 'rs-col-categories';
+		const cats = item.categories || [];
+		cats.forEach( cat => {
+			const tag = document.createElement( 'span' );
+			tag.className   = 'rs-category-tag';
+			tag.textContent = cat;
+			tdCats.appendChild( tag );
+		} );
+
+		return tdCats;
 	}
 
 	// ── Health (signal-strength) indicator ────────────────────────────────
@@ -340,6 +347,40 @@
 		return ( code && rsFollowing.i18n.errors[ code ] ) || rsFollowing.i18n.errorUnknown;
 	}
 
+	function loadErrorMessage( error ) {
+		if ( ! error || ! error.status ) {
+			return rsFollowing.i18n.loadErrorNetwork;
+		}
+
+		if ( 401 === error.status || 403 === error.status ) {
+			return rsFollowing.i18n.loadErrorAuth;
+		}
+
+		if ( 404 === error.status ) {
+			return rsFollowing.i18n.loadErrorNotFound;
+		}
+
+		if ( error.status >= 500 ) {
+			return rsFollowing.i18n.loadErrorServer;
+		}
+
+		if ( error.message ) {
+			return rsFollowing.i18n.loadErrorWithMessage.replace( '{message}', error.message );
+		}
+
+		return rsFollowing.i18n.loadErrorWithStatus.replace( '{status}', error.status );
+	}
+
+	function showMessage( target, message, className ) {
+		const p = document.createElement( 'p' );
+		if ( className ) {
+			p.className = className;
+		}
+		p.textContent = message;
+		target.innerHTML = '';
+		target.appendChild( p );
+	}
+
 	// ── Fetch helper ───────────────────────────────────────────────────────
 
 	function apiFetch( method, url, body ) {
@@ -350,8 +391,23 @@
 		if ( body && method !== 'GET' ) {
 			opts.body = JSON.stringify( body );
 		}
-		return fetch( url, opts ).then( res => {
-			if ( ! res.ok && res.status !== 409 ) throw new Error( res.status );
+		return fetch( url, opts ).then( async res => {
+			if ( ! res.ok && res.status !== 409 ) {
+				const error = new Error( res.statusText || String( res.status ) );
+				error.status = res.status;
+
+				try {
+					const data = await res.json();
+					error.code = data && data.code;
+					if ( data && data.message ) {
+						error.message = data.message;
+					}
+				} catch ( parseError ) {
+					// Non-JSON failures still carry the HTTP status above.
+				}
+
+				throw error;
+			}
 			return res;
 		} );
 	}
