@@ -59,6 +59,7 @@ fi
 ZIP_PATH="$DIST_DIR/heckl-tools-$VERSION.zip"
 
 echo "→ Building production assets…"
+rm -rf "$PLUGIN_DIR/build"
 ( cd "$ROOT" && npm run build --silent )
 
 # Flatten theme templates into plugin-default block templates. The output
@@ -76,6 +77,8 @@ mkdir -p "$STAGE_DIR/heckl-tools"
 # means "copy contents", target has no slash so dirs are created under it.
 rsync -a \
     --exclude='*.map' \
+    --exclude='/node_modules/' \
+    --exclude='/package-lock.json' \
     --exclude='/modules/dev/' \
     --exclude='/.wordpress-org/' \
     --exclude='*.test.js' \
@@ -94,7 +97,7 @@ rsync -a \
 # Sanity: refuse to ship if any of the things we don't want made it through.
 LEAKED="$(
     find "$STAGE_DIR/heckl-tools" \
-        \( -name '*.map' -o -name '.DS_Store' -o -name '*.test.js' -o -name '*.test.jsx' -o -path '*/__tests__/*' -o -path '*/modules/dev/*' \) -print
+        \( -name '*.map' -o -name '.DS_Store' -o -name '*.test.js' -o -name '*.test.jsx' -o -name 'package-lock.json' -o -path '*/node_modules/*' -o -path '*/__tests__/*' -o -path '*/modules/dev/*' \) -print
 )"
 if [ -n "$LEAKED" ]; then
     echo "✘ Unexpected files in staging:" >&2

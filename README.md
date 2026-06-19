@@ -1,6 +1,6 @@
 # Heckl
 
-A WordPress plugin that turns a fresh WordPress site into a personal social-feed reader: follow people across the Fediverse (via the [ActivityPub plugin](https://wordpress.org/plugins/activitypub/)), RSS / Atom feeds (with WebSub push), and WordPress.com Reader subscriptions — all on one unified Following timeline. Ships with a frontend post composer, a Favorites bookmark list, a lightweight in-app Custom Bar replacing the admin bar, and plugin-default block templates so the Following / Favorites archives have a working layout on any block theme.
+A WordPress plugin that turns a fresh WordPress site into a personal social-feed reader: follow people across the Fediverse (via the [ActivityPub plugin](https://wordpress.org/plugins/activitypub/)), RSS / Atom feeds (with WebSub push), and WordPress.com Reader subscriptions — all on one unified Following timeline. Ships with a frontend post composer, a Favorites bookmark list, a lightweight in-app Custom Bar replacing the frontend admin bar, and plugin-default block templates so the Following / Favorites archives have a working layout on any block theme.
 
 This monorepo contains both the plugin and its companion block theme (`heckl`). The plugin is the product; the theme is an optional design layer.
 
