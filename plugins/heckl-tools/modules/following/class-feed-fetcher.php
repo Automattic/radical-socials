@@ -241,7 +241,11 @@ class Radical_Socials_Feed_Fetcher {
 			// filter in Following::hide_empty_or_activitypub_titles() hides
 			// the post-title block in that case.
 			'post_title'   => (string) ( $item['title'] ?? '' ),
-			'post_content' => wp_kses( $item['content'] ?? $item['excerpt'] ?? '', self::kses_allowlist() ),
+			// Sanitise to the allowlist, then force rel="noopener" onto any
+			// link the remote feed opens in a new tab — without it, target="_blank"
+			// links in attacker-controlled feed content can reach back via
+			// window.opener (reverse tabnabbing).
+			'post_content' => wp_targeted_link_rel( wp_kses( $item['content'] ?? $item['excerpt'] ?? '', self::kses_allowlist() ) ),
 			'post_excerpt' => wp_strip_all_tags( $item['excerpt'] ?? '' ),
 			// Cap parsed date at "tomorrow" so a hostile feed publishing
 			// far-future timestamps can't pin itself permanently at the
