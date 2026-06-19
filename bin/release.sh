@@ -43,13 +43,13 @@ cd "$ROOT"
 case "$COMPONENT" in
     plugin)
         TAG="plugin-v$VERSION"
-        PLUGIN_FILE="plugins/radical-socials-tools/radical-socials-tools.php"
-        README_FILE="plugins/radical-socials-tools/readme.txt"
+        PLUGIN_FILE="plugins/heckl-tools/heckl-tools.php"
+        README_FILE="plugins/heckl-tools/readme.txt"
         FILES=("$PLUGIN_FILE" "$README_FILE")
         ;;
     theme)
         TAG="theme-v$VERSION"
-        STYLE_FILE="themes/radical-theme/style.css"
+        STYLE_FILE="themes/heckl/style.css"
         FILES=("$STYLE_FILE")
         ;;
     *)

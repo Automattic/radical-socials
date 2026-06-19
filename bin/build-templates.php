@@ -1,9 +1,9 @@
 <?php
 /**
- * Flatten radical-theme's plugin-specific templates into plugin-default
+ * Flatten heckl's plugin-specific templates into plugin-default
  * block templates.
  *
- * Radical Socials ships a plugin that should work on any active theme.
+ * Heckl ships a plugin that should work on any active theme.
  * Most themes won't define `archive-rs_feed_item` or `archive-rs_favorite`,
  * so without a fallback, visiting /following or /favorites on a vanilla
  * theme falls back to the generic archive layout — which is missing the
@@ -13,7 +13,7 @@
  * Solution: at build time, take the theme's authoritative version of each
  * plugin-specific template, inline every `<!-- wp:template-part -->` and
  * `<!-- wp:pattern -->` reference, and write the resulting self-contained
- * HTML into plugins/radical-socials/templates/. The plugin then registers
+ * HTML into plugins/heckl/templates/. The plugin then registers
  * each one via register_block_template() (WP 6.7+). When the active theme
  * provides its own archive-rs_feed_item.html, WP's normal theme-over-plugin
  * resolution applies and the theme version wins.
@@ -36,8 +36,8 @@ declare(strict_types=1);
 const FLATTEN_TEMPLATES = [ 'archive-rs_feed_item', 'archive-rs_favorite' ];
 
 $root       = realpath( __DIR__ . '/..' );
-$theme_dir  = $root . '/themes/radical-theme';
-$output_dir = $root . '/plugins/radical-socials-tools/templates';
+$theme_dir  = $root . '/themes/heckl';
+$output_dir = $root . '/plugins/heckl-tools/templates';
 
 // Shim the WP i18n / escape helpers the theme's pattern PHP files call.
 // We're not the actual rendering path, so the goal is just to not crash
@@ -141,7 +141,7 @@ function rs_flatten( string $content, string $theme_dir, array $stack = [] ): st
 				exit( 1 );
 			}
 			// Pattern slugs are "theme//pattern-name". Take everything after
-			// the first slash — we only ship the radical-theme variant.
+			// the first slash — we only ship the heckl variant.
 			$pos  = strpos( $slug, '/' );
 			$name = false !== $pos ? substr( $slug, $pos + 1 ) : $slug;
 			$path = $theme_dir . '/patterns/' . $name . '.php';

@@ -1,0 +1,340 @@
+# Copyright (C) 2026 Automattic
+# This file is distributed under the GPL-2.0-or-later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Heckl 1.0.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/theme/heckl\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-05-20T15:58:01+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: heckl\n"
+
+#. Theme Name of the theme
+#: style.css
+msgid "Heckl"
+msgstr ""
+
+#. Theme URI of the theme
+#: style.css
+msgid "https://github.com/Automattic/heckl"
+msgstr ""
+
+#. Description of the theme
+#: style.css
+msgid "A block theme for personal feed readers and social-style content sites, with layouts tuned for photo grids, vertical video, and text timelines. Works on its own and pairs with the Heckl plugin, which adds Following, Favorites, and a frontend post composer."
+msgstr ""
+
+#. Author of the theme
+#: style.css
+msgid "Automattic"
+msgstr ""
+
+#. Author URI of the theme
+#: style.css
+msgid "https://automattic.com"
+msgstr ""
+
+#: patterns/footer-default.php
+msgctxt "Pattern title"
+msgid "Default footer"
+msgstr ""
+
+#: patterns/footer-default.php
+msgctxt "Pattern description"
+msgid "Centered credit line with a subtle top divider, sized to match the rest of the theme's chrome."
+msgstr ""
+
+#. translators: %s: WordPress link.
+#: patterns/footer-default.php:17
+#, php-format
+msgid "Proudly powered by %s"
+msgstr ""
+
+#: patterns/footer-default.php:18
+msgid "https://wordpress.org"
+msgstr ""
+
+#: patterns/footer-default.php:18
+msgid "WordPress"
+msgstr ""
+
+#: patterns/hidden-404.php
+msgctxt "Pattern title"
+msgid "Hidden 404 content"
+msgstr ""
+
+#: patterns/hidden-404.php:12
+msgid "404"
+msgstr ""
+
+#: patterns/hidden-404.php:16
+msgid "The page you're looking for doesn't exist."
+msgstr ""
+
+#: patterns/hidden-404.php:19
+#: patterns/hidden-search-results.php:15
+#: patterns/sidebar-default.php:12
+msgid "Search"
+msgstr ""
+
+#: patterns/hidden-404.php:19
+#: patterns/hidden-search-results.php:15
+msgctxt "placeholder text"
+msgid "Search…"
+msgstr ""
+
+#: patterns/hidden-post-footer.php
+msgctxt "Pattern title"
+msgid "Hidden post footer"
+msgstr ""
+
+#: patterns/hidden-post-footer.php:13
+#: patterns/loop-content.php:38
+msgid "Fediverse reactions"
+msgstr ""
+
+#: patterns/hidden-post-footer.php:22
+msgid "Tags: "
+msgstr ""
+
+#: patterns/hidden-search-results.php
+msgctxt "Pattern title"
+msgid "Hidden search results"
+msgstr ""
+
+#: patterns/hidden-search-results.php:28
+msgid "No results found. Try a different search?"
+msgstr ""
+
+#: patterns/hidden-written-by.php
+msgctxt "Pattern title"
+msgid "Hidden written by"
+msgstr ""
+
+#: patterns/hidden-written-by.php:11
+msgctxt "post meta byline"
+msgid "Written by"
+msgstr ""
+
+#: patterns/hidden-written-by.php:17
+msgctxt "as in \"Written by [author] in [category]\""
+msgid "in"
+msgstr ""
+
+#: patterns/loop-content.php
+msgctxt "Pattern title"
+msgid "Loop content"
+msgstr ""
+
+#: patterns/loop-content.php:31
+#: patterns/loop-favorite.php:25
+msgid "Read more"
+msgstr ""
+
+#: patterns/loop-favorite.php
+msgctxt "Pattern title"
+msgid "Loop favorite"
+msgstr ""
+
+#: patterns/loop-favorite.php:33
+msgid "Origin: "
+msgstr ""
+
+#: patterns/loop-favorite.php:34
+msgid "Author: "
+msgstr ""
+
+#: patterns/sidebar-default.php
+msgctxt "Pattern title"
+msgid "Default sidebar — search, feed filter, favorite feeds"
+msgstr ""
+
+#: patterns/sidebar-default.php
+msgctxt "Pattern description"
+msgid "The theme's right-hand sidebar: a rounded search input, a feed-type filter list, and the visitor's favorite feeds. Useful as a self-contained discovery widget in any column."
+msgstr ""
+
+#: patterns/sidebar-default.php:17
+msgid "Filter by source"
+msgstr ""
+
+#: patterns/sidebar-default.php:27
+msgid "Favorite feeds"
+msgstr ""
+
+#: theme.json
+#: styles/gallery-pop.json
+#: styles/neon-reel.json
+#: styles/skyline.json
+#: styles/timeline.json
+msgctxt "Color name"
+msgid "Base"
+msgstr ""
+
+#: theme.json
+#: styles/gallery-pop.json
+#: styles/neon-reel.json
+#: styles/skyline.json
+#: styles/timeline.json
+msgctxt "Color name"
+msgid "Contrast 1"
+msgstr ""
+
+#: theme.json
+#: styles/gallery-pop.json
+#: styles/neon-reel.json
+#: styles/skyline.json
+#: styles/timeline.json
+msgctxt "Color name"
+msgid "Contrast 2"
+msgstr ""
+
+#: theme.json
+#: styles/gallery-pop.json
+#: styles/neon-reel.json
+#: styles/skyline.json
+#: styles/timeline.json
+msgctxt "Color name"
+msgid "Contrast 3"
+msgstr ""
+
+#: theme.json
+msgctxt "Color name"
+msgid "Contrast 4"
+msgstr ""
+
+#: theme.json
+msgctxt "Space size name"
+msgid "Tiny"
+msgstr ""
+
+#: theme.json
+msgctxt "Space size name"
+msgid "X-Small"
+msgstr ""
+
+#: theme.json
+msgctxt "Space size name"
+msgid "Small"
+msgstr ""
+
+#: theme.json
+msgctxt "Space size name"
+msgid "Regular"
+msgstr ""
+
+#: theme.json
+msgctxt "Space size name"
+msgid "Large"
+msgstr ""
+
+#: theme.json
+msgctxt "Space size name"
+msgid "X-Large"
+msgstr ""
+
+#: theme.json
+msgctxt "Space size name"
+msgid "XX-Large"
+msgstr ""
+
+#: theme.json
+msgctxt "Font family name"
+msgid "System Font"
+msgstr ""
+
+#: theme.json
+msgctxt "Font size name"
+msgid "Small"
+msgstr ""
+
+#: theme.json
+msgctxt "Font size name"
+msgid "Medium"
+msgstr ""
+
+#: theme.json
+msgctxt "Font size name"
+msgid "Large"
+msgstr ""
+
+#: theme.json
+msgctxt "Font size name"
+msgid "Extra Large"
+msgstr ""
+
+#: theme.json
+msgctxt "Font size name"
+msgid "Extra Extra Large"
+msgstr ""
+
+#: theme.json
+msgctxt "Template part name"
+msgid "Header"
+msgstr ""
+
+#: theme.json
+msgctxt "Template part name"
+msgid "Footer"
+msgstr ""
+
+#: theme.json
+msgctxt "Template part name"
+msgid "Sidebar Left"
+msgstr ""
+
+#: theme.json
+msgctxt "Template part name"
+msgid "Sidebar Right"
+msgstr ""
+
+#: theme.json
+msgctxt "Custom template name"
+msgid "Following — feed-item archive"
+msgstr ""
+
+#: theme.json
+msgctxt "Custom template name"
+msgid "Favorites — favorite archive"
+msgstr ""
+
+#: styles/gallery-pop.json
+msgctxt "Style variation name"
+msgid "Gallery Pop"
+msgstr ""
+
+#: styles/gallery-pop.json
+#: styles/neon-reel.json
+#: styles/skyline.json
+#: styles/timeline.json
+msgctxt "Color name"
+msgid "Accent"
+msgstr ""
+
+#: styles/gallery-pop.json
+#: styles/neon-reel.json
+#: styles/skyline.json
+#: styles/timeline.json
+msgctxt "Color name"
+msgid "Accent 2"
+msgstr ""
+
+#: styles/neon-reel.json
+msgctxt "Style variation name"
+msgid "Neon Reel"
+msgstr ""
+
+#: styles/skyline.json
+msgctxt "Style variation name"
+msgid "Skyline"
+msgstr ""
+
+#: styles/timeline.json
+msgctxt "Style variation name"
+msgid "Timeline"
+msgstr ""

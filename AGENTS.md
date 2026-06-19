@@ -1,4 +1,4 @@
-# Radical Socials — Agent Context
+# Heckl — Agent Context
 
 ## Local Development Environment
 
@@ -39,7 +39,7 @@ A WordPress plugin that lets people escape walled-garden social media (Instagram
 
 **The plugin is the product. The theme is a swappable design layer.**
 
-Plugin functionality must work on any installed WordPress theme. The `radical-theme` we're building is the default design layer — an FSE block theme styled to feel like a social network — but it is not required for the plugin to function. Any extra frontend behaviour the plugin adds (custom bar, feed, navigation) must be theme-agnostic.
+Plugin functionality must work on any installed WordPress theme. The `heckl` we're building is the default design layer — an FSE block theme styled to feel like a social network — but it is not required for the plugin to function. Any extra frontend behaviour the plugin adds (custom bar, feed, navigation) must be theme-agnostic.
 
 ## Rough Architecture (subject to change)
 
@@ -52,7 +52,7 @@ The plugin will likely be organized into modules:
 - **feed** — pulls from social media APIs and surfaces content in the frontend. Uses native core blocks (primarily `core/query`) rather than custom blocks.
 - **client-side navigation** — makes page transitions seamless using the WordPress Interactivity API router. Implemented via `render_block` filters that inject router region attributes onto existing core block output.
 
-`radical-theme` is a standalone block theme (not a "companion"). It adapts its visual style to the platform the user migrated from (photo grid for Instagram, text feed for Twitter/Bluesky, vertical video for TikTok).
+`heckl` is a standalone block theme (not a "companion"). It adapts its visual style to the platform the user migrated from (photo grid for Instagram, text feed for Twitter/Bluesky, vertical video for TikTok).
 
 ## Supported Platforms (v1 targets)
 

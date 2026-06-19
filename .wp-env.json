@@ -4,12 +4,12 @@
   "port": 8890,
   "testsPort": 8891,
   "plugins": [
-    "./plugins/radical-socials-tools",
+    "./plugins/heckl-tools",
     "https://downloads.wordpress.org/plugin/query-monitor.latest-stable.zip",
     "https://downloads.wordpress.org/plugin/activitypub.latest-stable.zip"
   ],
   "themes": [
-    "./themes/radical-theme"
+    "./themes/heckl"
   ],
   "config": {
     "WP_DEBUG": true,
@@ -21,6 +21,6 @@
   },
   "mappings": {},
   "lifecycleScripts": {
-    "afterStart": "wp-env run cli wp theme activate radical-theme"
+    "afterStart": "wp-env run cli wp theme activate heckl"
   }
 }

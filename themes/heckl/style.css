@@ -1,0 +1,106 @@
+/*
+Theme Name: Heckl
+Theme URI: https://github.com/Automattic/heckl
+Description: A block theme for personal feed readers and social-style content sites, with layouts tuned for photo grids, vertical video, and text timelines. Works on its own and pairs with the Heckl plugin, which adds Following, Favorites, and a frontend post composer.
+Version: 1.1.1
+Requires at least: 6.6
+Tested up to: 7.0
+Requires PHP: 7.4
+Author: Automattic
+Author URI: https://automattic.com
+Contributors: automattic, mikachan, onemaggie
+License: GPLv2 or later
+License URI: http://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: heckl
+Tags: blog, style-variations, three-columns, custom-colors, custom-menu, featured-images, full-site-editing, translation-ready
+*/
+
+/*!
+Heckl
+Copyright (C) 2026 Automattic
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation, either version 2 of the License, or (at your
+option) any later version.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
+
+.rs-cover {
+	overflow: visible;
+}
+
+/*
+ * All rules below target plugin-provided classes (frontend post composer,
+ * feed-item taxonomy badges, etc.). They're scoped under `.rs-plugin`, a
+ * body class the Heckl plugin adds via the `body_class` filter
+ * when it's active. With the plugin inactive, none of these elements
+ * exist on the page anyway — the body-class scope is a defense-in-depth
+ * so even if a stray HTML snippet referencing them shows up, the theme's
+ * plugin-specific styling stays dormant. Mirrors the Storefront pattern
+ * of scoping all WooCommerce styling under `body.woocommerce-active`.
+ */
+
+.rs-plugin .wp-block-post-terms.rs-feed-type-badge a {
+	border: 1px solid currentColor;
+	padding: 0.25em 0.5em;
+	border-radius: 9999px;
+	font-size: 0.75em;
+	font-weight: 600;
+	text-transform: uppercase;
+}
+
+/* ─── Frontend post composer overrides ─── */
+
+.rs-plugin .wp-site-blocks .rs-frontend-editor {
+	margin: 0;
+	max-width: 100%;
+}
+
+.rs-plugin .wp-site-blocks .rs-editor-prompt {
+	border-top: none;
+	border-left: none;
+	border-right: none;
+	border-radius: 0;
+	padding: 2rem 1.125rem;
+}
+
+.rs-plugin .wp-site-blocks .rs-editor-prompt:hover {
+	border-color: var( --wp--preset--color--contrast-3, rgba( 255, 255, 255, 0.12 ) );
+	background-color: rgba( 255, 255, 255, 0.04 );
+}
+
+.rs-plugin .wp-site-blocks .rs-social-editor {
+	border-top: none;
+	border-left: none;
+	border-right: none;
+	background: rgba( 255, 255, 255, 0.04 );
+	border-radius: 0;
+}
+
+.rs-plugin .wp-site-blocks .rs-editor-writing-area {
+	background: none;
+	border: none;
+	padding: 0;
+}
+
+.rs-plugin .wp-site-blocks .rs-media-bar {
+	margin-top: 0;
+}
+
+.rs-plugin .rs-modal-dialog .components-modal__content {
+	padding: 0;
+	margin-top: 2rem;
+}
+
+.rs-plugin .rs-modal-dialog .rs-social-editor {
+	border: none;
+	padding: 0;
+}

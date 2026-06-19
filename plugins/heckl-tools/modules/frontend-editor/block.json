@@ -1,0 +1,12 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "heckl/frontend-editor",
+	"title": "Social Editor",
+	"category": "widgets",
+	"description": "Front end social post composer, only visible to logged-in users.",
+	"textdomain": "heckl-tools",
+	"editorScript": "file:../../build/frontend-editor-block.js",
+	"viewScript": "heckl-frontend",
+	"viewStyle": "heckl-frontend"
+}

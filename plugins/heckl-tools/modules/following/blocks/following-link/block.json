@@ -1,0 +1,20 @@
+{
+	"apiVersion": 3,
+	"name": "heckl/following-link",
+	"title": "Following Link",
+	"category": "theme",
+	"description": "A link to the Following feed page, for use inside a Navigation block.",
+	"textdomain": "heckl-tools",
+	"parent": [ "core/navigation" ],
+	"editorScript": "file:./editor.js",
+	"supports": {
+		"html": false,
+		"reusable": false,
+		"interactivity": {
+			"clientNavigation": true
+		},
+		"typography": {
+			"fontSize": true
+		}
+	}
+}

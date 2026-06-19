@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 #
-# Build a release-ready zip of the Radical Socials plugin, formatted for
+# Build a release-ready zip of the Heckl plugin, formatted for
 # submission to the WordPress.org plugin directory.
 #
 # - Runs a fresh production build (wp-scripts build).
-# - Stages the plugin under dist/staging/radical-socials/ and excludes:
+# - Stages the plugin under dist/staging/heckl/ and excludes:
 #     * source maps (*.map) — dev artifact, doubles the zip size
 #     * modules/dev/        — WP-CLI test harness, not for end users
 #     * OS / IDE droppings (.DS_Store, Thumbs.db)
 #     * editor backups / temp files (*~, *.bak, *.orig, *.swp)
 # - Keeps src/ alongside build/ so we satisfy wp.org guideline #4
 #   ("include the source code for any minified/bundled assets").
-# - Outputs dist/radical-socials-<version>.zip with the version pulled
+# - Outputs dist/heckl-<version>.zip with the version pulled
 #   straight from the plugin header so the filename never drifts from
 #   the Stable tag in readme.txt.
 #
@@ -22,24 +22,24 @@ set -euo pipefail
 
 # Resolve repo root regardless of where the script is called from.
 ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
-PLUGIN_DIR="$ROOT/plugins/radical-socials-tools"
+PLUGIN_DIR="$ROOT/plugins/heckl-tools"
 DIST_DIR="$ROOT/dist"
 STAGE_DIR="$DIST_DIR/staging"
 
-if [ ! -f "$PLUGIN_DIR/radical-socials-tools.php" ]; then
-    echo "✘ Plugin file not found at $PLUGIN_DIR/radical-socials-tools.php" >&2
+if [ ! -f "$PLUGIN_DIR/heckl-tools.php" ]; then
+    echo "✘ Plugin file not found at $PLUGIN_DIR/heckl-tools.php" >&2
     exit 1
 fi
 
 # Pull the version from the plugin header — single source of truth so the
 # zip filename always matches the Stable tag in readme.txt.
 VERSION="$(
-    grep -E '^[[:space:]]*\*[[:space:]]*Version:' "$PLUGIN_DIR/radical-socials-tools.php" \
+    grep -E '^[[:space:]]*\*[[:space:]]*Version:' "$PLUGIN_DIR/heckl-tools.php" \
         | head -n1 \
         | sed -E 's/.*Version:[[:space:]]*([^[:space:]]+).*/\1/'
 )"
 if [ -z "$VERSION" ]; then
-    echo "✘ Could not parse Version from radical-socials-tools.php header" >&2
+    echo "✘ Could not parse Version from heckl-tools.php header" >&2
     exit 1
 fi
 
@@ -56,21 +56,21 @@ if [ "$STABLE_TAG" != "$VERSION" ]; then
     exit 1
 fi
 
-ZIP_PATH="$DIST_DIR/radical-socials-tools-$VERSION.zip"
+ZIP_PATH="$DIST_DIR/heckl-tools-$VERSION.zip"
 
 echo "→ Building production assets…"
 ( cd "$ROOT" && npm run build --silent )
 
 # Flatten theme templates into plugin-default block templates. The output
-# lives under plugins/radical-socials/templates/ and is gitignored — it
+# lives under plugins/heckl/templates/ and is gitignored — it
 # must be regenerated for every zip so the shipped fallback templates
-# match the current state of radical-theme.
+# match the current state of heckl.
 echo "→ Flattening theme templates into plugin defaults…"
 ( cd "$ROOT" && npm run build:templates --silent )
 
-echo "→ Staging plugin files at $STAGE_DIR/radical-socials-tools …"
+echo "→ Staging plugin files at $STAGE_DIR/heckl-tools …"
 rm -rf "$STAGE_DIR"
-mkdir -p "$STAGE_DIR/radical-socials-tools"
+mkdir -p "$STAGE_DIR/heckl-tools"
 
 # rsync gives us a single tool for copy + exclude. Trailing slash on source
 # means "copy contents", target has no slash so dirs are created under it.
@@ -89,11 +89,11 @@ rsync -a \
     --exclude='*.swp' \
     --exclude='*.rej' \
     --exclude='.gitkeep' \
-    "$PLUGIN_DIR/" "$STAGE_DIR/radical-socials-tools/"
+    "$PLUGIN_DIR/" "$STAGE_DIR/heckl-tools/"
 
 # Sanity: refuse to ship if any of the things we don't want made it through.
 LEAKED="$(
-    find "$STAGE_DIR/radical-socials-tools" \
+    find "$STAGE_DIR/heckl-tools" \
         \( -name '*.map' -o -name '.DS_Store' -o -name '*.test.js' -o -name '*.test.jsx' -o -path '*/__tests__/*' -o -path '*/modules/dev/*' \) -print
 )"
 if [ -n "$LEAKED" ]; then
@@ -103,10 +103,10 @@ if [ -n "$LEAKED" ]; then
 fi
 
 # Build the zip from the parent of the staged directory so the top-level
-# folder inside the archive is radical-socials/ (what wp.org expects).
+# folder inside the archive is heckl/ (what wp.org expects).
 rm -f "$ZIP_PATH"
 echo "→ Zipping to $ZIP_PATH …"
-( cd "$STAGE_DIR" && zip -rq "$ZIP_PATH" radical-socials-tools )
+( cd "$STAGE_DIR" && zip -rq "$ZIP_PATH" heckl-tools )
 
 # Cleanup staging — leave only the zip under dist/.
 rm -rf "$STAGE_DIR"

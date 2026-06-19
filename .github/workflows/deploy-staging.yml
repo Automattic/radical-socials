@@ -39,8 +39,8 @@ jobs:
             --exclude node_modules/ \
             --exclude src/ \
             --exclude .gitignore \
-            ./plugins/radical-socials-tools/ \
-            /htdocs/wp-content/plugins/radical-socials-tools/
+            ./plugins/heckl-tools/ \
+            /htdocs/wp-content/plugins/heckl-tools/
           bye
           EOF
 
@@ -49,7 +49,7 @@ jobs:
           lftp -u "${{ secrets.SFTP_USERNAME }},${{ secrets.SFTP_PASSWORD }}" sftp://sftp.wp.com <<EOF
           set sftp:auto-confirm yes
           mirror --reverse --delete --verbose \
-            ./themes/radical-theme/ \
-            /htdocs/wp-content/themes/radical-theme/
+            ./themes/heckl/ \
+            /htdocs/wp-content/themes/heckl/
           bye
           EOF

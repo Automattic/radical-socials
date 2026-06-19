@@ -124,10 +124,10 @@ jobs:
         run: |
           if [[ "$COMPONENT" == "plugin" ]]; then
             TAG_VERSION="${REF_NAME#plugin-v}"
-            EXPECTED="dist/radical-socials-tools-${TAG_VERSION}.zip"
+            EXPECTED="dist/heckl-tools-${TAG_VERSION}.zip"
           else
             TAG_VERSION="${REF_NAME#theme-v}"
-            EXPECTED="dist/radical-theme-${TAG_VERSION}.zip"
+            EXPECTED="dist/heckl-${TAG_VERSION}.zip"
           fi
           if [[ ! -f "$EXPECTED" ]]; then
             echo "Tag $REF_NAME implies $EXPECTED, but it was not produced." >&2
@@ -142,7 +142,7 @@ jobs:
       - name: Upload zips as workflow artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: radical-socials-zips
+          name: heckl-zips
           path: dist/*.zip
           if-no-files-found: error
 

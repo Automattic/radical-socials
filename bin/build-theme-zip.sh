@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 #
-# Build a release-ready zip of the Radical Theme, formatted for submission
+# Build a release-ready zip of the Heckl, formatted for submission
 # to the WordPress.org theme directory.
 #
-# - Stages the theme under dist/staging/radical-theme/ and excludes:
+# - Stages the theme under dist/staging/heckl/ and excludes:
 #     * OS / IDE droppings (.DS_Store, Thumbs.db)
 #     * editor backups / temp files (*~, *.bak, *.orig, *.swp, *.rej)
 #     * source control (.git, .gitignore)  — defensive; shouldn't be in
-#                                            themes/radical-theme anyway.
+#                                            themes/heckl anyway.
 #     * dev dependencies (node_modules)    — same.
-# - Output: dist/radical-theme-<version>.zip with the version pulled from
+# - Output: dist/heckl-<version>.zip with the version pulled from
 #   the style.css header so the filename always matches what the theme
 #   directory will display.
 #
@@ -19,7 +19,7 @@
 set -euo pipefail
 
 ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
-THEME_DIR="$ROOT/themes/radical-theme"
+THEME_DIR="$ROOT/themes/heckl"
 DIST_DIR="$ROOT/dist"
 STAGE_DIR="$DIST_DIR/staging"
 
@@ -43,11 +43,11 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-ZIP_PATH="$DIST_DIR/radical-theme-$VERSION.zip"
+ZIP_PATH="$DIST_DIR/heckl-$VERSION.zip"
 
-echo "→ Staging theme files at $STAGE_DIR/radical-theme …"
+echo "→ Staging theme files at $STAGE_DIR/heckl …"
 rm -rf "$STAGE_DIR"
-mkdir -p "$STAGE_DIR/radical-theme"
+mkdir -p "$STAGE_DIR/heckl"
 
 rsync -a \
     --exclude='.DS_Store' \
@@ -60,11 +60,11 @@ rsync -a \
     --exclude='/.git' \
     --exclude='/.gitignore' \
     --exclude='/node_modules' \
-    "$THEME_DIR/" "$STAGE_DIR/radical-theme/"
+    "$THEME_DIR/" "$STAGE_DIR/heckl/"
 
 # Sanity check.
 LEAKED="$(
-    find "$STAGE_DIR/radical-theme" \
+    find "$STAGE_DIR/heckl" \
         \( -name '.DS_Store' -o -name 'node_modules' -o -name '.git' \) -print
 )"
 if [ -n "$LEAKED" ]; then
@@ -75,7 +75,7 @@ fi
 
 rm -f "$ZIP_PATH"
 echo "→ Zipping to $ZIP_PATH …"
-( cd "$STAGE_DIR" && zip -rq "$ZIP_PATH" radical-theme )
+( cd "$STAGE_DIR" && zip -rq "$ZIP_PATH" heckl )
 
 rm -rf "$STAGE_DIR"
 
@@ -89,6 +89,6 @@ echo "  Theme version: $VERSION"
 # fail so the script stays useful for local dev distribution.
 if [ ! -f "$THEME_DIR/screenshot.png" ] && [ ! -f "$THEME_DIR/screenshot.jpg" ]; then
     echo
-    echo "⚠ No screenshot.png found in themes/radical-theme/."
+    echo "⚠ No screenshot.png found in themes/heckl/."
     echo "  Add one (1200×900 recommended) before submitting to wp.org/themes."
 fi

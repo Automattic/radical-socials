@@ -7,11 +7,11 @@
     },
     {
       "step": "activatePlugin",
-      "pluginPath": "radical-socials/radical-socials.php"
+      "pluginPath": "heckl-tools/heckl-tools.php"
     },
     {
       "step": "activateTheme",
-      "themeFolderName": "radical-theme"
+      "themeFolderName": "heckl"
     }
   ]
 }
