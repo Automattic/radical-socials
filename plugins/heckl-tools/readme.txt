@@ -96,7 +96,7 @@ To opt out entirely: define your own `RS_WPCOM_CLIENT_ID` and `RS_WPCOM_CLIENT_S
 
 = Arbitrary RSS / Atom feed URLs =
 
-When you add an RSS feed by URL (or via OPML import), Heckl Tools fetches that URL using WordPress's HTTP API and parses it with the bundled SimplePie library to discover items and the WebSub hub. The same URLs are then re-fetched on a 15-minute schedule (chunked to 10 feeds per tick so the schedule never overwhelms a shared host).
+When you add an RSS feed by URL (or via OPML import), Heckl Tools fetches that URL using WordPress's HTTP API and parses it with the SimplePie library that ships with WordPress core to discover items and the WebSub hub. The same URLs are then re-fetched on a 15-minute schedule (chunked to 10 feeds per tick so the schedule never overwhelms a shared host).
 
 What is sent: an HTTP `GET` from your server with WordPress's default user agent. URLs are validated to refuse local / private-network targets before fetching.
 Service: whichever publisher hosts the feed.
@@ -127,10 +127,19 @@ Heckl Tools does not collect, store, or transmit usage analytics, telemetry, or 
 
 == Upgrade Notice ==
 
+= 1.0.1 =
+Maintenance release. Activation no longer changes your permalink settings unless you opt in, plus editor and packaging fixes. Safe to update.
+
 = 1.0.0 =
 First stable release. No prior version to upgrade from.
 
 == Changelog ==
+
+= 1.0.1 =
+* Activation no longer changes the site's permalink structure automatically; pretty permalinks are only applied when explicitly enabled.
+* Heckl blocks are now loaded conditionally.
+* Fixed an error message shown in the frontend editor.
+* Build and packaging improvements.
 
 = 1.0.0 =
 * First stable release.
