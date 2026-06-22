@@ -1,6 +1,6 @@
 <?php
 
-if ( ! function_exists( 'radical_theme_style' ) ) :
+if ( ! function_exists( 'heckl_theme_style' ) ) :
 	/**
 	 * Enqueues the theme's style.css on the front end.
 	 *
@@ -8,13 +8,13 @@ if ( ! function_exists( 'radical_theme_style' ) ) :
 	 * wp_enqueue_style any earlier triggers WP's "called incorrectly"
 	 * notice and the stylesheet never actually lands in the page.
 	 *
-	 * Priority 20 (after the default 10) so it loads after Radical
-	 * Socials' frontend bundle, letting same-specificity theme overrides
+	 * Priority 20 (after the default 10) so it loads after Heckl Tools'
+	 * frontend bundle, letting same-specificity theme overrides
 	 * win against plugin defaults.
 	 *
 	 * @return void
 	 */
-	function radical_theme_style() {
+	function heckl_theme_style() {
 		wp_enqueue_style(
 			'heckl-style',
 			get_parent_theme_file_uri( 'style.css' ),
@@ -28,7 +28,7 @@ if ( ! function_exists( 'radical_theme_style' ) ) :
 		);
 	}
 endif;
-add_action( 'wp_enqueue_scripts', 'radical_theme_style', 20 );
+add_action( 'wp_enqueue_scripts', 'heckl_theme_style', 20 );
 
 if ( ! function_exists( 'heckl_is_tools_plugin_active' ) ) :
 	/**
@@ -58,7 +58,7 @@ if ( ! function_exists( 'heckl_is_tools_plugin_active' ) ) :
 	}
 endif;
 
-if ( ! function_exists( 'radical_theme_editor_inline_css' ) ) :
+if ( ! function_exists( 'heckl_theme_editor_inline_css' ) ) :
 	/**
 	 * Inject a small CSS rule into the block editor canvas (Site Editor
 	 * iframe + post editor) without shipping a separate stylesheet.
@@ -71,11 +71,11 @@ if ( ! function_exists( 'radical_theme_editor_inline_css' ) ) :
 	 *
 	 * @return void
 	 */
-	function radical_theme_editor_inline_css() {
+	function heckl_theme_editor_inline_css() {
 		if ( ! is_admin() ) {
 			return;
 		}
 		wp_add_inline_style( 'wp-block-library', '.rs-cover { overflow: visible; }' );
 	}
 endif;
-add_action( 'enqueue_block_assets', 'radical_theme_editor_inline_css' );
+add_action( 'enqueue_block_assets', 'heckl_theme_editor_inline_css' );
