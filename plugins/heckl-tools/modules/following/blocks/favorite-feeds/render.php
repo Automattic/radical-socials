@@ -17,7 +17,7 @@ defined( 'ABSPATH' ) || exit;
 function heckl_render_favorite_feeds( $attributes, $content, $block ): string {
 	unset( $attributes, $content, $block );
 
-	$favorites = (array) get_option( 'rs_following_favorites', [] );
+	$favorites = (array) get_option( 'heckl_following_favorites', [] );
 	if ( empty( $favorites ) ) {
 		return '';
 	}
@@ -25,7 +25,7 @@ function heckl_render_favorite_feeds( $attributes, $content, $block ): string {
 	$items = [];
 
 	// ── RSS subscriptions ────────────────────────────────────────────
-	foreach ( (array) get_option( 'rs_rss_subscriptions', [] ) as $sub ) {
+	foreach ( (array) get_option( 'heckl_rss_subscriptions', [] ) as $sub ) {
 		if ( empty( $sub['title'] ) ) {
 			continue;
 		}

@@ -19,8 +19,8 @@ defined( 'ABSPATH' ) || exit;
 
 class Radical_Socials_WPCOM_OAuth {
 
-	const TOKEN_OPTION   = 'rs_wpcom_access_token';
-	const STATE_OPTION   = 'rs_wpcom_oauth_state';
+	const TOKEN_OPTION   = 'heckl_wpcom_access_token';
+	const STATE_OPTION   = 'heckl_wpcom_oauth_state';
 	const AUTHORIZE_URL  = 'https://public-api.wordpress.com/oauth2/authorize';
 	const TOKEN_URL      = 'https://public-api.wordpress.com/oauth2/token';
 	const REST_NAMESPACE = 'heckl/v1';
@@ -28,7 +28,7 @@ class Radical_Socials_WPCOM_OAuth {
 
 	/**
 	 * Default WP.com OAuth broker used when an install doesn't define its
-	 * own RS_WPCOM_CLIENT_ID/SECRET or RS_WPCOM_PROXY_URL. This is the
+	 * own HECKL_WPCOM_CLIENT_ID/SECRET or HECKL_WPCOM_PROXY_URL. This is the
 	 * Heckl project's hosted broker — it never stores tokens, it
 	 * just brokers the authorize redirect + token-for-code swap so that
 	 * shipping a single shared client_secret with the plugin isn't needed.
@@ -93,8 +93,8 @@ class Radical_Socials_WPCOM_OAuth {
 	 */
 	public static function connect_url(): string {
 		return wp_nonce_url(
-			admin_url( 'admin.php?page=heckl-settings&tab=following&rs_action=wpcom_connect' ),
-			'rs_wpcom_connect'
+			admin_url( 'admin.php?page=heckl-settings&tab=following&heckl_action=wpcom_connect' ),
+			'heckl_wpcom_connect'
 		);
 	}
 
@@ -103,13 +103,13 @@ class Radical_Socials_WPCOM_OAuth {
 	 * wp_safe_redirect() out to WP.com before any HTML output.
 	 */
 	public static function handle_connect_action(): void {
-		if ( ! isset( $_GET['rs_action'] ) || 'wpcom_connect' !== $_GET['rs_action'] ) {
+		if ( ! isset( $_GET['heckl_action'] ) || 'wpcom_connect' !== $_GET['heckl_action'] ) {
 			return;
 		}
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		check_admin_referer( 'rs_wpcom_connect' );
+		check_admin_referer( 'heckl_wpcom_connect' );
 
 		$state = wp_generate_uuid4();
 
@@ -148,7 +148,7 @@ class Radical_Socials_WPCOM_OAuth {
 		update_option( self::STATE_OPTION, $state, false );
 		$authorize_url = add_query_arg(
 			[
-				'client_id'     => RS_WPCOM_CLIENT_ID,
+				'client_id'     => HECKL_WPCOM_CLIENT_ID,
 				'redirect_uri'  => self::callback_url(),
 				'response_type' => 'code',
 				'scope'         => 'global',
@@ -215,8 +215,8 @@ class Radical_Socials_WPCOM_OAuth {
 				self::TOKEN_URL,
 				[
 					'body' => [
-						'client_id'     => RS_WPCOM_CLIENT_ID,
-						'client_secret' => RS_WPCOM_CLIENT_SECRET,
+						'client_id'     => HECKL_WPCOM_CLIENT_ID,
+						'client_secret' => HECKL_WPCOM_CLIENT_SECRET,
 						'code'          => $code,
 						'redirect_uri'  => self::callback_url(),
 						'grant_type'    => 'authorization_code',
@@ -279,16 +279,16 @@ class Radical_Socials_WPCOM_OAuth {
 
 	/** True when this install has its own WP.com app credentials. */
 	public static function has_direct_credentials(): bool {
-		return defined( 'RS_WPCOM_CLIENT_ID' ) && RS_WPCOM_CLIENT_ID
-			&& defined( 'RS_WPCOM_CLIENT_SECRET' ) && RS_WPCOM_CLIENT_SECRET;
+		return defined( 'HECKL_WPCOM_CLIENT_ID' ) && HECKL_WPCOM_CLIENT_ID
+			&& defined( 'HECKL_WPCOM_CLIENT_SECRET' ) && HECKL_WPCOM_CLIENT_SECRET;
 	}
 
 	/**
-	 * Broker URL: a site-defined override (RS_WPCOM_PROXY_URL) wins, otherwise
+	 * Broker URL: a site-defined override (HECKL_WPCOM_PROXY_URL) wins, otherwise
 	 * we use the project's hosted broker (DEFAULT_PROXY_URL).
 	 */
 	private static function proxy_url(): string {
-		$override = defined( 'RS_WPCOM_PROXY_URL' ) && RS_WPCOM_PROXY_URL ? (string) RS_WPCOM_PROXY_URL : '';
+		$override = defined( 'HECKL_WPCOM_PROXY_URL' ) && HECKL_WPCOM_PROXY_URL ? (string) HECKL_WPCOM_PROXY_URL : '';
 		return untrailingslashit( $override ?: self::DEFAULT_PROXY_URL );
 	}
 

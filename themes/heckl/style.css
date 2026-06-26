@@ -32,13 +32,13 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-.rs-cover {
+.heckl-cover {
 	overflow: visible;
 }
 
 /*
  * All rules below target plugin-provided classes (frontend post composer,
- * feed-item taxonomy badges, etc.). They're scoped under `.rs-plugin`, a
+ * feed-item taxonomy badges, etc.). They're scoped under `.heckl-plugin`, a
  * body class the Heckl plugin adds via the `body_class` filter
  * when it's active. With the plugin inactive, none of these elements
  * exist on the page anyway — the body-class scope is a defense-in-depth
@@ -47,7 +47,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>.
  * of scoping all WooCommerce styling under `body.woocommerce-active`.
  */
 
-.rs-plugin .wp-block-post-terms.rs-feed-type-badge a {
+.heckl-plugin .wp-block-post-terms.heckl-feed-type-badge a {
 	border: 1px solid currentColor;
 	padding: 0.25em 0.5em;
 	border-radius: 9999px;
@@ -58,12 +58,12 @@ with this program. If not, see <https://www.gnu.org/licenses/>.
 
 /* ─── Frontend post composer overrides ─── */
 
-.rs-plugin .wp-site-blocks .rs-frontend-editor {
+.heckl-plugin .wp-site-blocks .heckl-frontend-editor {
 	margin: 0;
 	max-width: 100%;
 }
 
-.rs-plugin .wp-site-blocks .rs-editor-prompt {
+.heckl-plugin .wp-site-blocks .heckl-editor-prompt {
 	border-top: none;
 	border-left: none;
 	border-right: none;
@@ -71,12 +71,12 @@ with this program. If not, see <https://www.gnu.org/licenses/>.
 	padding: 2rem 1.125rem;
 }
 
-.rs-plugin .wp-site-blocks .rs-editor-prompt:hover {
+.heckl-plugin .wp-site-blocks .heckl-editor-prompt:hover {
 	border-color: var( --wp--preset--color--contrast-3, rgba( 255, 255, 255, 0.12 ) );
 	background-color: rgba( 255, 255, 255, 0.04 );
 }
 
-.rs-plugin .wp-site-blocks .rs-social-editor {
+.heckl-plugin .wp-site-blocks .heckl-social-editor {
 	border-top: none;
 	border-left: none;
 	border-right: none;
@@ -84,22 +84,22 @@ with this program. If not, see <https://www.gnu.org/licenses/>.
 	border-radius: 0;
 }
 
-.rs-plugin .wp-site-blocks .rs-editor-writing-area {
+.heckl-plugin .wp-site-blocks .heckl-editor-writing-area {
 	background: none;
 	border: none;
 	padding: 0;
 }
 
-.rs-plugin .wp-site-blocks .rs-media-bar {
+.heckl-plugin .wp-site-blocks .heckl-media-bar {
 	margin-top: 0;
 }
 
-.rs-plugin .rs-modal-dialog .components-modal__content {
+.heckl-plugin .heckl-modal-dialog .components-modal__content {
 	padding: 0;
 	margin-top: 2rem;
 }
 
-.rs-plugin .rs-modal-dialog .rs-social-editor {
+.heckl-plugin .heckl-modal-dialog .heckl-social-editor {
 	border: none;
 	padding: 0;
 }

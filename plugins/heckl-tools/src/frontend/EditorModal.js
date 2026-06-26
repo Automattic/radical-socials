@@ -22,9 +22,9 @@ export default function EditorModal() {
 		<Modal
 			title={ __( 'Create post', 'heckl-tools' ) }
 			onRequestClose={ closeModal }
-			className="rs-modal-dialog"
+			className="heckl-modal-dialog"
 		>
-			<Suspense fallback={ <div className="rs-editor-loading" /> }>
+			<Suspense fallback={ <div className="heckl-editor-loading" /> }>
 				<SocialEditor
 					onSuccess={ () => { closeModal(); refreshFeed(); } }
 					onCancel={ closeModal }

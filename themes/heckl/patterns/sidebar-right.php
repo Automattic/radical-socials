@@ -22,7 +22,7 @@
 		<h2 class="wp-block-heading has-medium-font-size"><?php echo esc_html__( 'Filter by source', 'heckl' ); ?></h2>
 		<!-- /wp:heading -->
 
-		<!-- wp:categories {"taxonomy":"rs_feed_type","style":{"typography":{"lineHeight":"2.5"},"spacing":{"padding":{"right":"0","left":"var:preset|spacing|30","top":"0","bottom":"0"}}}} /-->
+		<!-- wp:categories {"taxonomy":"heckl_feed_type","style":{"typography":{"lineHeight":"2.5"},"spacing":{"padding":{"right":"0","left":"var:preset|spacing|30","top":"0","bottom":"0"}}}} /-->
 		<?php else : ?>
 		<!-- wp:heading {"fontSize":"medium"} -->
 		<h2 class="wp-block-heading has-medium-font-size"><?php echo esc_html__( 'Categories', 'heckl' ); ?></h2>

@@ -2,8 +2,8 @@
 /**
  * Favorites
  *
- * Registers the rs_favorite CPT — a permanent snapshot of a feed item that the
- * site owner has liked. Favorites survive the rs_feed_item rolling cap and form
+ * Registers the heckl_favorite CPT — a permanent snapshot of a feed item that the
+ * site owner has liked. Favorites survive the heckl_feed_item rolling cap and form
  * the data source for a future /favorites page.
  *
  * @package Heckl
@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Radical_Socials_Favorites {
 
-	const CPT = 'rs_favorite';
+	const CPT = 'heckl_favorite';
 
 	public static function init(): void {
 		add_action( 'init', [ __CLASS__, 'register_cpt'      ] );
@@ -47,11 +47,11 @@ class Radical_Socials_Favorites {
 	}
 
 	/**
-	 * Attach the shared feed taxonomies to rs_favorite so the favorites feed
+	 * Attach the shared feed taxonomies to heckl_favorite so the favorites feed
 	 * can be filtered by source, type, and category — same as the following feed.
 	 */
 	public static function extend_taxonomies(): void {
-		foreach ( [ 'rs_source', 'rs_feed_type', 'rs_feed_category' ] as $taxonomy ) {
+		foreach ( [ 'heckl_source', 'heckl_feed_type', 'heckl_feed_category' ] as $taxonomy ) {
 			register_taxonomy_for_object_type( $taxonomy, self::CPT );
 		}
 	}
@@ -73,13 +73,13 @@ class Radical_Socials_Favorites {
 	}
 
 	/**
-	 * Redirect rs_favorite permalink clicks to the original article URL.
+	 * Redirect heckl_favorite permalink clicks to the original article URL.
 	 */
 	public static function external_permalink( string $url, WP_Post $post ): string {
 		if ( self::CPT !== $post->post_type ) {
 			return $url;
 		}
-		$external = get_post_meta( $post->ID, '_rs_item_url', true );
+		$external = get_post_meta( $post->ID, '_heckl_item_url', true );
 		return $external ?: $url;
 	}
 
@@ -104,11 +104,11 @@ class Radical_Socials_Favorites {
 		$feed_item_id = $request->get_param( 'post_id' );
 		$feed_item    = get_post( $feed_item_id );
 
-		if ( ! $feed_item || 'rs_feed_item' !== $feed_item->post_type ) {
+		if ( ! $feed_item || 'heckl_feed_item' !== $feed_item->post_type ) {
 			return new WP_REST_Response( [ 'error' => 'invalid_post' ], 400 );
 		}
 
-		$item_url = get_post_meta( $feed_item_id, '_rs_item_url', true );
+		$item_url = get_post_meta( $feed_item_id, '_heckl_item_url', true );
 		$slug     = md5( $item_url ?: (string) $feed_item_id );
 
 		$existing = get_posts( [
@@ -136,10 +136,10 @@ class Radical_Socials_Favorites {
 			'post_date'    => $feed_item->post_date,
 			'post_author'  => get_current_user_id(),
 			'meta_input'   => [
-				'_rs_item_url'        => $item_url,
-				'_rs_item_source_url' => get_post_meta( $feed_item_id, '_rs_item_source_url', true ),
-				'_rs_item_thumbnail'  => get_post_meta( $feed_item_id, '_rs_item_thumbnail', true ),
-				'_rs_item_feed_type'  => get_post_meta( $feed_item_id, '_rs_item_feed_type', true ),
+				'_heckl_item_url'        => $item_url,
+				'_heckl_item_source_url' => get_post_meta( $feed_item_id, '_heckl_item_source_url', true ),
+				'_heckl_item_thumbnail'  => get_post_meta( $feed_item_id, '_heckl_item_thumbnail', true ),
+				'_heckl_item_feed_type'  => get_post_meta( $feed_item_id, '_heckl_item_feed_type', true ),
 			],
 		] );
 
@@ -147,7 +147,7 @@ class Radical_Socials_Favorites {
 			return new WP_REST_Response( [ 'error' => 'insert_failed' ], 500 );
 		}
 
-		foreach ( [ 'rs_source', 'rs_feed_type', 'rs_feed_category' ] as $taxonomy ) {
+		foreach ( [ 'heckl_source', 'heckl_feed_type', 'heckl_feed_category' ] as $taxonomy ) {
 			$terms = wp_get_post_terms( $feed_item_id, $taxonomy, [ 'fields' => 'names' ] );
 			if ( $terms && ! is_wp_error( $terms ) ) {
 				wp_set_post_terms( $fav_id, $terms, $taxonomy );
@@ -160,7 +160,7 @@ class Radical_Socials_Favorites {
 	// ── Helpers ───────────────────────────────────────────────────────────────
 
 	public static function is_favorited( int $feed_item_id ): bool {
-		$url = get_post_meta( $feed_item_id, '_rs_item_url', true );
+		$url = get_post_meta( $feed_item_id, '_heckl_item_url', true );
 		if ( ! $url ) {
 			return false;
 		}

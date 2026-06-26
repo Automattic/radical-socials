@@ -13,7 +13,7 @@
 <?php if ( heckl_is_tools_plugin_active() ) : ?>
 <!-- wp:group {"layout":{"type":"flex","flexWrap":"nowrap","justifyContent":"space-between"}} -->
 <div class="wp-block-group">
-<!-- wp:post-terms {"term":"rs_feed_type","className":"rs-feed-type-badge"} /--><!-- wp:heckl/like-button /--></div>
+<!-- wp:post-terms {"term":"heckl_feed_type","className":"heckl-feed-type-badge"} /--><!-- wp:heckl/like-button /--></div>
 <!-- /wp:group -->
 <?php endif; ?>
 	

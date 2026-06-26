@@ -3,18 +3,18 @@
  * <figure class="wp-block-image|video"> wrappers around <img>/<video>
  * tags, but those core block stylesheets are only enqueued when a real
  * core/image|video block is parsed on the page — which never happens for
- * our injected HTML. Scope on .rs_feed_item (added by post_class) so the
+ * our injected HTML. Scope on .heckl_feed_item (added by post_class) so the
  * rule applies on every surface a feed item renders on: post-type
- * archive, home-with-?rs_feed_type=X filter, and single views.
+ * archive, home-with-?heckl_feed_type=X filter, and single views.
  */
-.rs_feed_item figure,
-.rs_feed_item img,
-.rs_feed_item video {
+.heckl_feed_item figure,
+.heckl_feed_item img,
+.heckl_feed_item video {
 	max-width: 100%;
 }
 
-.rs_feed_item img,
-.rs_feed_item video {
+.heckl_feed_item img,
+.heckl_feed_item video {
 	height: auto;
 }
 
@@ -25,7 +25,7 @@
  * normally fixes this with overflow-wrap, but it isn't enqueued here for
  * the same reason image/video styles aren't (no real block is parsed).
  */
-.rs_feed_item pre {
+.heckl_feed_item pre {
 	max-width: 100%;
 	overflow-x: auto;
 }
@@ -33,7 +33,7 @@
 /* ─── ActivityPub posts: self-contained card layout ──────────
  *
  * Every visual element of an AP card lives inside `post_content`
- * as a single `<div class="rs-ap-card">` baked in at fetch time
+ * as a single `<div class="heckl-ap-card">` baked in at fetch time
  * by Radical_Socials_ActivityPub_Fetcher::render_card_wrapper().
  * That means a theme template that reorders or removes the
  * surrounding blocks (post title, post date, our author blocks,
@@ -56,11 +56,11 @@
  * not part of the social-card layout (title, date, featured
  * image, read-more, comments link) or their data is already
  * present inside the card content (avatar + name baked into
- * .rs-ap-card during normalize). */
-.rs-feed-type-activitypub .wp-block-post-title,
-.rs-feed-type-activitypub .wp-block-post-date,
-.rs-feed-type-activitypub .wp-block-post-featured-image,
-.rs-feed-type-activitypub .wp-block-post-comments-link {
+ * .heckl-ap-card during normalize). */
+.heckl-feed-type-activitypub .wp-block-post-title,
+.heckl-feed-type-activitypub .wp-block-post-date,
+.heckl-feed-type-activitypub .wp-block-post-featured-image,
+.heckl-feed-type-activitypub .wp-block-post-comments-link {
 	display: none;
 }
 
@@ -69,7 +69,7 @@
  * columns, avatar in column 1 spanning rows 2–3, display name in
  * column 2 row 2, post body (paragraphs, attachments, etc.) in
  * column 2 row 3. */
-.rs-feed-type-activitypub .entry-content .rs-ap-card {
+.heckl-feed-type-activitypub .entry-content .heckl-ap-card {
 	display: grid;
 	grid-template-columns: 3em 1fr;
 	grid-template-areas:
@@ -80,14 +80,14 @@
 	row-gap: 0.375em;
 }
 
-.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-boost-context {
+.heckl-feed-type-activitypub .entry-content .heckl-ap-card .heckl-boost-context {
 	grid-area: boost;
 	margin: 0;
 	font-size: 0.825em;
 	color: var( --wp--preset--color--contrast-1, currentColor );
 }
 
-.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-boost-context a {
+.heckl-feed-type-activitypub .entry-content .heckl-ap-card .heckl-boost-context a {
 	color: inherit;
 	text-decoration: none;
 }
@@ -95,14 +95,14 @@
 /* The avatar is wrapped in a <div> so wpautop doesn't wrap the bare
  * <img> in a <p> (see render_card_wrapper for the why). Layout lives on
  * the wrapper; the inner <img> just fills it. */
-.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-avatar {
+.heckl-feed-type-activitypub .entry-content .heckl-ap-card .heckl-ap-avatar {
 	grid-area: avatar;
 	align-self: start;
 	width: 3em;
 	height: 3em;
 }
 
-.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-avatar img {
+.heckl-feed-type-activitypub .entry-content .heckl-ap-card .heckl-ap-avatar img {
 	display: block;
 	width: 100%;
 	height: 100%;
@@ -114,7 +114,7 @@
  * relative time. They live in a single flex row that wraps onto a
  * second line on narrow viewports — the time stays close to the handle
  * so the visual association doesn't break. */
-.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-name {
+.heckl-feed-type-activitypub .entry-content .heckl-ap-card .heckl-ap-name {
 	grid-area: name;
 	display: flex;
 	flex-wrap: wrap;
@@ -124,12 +124,12 @@
 	line-height: 1.3;
 }
 
-.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-displayname {
+.heckl-feed-type-activitypub .entry-content .heckl-ap-card .heckl-ap-displayname {
 	font-weight: 600;
 }
 
-.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-handle,
-.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-time {
+.heckl-feed-type-activitypub .entry-content .heckl-ap-card .heckl-ap-handle,
+.heckl-feed-type-activitypub .entry-content .heckl-ap-card .heckl-ap-time {
 	font-size: 0.825em;
 	color: var( --wp--preset--color--contrast-1, currentColor );
 	font-weight: 400;
@@ -139,32 +139,32 @@
  * another part of the name row, so we never end up with a stray "·" at
  * the start (which happens for items missing both display name and
  * handle). */
-.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-handle + .rs-ap-time::before,
-.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-displayname + .rs-ap-time::before {
+.heckl-feed-type-activitypub .entry-content .heckl-ap-card .heckl-ap-handle + .heckl-ap-time::before,
+.heckl-feed-type-activitypub .entry-content .heckl-ap-card .heckl-ap-displayname + .heckl-ap-time::before {
 	content: "·";
 	margin-right: 0.4em;
 	opacity: 0.7;
 }
 
-.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-name a {
+.heckl-feed-type-activitypub .entry-content .heckl-ap-card .heckl-ap-name a {
 	color: inherit;
 	text-decoration: none;
 }
 
-.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-body {
+.heckl-feed-type-activitypub .entry-content .heckl-ap-card .heckl-ap-body {
 	grid-area: body;
 	font-size: 1em;
 	line-height: 1.5;
 }
 
-.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-body > p {
+.heckl-feed-type-activitypub .entry-content .heckl-ap-card .heckl-ap-body > p {
 	margin: 0.375em 0;
 }
 
 /* Reply context ("↪️ In reply to …") gets a muted treatment and
  * sits at the top of the body column (in flow with the rest of
  * the post text). */
-.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-reply-context {
+.heckl-feed-type-activitypub .entry-content .heckl-ap-card .heckl-reply-context {
 	font-size: 0.825em;
 	color: var( --wp--preset--color--contrast-1, currentColor );
 	margin: 0 0 0.375em;
@@ -173,30 +173,30 @@
 /* Multiple image attachments: lay them in a 2-column grid inside
  * the body column. Single-image and mixed-media posts keep the
  * default block flow. */
-.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-body:has(.wp-block-image + .wp-block-image) {
+.heckl-feed-type-activitypub .entry-content .heckl-ap-card .heckl-ap-body:has(.wp-block-image + .wp-block-image) {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
 	column-gap: 0.5em;
 	row-gap: 0.5em;
 }
 
-.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-body:has(.wp-block-image + .wp-block-image) > p,
-.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-body:has(.wp-block-image + .wp-block-image) > .rs-reply-context {
+.heckl-feed-type-activitypub .entry-content .heckl-ap-card .heckl-ap-body:has(.wp-block-image + .wp-block-image) > p,
+.heckl-feed-type-activitypub .entry-content .heckl-ap-card .heckl-ap-body:has(.wp-block-image + .wp-block-image) > .heckl-reply-context {
 	grid-column: 1 / -1;
 }
 
-.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-body > .wp-block-image {
+.heckl-feed-type-activitypub .entry-content .heckl-ap-card .heckl-ap-body > .wp-block-image {
 	margin: 0.5em 0 0;
 }
 
-.rs-feed-type-activitypub .entry-content .rs-ap-card .rs-ap-body > .wp-block-image img {
+.heckl-feed-type-activitypub .entry-content .heckl-ap-card .heckl-ap-body > .wp-block-image img {
 	width: 100%;
 	height: 100%;
 	object-fit: cover;
 	border-radius: 0.5em;
 }
 
-.rs-refresh-bar {
+.heckl-refresh-bar {
 	display: flex;
 	align-items: center;
 	gap: 10px;
@@ -205,7 +205,7 @@
 	padding: 8px 0 4px;
 }
 
-.rs-refresh-btn {
+.heckl-refresh-btn {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
@@ -221,38 +221,38 @@
 	transition: opacity 0.15s;
 }
 
-.rs-refresh-btn:hover {
+.heckl-refresh-btn:hover {
 	opacity: 1;
 }
 
-.rs-refresh-btn:disabled {
+.heckl-refresh-btn:disabled {
 	cursor: default;
 	opacity: 0.4;
 }
 
-.rs-refresh-btn .rs-pull-spinner {
+.heckl-refresh-btn .heckl-pull-spinner {
 	display: none;
 	width: 14px;
 	height: 14px;
 	border: 2px solid currentColor;
 	border-top-color: transparent;
 	border-radius: 50%;
-	animation: rs-spin 0.7s linear infinite;
+	animation: heckl-spin 0.7s linear infinite;
 }
 
-.rs-refresh-bar.rs-pull-refreshing .rs-pull-arrow {
+.heckl-refresh-bar.heckl-pull-refreshing .heckl-pull-arrow {
 	display: none;
 }
 
-.rs-refresh-bar.rs-pull-refreshing .rs-pull-spinner {
+.heckl-refresh-bar.heckl-pull-refreshing .heckl-pull-spinner {
 	display: block;
 }
 
-.rs-last-refreshed {
+.heckl-last-refreshed {
 	font-size: 0.8em;
 	opacity: 0.55;
 }
 
-@keyframes rs-spin {
+@keyframes heckl-spin {
 	to { transform: rotate(360deg); }
 }

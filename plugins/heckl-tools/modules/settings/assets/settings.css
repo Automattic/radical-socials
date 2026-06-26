@@ -2,18 +2,18 @@
 	padding-left: 0;
 }
 
-.rs-settings-wrap {
+.heckl-settings-wrap {
 	max-width: none;
 }
 
-.rs-settings-header {
+.heckl-settings-header {
 	background: #fff;
 	border-bottom: 1px solid #dcdcde;
 	margin: 0 0 1.5rem;
 	text-align: center;
 }
 
-.rs-settings-title-section {
+.heckl-settings-title-section {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -21,7 +21,7 @@
 	clear: both;
 }
 
-.rs-settings-header h1 {
+.heckl-settings-header h1 {
 	display: inline-block;
 	font-weight: 600;
 	margin: 0 0.8rem 1rem;
@@ -30,7 +30,7 @@
 	line-height: 1.3;
 }
 
-.rs-settings-tabs-scroller {
+.heckl-settings-tabs-scroller {
 	overflow-x: auto;
 	width: 100%;
 	padding-top: 2px;
@@ -38,14 +38,14 @@
 	scroll-behavior: smooth;
 }
 
-.rs-settings-tabs-wrapper {
+.heckl-settings-tabs-wrapper {
 	display: inline-flex;
 	flex-wrap: nowrap;
 	gap: 0;
 	vertical-align: top;
 }
 
-.rs-settings-tab {
+.heckl-settings-tab {
 	display: block;
 	text-decoration: none;
 	color: inherit;
@@ -55,12 +55,12 @@
 	white-space: nowrap;
 }
 
-.rs-settings-tab.active {
+.heckl-settings-tab.active {
 	box-shadow: inset 0 -3px #3582c4;
 	font-weight: 600;
 }
 
-.rs-settings {
+.heckl-settings {
 	max-width: 980px;
 	margin: 0 auto;
 	padding: 0 22px 32px;
@@ -73,7 +73,7 @@
 }
 
 /* The Following tab needs to be wider — overrides the 800px column. */
-.rs-settings.rs-settings--wide {
+.heckl-settings.heckl-settings--wide {
 	max-width: 1400px;
 }
 
@@ -88,13 +88,13 @@
  * right. Status colours mirror WP admin: blue for active, green for done,
  * grey for not-yet-reachable.
  */
-.rs-welcome-intro {
+.heckl-welcome-intro {
 	margin: 0 0 24px;
 	font-size: 15px;
 	color: #50575e;
 }
 
-.rs-welcome-steps {
+.heckl-welcome-steps {
 	list-style: none;
 	margin: 0;
 	padding: 0;
@@ -103,7 +103,7 @@
 	gap: 16px;
 }
 
-.rs-welcome-step {
+.heckl-welcome-step {
 	background: #fff;
 	border: 1px solid #dcdcde;
 	border-radius: 8px;
@@ -114,7 +114,7 @@
 	align-items: flex-start;
 }
 
-.rs-welcome-step__marker {
+.heckl-welcome-step__marker {
 	flex: 0 0 auto;
 	width: 36px;
 	height: 36px;
@@ -128,35 +128,35 @@
 	border: 1px solid #dcdcde;
 }
 
-.rs-welcome-step.is-active .rs-welcome-step__marker {
+.heckl-welcome-step.is-active .heckl-welcome-step__marker {
 	background: #3582c4;
 	color: #fff;
 	border-color: #3582c4;
 }
 
-.rs-welcome-step.is-done .rs-welcome-step__marker {
+.heckl-welcome-step.is-done .heckl-welcome-step__marker {
 	background: #00a32a;
 	color: #fff;
 	border-color: #00a32a;
 }
 
-.rs-welcome-step__body {
+.heckl-welcome-step__body {
 	flex: 1 1 auto;
 	min-width: 0;
 }
 
-.rs-welcome-step__body h2 {
+.heckl-welcome-step__body h2 {
 	margin: 0 0 6px;
 	font-size: 16px;
 	font-weight: 600;
 }
 
-.rs-welcome-step__body p {
+.heckl-welcome-step__body p {
 	margin: 0 0 12px;
 	color: #50575e;
 }
 
-.rs-welcome-step__actions {
+.heckl-welcome-step__actions {
 	display: flex;
 	gap: 8px;
 	flex-wrap: wrap;
@@ -164,7 +164,7 @@
 	margin-top: 8px;
 }
 
-.rs-welcome-handle-preview {
+.heckl-welcome-handle-preview {
 	/* Flex so the inner @-input-@host parts can size relative to the
 	 * span itself, and `flex: 1` so the span fills the form row next
 	 * to the Save button instead of shrinking to its content (which
@@ -180,47 +180,47 @@
 	border: 1px solid #dcdcde;
 }
 
-.rs-welcome-handle-preview input[type="text"] {
+.heckl-welcome-handle-preview input[type="text"] {
 	width: 30%;
 	min-width: 0;
 }
 
-.rs-welcome-step__addbox {
+.heckl-welcome-step__addbox {
 	margin-top: 16px;
 	padding-top: 12px;
 	border-top: 1px dashed #dcdcde;
 }
 
-.rs-welcome-step__addbox + .rs-welcome-step__addbox {
+.heckl-welcome-step__addbox + .heckl-welcome-step__addbox {
 	border-top: 1px dashed #dcdcde;
 }
 
-.rs-settings-form {
+.heckl-settings-form {
 	margin-top: 18px;
 }
 
-.rs-settings-layout {
+.heckl-settings-layout {
 	display: grid;
 	grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
 	gap: 24px;
 	align-items: start;
 }
 
-.rs-profile-preview,
-.rs-settings-panel {
+.heckl-profile-preview,
+.heckl-settings-panel {
 	background: #fff;
 	border: 1px solid #dcdcde;
 	border-radius: 8px;
 	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-.rs-profile-preview {
+.heckl-profile-preview {
 	overflow: hidden;
 	position: sticky;
 	top: 48px;
 }
 
-.rs-profile-cover {
+.heckl-profile-cover {
 	min-height: 128px;
 	background: linear-gradient(135deg, #f0f6fc, #f6f7f7 52%, #f0f0f1);
 	background-position: center;
@@ -233,15 +233,15 @@
 	font-weight: 600;
 }
 
-.rs-profile-cover.has-image {
+.heckl-profile-cover.has-image {
 	color: transparent;
 }
 
-.rs-profile-preview-body {
+.heckl-profile-preview-body {
 	padding: 0 22px 24px;
 }
 
-.rs-profile-avatar-preview {
+.heckl-profile-avatar-preview {
 	width: 96px;
 	height: 96px;
 	margin-top: -48px;
@@ -258,90 +258,90 @@
 	line-height: 1;
 }
 
-.rs-profile-avatar-preview img,
-.rs-media-preview img {
+.heckl-profile-avatar-preview img,
+.heckl-media-preview img {
 	width: 100%;
 	height: 100%;
 	display: block;
 	object-fit: cover;
 }
 
-.rs-profile-preview-copy {
+.heckl-profile-preview-copy {
 	margin-top: 12px;
 }
 
-.rs-profile-preview-copy h2 {
+.heckl-profile-preview-copy h2 {
 	margin: 0;
 	font-size: 24px;
 	line-height: 1.2;
 	overflow-wrap: anywhere;
 }
 
-.rs-profile-handle,
-.rs-profile-bio,
-.rs-profile-website {
+.heckl-profile-handle,
+.heckl-profile-bio,
+.heckl-profile-website {
 	margin: 6px 0 0;
 	font-size: 14px;
 	line-height: 1.45;
 }
 
-.rs-profile-handle {
+.heckl-profile-handle {
 	color: #646970;
 	overflow-wrap: anywhere;
 }
 
-.rs-profile-bio {
+.heckl-profile-bio {
 	color: #1d2327;
 	white-space: pre-wrap;
 }
 
-.rs-profile-website {
+.heckl-profile-website {
 	color: #2271b1;
 	font-weight: 500;
 	word-break: break-word;
 }
 
-.rs-profile-website.is-empty {
+.heckl-profile-website.is-empty {
 	display: none;
 }
 
-.rs-settings-panels {
+.heckl-settings-panels {
 	display: grid;
 	gap: 16px;
 }
 
-.rs-settings-panel {
+.heckl-settings-panel {
 	padding: 22px;
 }
 
-.rs-settings-panel h2 {
+.heckl-settings-panel h2 {
 	margin: 0 0 18px;
 	font-size: 18px;
 	line-height: 1.3;
 }
 
-.rs-field {
+.heckl-field {
 	margin-bottom: 18px;
 }
 
-.rs-field:last-child {
+.heckl-field:last-child {
 	margin-bottom: 0;
 }
 
-.rs-field > label {
+.heckl-field > label {
 	display: block;
 	margin-bottom: 6px;
 	color: #1d2327;
 	font-weight: 600;
 }
 
-.rs-field input.regular-text,
-.rs-field textarea.large-text {
+.heckl-field input.regular-text,
+.heckl-field textarea.large-text {
 	max-width: 520px;
 	width: 100%;
 }
 
-.rs-handle-input {
+.heckl-handle-input {
 	max-width: 520px;
 	display: flex;
 	align-items: stretch;
@@ -351,12 +351,12 @@
 	overflow: hidden;
 }
 
-.rs-handle-input:focus-within {
+.heckl-handle-input:focus-within {
 	border-color: #2271b1;
 	box-shadow: 0 0 0 1px #2271b1;
 }
 
-.rs-handle-input span {
+.heckl-handle-input span {
 	display: inline-flex;
 	align-items: center;
 	padding: 0 0 0 10px;
@@ -364,27 +364,27 @@
 	font-size: 14px;
 }
 
-.rs-handle-input input {
+.heckl-handle-input input {
 	min-height: 30px;
 	width: 100%;
 	border: 0;
 	box-shadow: none;
 }
 
-.rs-handle-input input:focus {
+.heckl-handle-input input:focus {
 	border: 0;
 	box-shadow: none;
 	outline: none;
 }
 
-.rs-media-grid {
+.heckl-media-grid {
 	display: grid;
 	grid-template-columns: minmax(160px, 220px) minmax(220px, 1fr);
 	gap: 18px;
 	align-items: start;
 }
 
-.rs-media-preview {
+.heckl-media-preview {
 	border: 1px dashed #8c8f94;
 	background: #f6f7f7;
 	color: #646970;
@@ -396,24 +396,24 @@
 	overflow: hidden;
 }
 
-.rs-media-preview.has-image {
+.heckl-media-preview.has-image {
 	border-style: solid;
 	background: #fff;
 }
 
-.rs-media-preview-avatar {
+.heckl-media-preview-avatar {
 	width: 132px;
 	aspect-ratio: 1;
 	border-radius: 50%;
 }
 
-.rs-media-preview-cover {
+.heckl-media-preview-cover {
 	width: 100%;
 	aspect-ratio: 3 / 1;
 	border-radius: 8px;
 }
 
-.rs-media-actions,
+.heckl-media-actions,
 .site-icon-action-buttons {
 	display: flex;
 	gap: 10px;
@@ -422,30 +422,159 @@
 	margin-top: 10px;
 }
 
-.rs-settings-panel .site-icon-preview {
+.heckl-settings-panel .site-icon-preview {
 	margin-top: 0;
 }
 
-.rs-settings-panel .submit {
+.heckl-settings-panel .submit {
 	margin-top: 8px;
 }
 
+.heckl-following-layout {
+	display: grid;
+	grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.65fr);
+	gap: 24px;
+	align-items: start;
+	margin-top: 20px;
+}
+
+.heckl-following-table {
+	margin-top: 0;
+	table-layout: fixed;
+	width: 100%;
+}
+
+.heckl-following-table th,
+.heckl-following-table td {
+	box-sizing: border-box;
+	overflow-wrap: anywhere;
+	vertical-align: top;
+}
+
+.heckl-following-table th {
+	overflow-wrap: normal;
+	white-space: nowrap;
+}
+
+.heckl-following-table .heckl-col-fav {
+	width: 44px;
+}
+
+.heckl-following-table .heckl-col-health {
+	width: 58px;
+}
+
+.heckl-following-table .heckl-col-type {
+	width: 60px;
+}
+
+.heckl-following-table .heckl-col-categories {
+	width: 88px;
+}
+
+.heckl-following-table .heckl-col-actions {
+	width: 72px;
+	text-align: right;
+}
+
+.heckl-following-table tbody tr:nth-child(even) td {
+	background: #f6f7f7;
+}
+
+.heckl-type-badge {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 3px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+}
+
+.heckl-type-rss {
+	background: #f0f6fc;
+	color: #0073aa;
+}
+
+.heckl-type-activitypub {
+	background: #f3f0ff;
+	color: #6b21a8;
+}
+
+.heckl-type-wpcom {
+	background: #f0fff4;
+	color: #166534;
+}
+
+.heckl-category-tag {
+	display: inline-block;
+	box-sizing: border-box;
+	max-width: 100%;
+	margin: 1px 3px 1px 0;
+	padding: 1px 5px;
+	overflow: hidden;
+	border: 1px solid #f0d060;
+	border-radius: 3px;
+	background: #fef9e7;
+	color: #7c5e00;
+	font-size: 11px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.heckl-error {
+	color: #dc3232;
+}
+
+.heckl-health {
+	display: inline-flex;
+	cursor: help;
+	line-height: 0;
+}
+
+.heckl-health .heckl-health-bar {
+	fill: #dcdcde;
+	transition: fill 0.15s;
+}
+
+.heckl-health-ok .heckl-health-bar-1,
+.heckl-health-ok .heckl-health-bar-2,
+.heckl-health-ok .heckl-health-bar-3 {
+	fill: #00a32a;
+}
+
+.heckl-health-slow .heckl-health-bar-1,
+.heckl-health-slow .heckl-health-bar-2 {
+	fill: #dba617;
+}
+
+.heckl-health-failed .heckl-health-bar-1 {
+	fill: #d63638;
+}
+
+.heckl-health-untested .heckl-health-bar {
+	fill: #c3c4c7;
+}
+
 @media (max-width: 960px) {
-	.rs-settings-layout {
+	.heckl-settings-layout {
 		grid-template-columns: 1fr;
 	}
 
-	.rs-profile-preview {
+	.heckl-following-layout {
+		grid-template-columns: 1fr;
+	}
+
+	.heckl-profile-preview {
 		position: static;
 	}
 }
 
 @media (max-width: 600px) {
-	.rs-settings-panel {
+	.heckl-settings-panel {
 		padding: 18px;
 	}
 
-	.rs-media-grid {
+	.heckl-media-grid {
 		grid-template-columns: 1fr;
 	}
 }

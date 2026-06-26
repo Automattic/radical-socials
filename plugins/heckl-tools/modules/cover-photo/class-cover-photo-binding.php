@@ -2,7 +2,7 @@
 /**
  * Cover Photo — Block Bindings source.
  *
- * Exposes the site owner's cover photo (the `rs_profile_banner_id` user
+ * Exposes the site owner's cover photo (the `heckl_profile_banner_id` user
  * meta managed under Settings → Profile) as a Block Bindings source so
  * any `core/cover` block in a template can render it dynamically and
  * still keep all of core's built-in tools (focal point, overlay color
@@ -41,7 +41,7 @@ defined( 'ABSPATH' ) || exit;
 class Radical_Socials_Cover_Photo_Binding {
 
 	const SOURCE_NAME = 'heckl/cover-photo';
-	const USER_META   = 'rs_profile_banner_id';
+	const USER_META   = 'heckl_profile_banner_id';
 
 	public static function init(): void {
 		add_action( 'init', [ self::class, 'register_source' ] );

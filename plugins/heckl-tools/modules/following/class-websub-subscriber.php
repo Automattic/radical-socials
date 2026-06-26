@@ -20,8 +20,8 @@ class Radical_Socials_WebSub_Subscriber {
 
 	const REST_NAMESPACE = 'heckl/v1';
 	const CALLBACK_ROUTE = '/websub/callback';
-	const SUBS_OPTION    = 'rs_websub_subscriptions'; // array of feed_url => [ hub, secret ]
-	const RENEW_HOOK     = 'rs_renew_websub_subscriptions';
+	const SUBS_OPTION    = 'heckl_websub_subscriptions'; // array of feed_url => [ hub, secret ]
+	const RENEW_HOOK     = 'heckl_renew_websub_subscriptions';
 
 	const DEFAULT_LEASE_SECONDS = 864000; // 10 days.
 	const RENEW_WINDOW          = 172800; // 2 days.
@@ -196,7 +196,7 @@ class Radical_Socials_WebSub_Subscriber {
 
 		if ( $ingested > 0 ) {
 			Radical_Socials_Feed_Fetcher::enforce_cap();
-			update_option( 'rs_last_feed_fetch', time(), false );
+			update_option( 'heckl_last_feed_fetch', time(), false );
 		}
 
 		return new WP_REST_Response( 'ok', 200 );

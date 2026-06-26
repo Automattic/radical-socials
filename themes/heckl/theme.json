@@ -231,14 +231,14 @@
 	],
 	"customTemplates": [
 		{
-			"name": "archive-rs_feed_item",
+			"name": "archive-heckl_feed_item",
 			"title": "Following — feed-item archive",
-			"postTypes": [ "rs_feed_item" ]
+			"postTypes": [ "heckl_feed_item" ]
 		},
 		{
-			"name": "archive-rs_favorite",
+			"name": "archive-heckl_favorite",
 			"title": "Favorites — favorite archive",
-			"postTypes": [ "rs_favorite" ]
+			"postTypes": [ "heckl_favorite" ]
 		}
 	]
 }

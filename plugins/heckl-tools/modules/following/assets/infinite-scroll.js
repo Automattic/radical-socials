@@ -105,8 +105,8 @@ const { state, actions } = store( 'heckl/following', {
 						const res = await fetch( url.toString() );
 						const text = await res.text();
 						const doc = new DOMParser().parseFromString( text, 'text/html' );
-						const newItems = doc.querySelectorAll( '.rs-following-feed .wp-block-post' );
-						const list = document.querySelector( '.rs-following-feed .wp-block-post-template' );
+						const newItems = doc.querySelectorAll( '.heckl-following-feed .wp-block-post' );
+						const list = document.querySelector( '.heckl-following-feed .wp-block-post-template' );
 
 						if ( newItems.length && list ) {
 							newItems.forEach( ( item ) => list.appendChild( item.cloneNode( true ) ) );
@@ -137,7 +137,7 @@ async function prependLatestItems() {
 }
 
 async function fetchLatestItems() {
-	const list = document.querySelector( '.rs-following-feed .wp-block-post-template' );
+	const list = document.querySelector( '.heckl-following-feed .wp-block-post-template' );
 	if ( ! list ) {
 		return { list: null, newItems: [] };
 	}
@@ -154,7 +154,7 @@ async function fetchLatestItems() {
 			url.searchParams.delete( key );
 		}
 	}
-	url.searchParams.set( 'rs_refresh', Date.now().toString() );
+	url.searchParams.set( 'heckl_refresh', Date.now().toString() );
 
 	const res = await fetch( url.toString() );
 	if ( ! res.ok ) {
@@ -165,7 +165,7 @@ async function fetchLatestItems() {
 	const doc = new DOMParser().parseFromString( text, 'text/html' );
 	updateLastRefreshedFromDocument( doc );
 
-	const latestItems = [ ...doc.querySelectorAll( '.rs-following-feed .wp-block-post' ) ];
+	const latestItems = [ ...doc.querySelectorAll( '.heckl-following-feed .wp-block-post' ) ];
 	const newItems = latestItems.filter( ( item ) => {
 		const id = getPostId( item );
 		return id && ! existingIds.has( id );
@@ -183,13 +183,13 @@ function prependItems( list, newItems ) {
 }
 
 function updateLastRefreshedFromDocument( doc ) {
-	const current = document.querySelector( '.rs-last-refreshed' );
-	const next = doc.querySelector( '.rs-last-refreshed' );
+	const current = document.querySelector( '.heckl-last-refreshed' );
+	const next = doc.querySelector( '.heckl-last-refreshed' );
 	if ( ! current || ! next ) return;
 
 	current.textContent = next.textContent;
 	current.title = next.title;
-	current.dataset.rsLastFetched = next.dataset.rsLastFetched || '';
+	current.dataset.hecklLastFetched = next.dataset.hecklLastFetched || '';
 }
 
 function startForegroundChecks() {
@@ -244,8 +244,8 @@ async function waitForLatestItems( previousLastFetched ) {
 }
 
 function getCurrentLastFetched() {
-	const current = document.querySelector( '.rs-last-refreshed' );
-	return current ? current.dataset.rsLastFetched || '' : '';
+	const current = document.querySelector( '.heckl-last-refreshed' );
+	return current ? current.dataset.hecklLastFetched || '' : '';
 }
 
 function hasRefreshedSince( previousLastFetched ) {
@@ -268,7 +268,7 @@ function getPostId( item ) {
 }
 
 function setRefreshLabel( text ) {
-	const label = document.querySelector( '.rs-refresh-label' );
+	const label = document.querySelector( '.heckl-refresh-label' );
 	if ( ! label ) return;
 	label.textContent = text;
 }

@@ -11,9 +11,9 @@
  * deleting them on uninstall would be a data-loss surprise.
  *
  * Users who want a full wipe opt in via Settings → Following → "Delete
- * all data when the plugin is uninstalled" (option `rs_purge_on_uninstall`).
- * When that's on, we also remove the rs_feed_item / rs_favorite / ap_actor
- * post types, the registered taxonomies' terms, and known rs_* options +
+ * all data when the plugin is uninstalled" (option `heckl_purge_on_uninstall`).
+ * When that's on, we also remove the heckl_feed_item / heckl_favorite / ap_actor
+ * post types, the registered taxonomies' terms, and known heckl_* options +
  * user-meta keys.
  *
  * This file is invoked by WordPress core when the user deletes the plugin
@@ -36,11 +36,11 @@ defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 $heckl_always_delete_options = [
 	'heckl_rewrite_version',
 	'heckl_ap_defaults_applied',
-	'rs_last_feed_fetch',
-	'rs_rss_fetch_offset',
-	'rs_ap_outbox_offset',
-	'rs_ap_follow_user_id',
-	'rs_auto_pretty_permalinks',
+	'heckl_last_feed_fetch',
+	'heckl_rss_fetch_offset',
+	'heckl_ap_outbox_offset',
+	'heckl_ap_follow_user_id',
+	'heckl_auto_pretty_permalinks',
 ];
 foreach ( $heckl_always_delete_options as $heckl_option ) {
 	delete_option( $heckl_option );
@@ -48,11 +48,11 @@ foreach ( $heckl_always_delete_options as $heckl_option ) {
 
 // Transients live in the options table too; clean them up by name.
 $heckl_always_delete_transients = [
-	'rs_feed_refresh_lock',
-	'rs_diag_fetch_elapsed',
-	'rs_diag_fetch_error',
-	'rs_diag_test_result',
-	'rs_diag_feed_test_results',
+	'heckl_feed_refresh_lock',
+	'heckl_diag_fetch_elapsed',
+	'heckl_diag_fetch_error',
+	'heckl_diag_test_result',
+	'heckl_diag_feed_test_results',
 ];
 foreach ( $heckl_always_delete_transients as $heckl_transient ) {
 	delete_transient( $heckl_transient );
@@ -60,19 +60,19 @@ foreach ( $heckl_always_delete_transients as $heckl_transient ) {
 
 // Per-user welcome-redirect transients — best effort, only known users.
 foreach ( get_users( [ 'fields' => [ 'ID' ] ] ) as $heckl_user ) {
-	delete_transient( 'rs_welcome_redirect_' . (int) $heckl_user->ID );
-	delete_transient( 'rs_settings_notice_' . (int) $heckl_user->ID );
+	delete_transient( 'heckl_welcome_redirect_' . (int) $heckl_user->ID );
+	delete_transient( 'heckl_settings_notice_' . (int) $heckl_user->ID );
 }
 
 // Scheduled events should already have been cleared on deactivation, but
 // uninstall can also be invoked without prior deactivation in some flows.
-wp_clear_scheduled_hook( 'rs_feed_fetch' );
-wp_clear_scheduled_hook( 'rs_feed_refresh' );
-wp_clear_scheduled_hook( 'rs_websub_renew' );
+wp_clear_scheduled_hook( 'heckl_feed_fetch' );
+wp_clear_scheduled_hook( 'heckl_feed_refresh' );
+wp_clear_scheduled_hook( 'heckl_websub_renew' );
 
 // Stop here unless the user opted in to a full purge. Preserves imported
 // posts, favorites, follow lists, and per-user settings.
-if ( ! get_option( 'rs_purge_on_uninstall', false ) ) {
+if ( ! get_option( 'heckl_purge_on_uninstall', false ) ) {
 	return;
 }
 
@@ -81,7 +81,7 @@ if ( ! get_option( 'rs_purge_on_uninstall', false ) ) {
 
 // 1. Delete every post of our CPTs. wp_delete_post takes care of the
 //    associated postmeta + term-relationships, so we don't have to.
-$heckl_purge_post_types = [ 'rs_feed_item', 'rs_favorite', 'ap_actor' ];
+$heckl_purge_post_types = [ 'heckl_feed_item', 'heckl_favorite', 'ap_actor' ];
 foreach ( $heckl_purge_post_types as $heckl_post_type ) {
 	// `numberposts` -1 retrieves all matching posts; safe here because
 	// uninstall is invoked once and the runtime is single-threaded.
@@ -97,7 +97,7 @@ foreach ( $heckl_purge_post_types as $heckl_post_type ) {
 }
 
 // 2. Delete our custom taxonomy terms.
-$heckl_purge_taxonomies = [ 'rs_source', 'rs_feed_type', 'rs_feed_category' ];
+$heckl_purge_taxonomies = [ 'heckl_source', 'heckl_feed_type', 'heckl_feed_category' ];
 foreach ( $heckl_purge_taxonomies as $heckl_taxonomy ) {
 	// get_terms() requires the taxonomy to be registered — at uninstall
 	// time it isn't, because the plugin's init code never ran. Fall back
@@ -112,7 +112,7 @@ foreach ( $heckl_purge_taxonomies as $heckl_taxonomy ) {
 	}
 }
 
-// 3. Remove all known rs_* / heckl_* options. Enumerated rather
+// 3. Remove all known heckl_* / heckl_* options. Enumerated rather
 //    than wildcard-SQL'd so each call goes through delete_option (which
 //    invalidates the alloptions cache and fires the standard hooks).
 $heckl_purge_options = [
@@ -120,21 +120,21 @@ $heckl_purge_options = [
 	// initial deletes above (no-op if already gone).
 	'heckl_rewrite_version',
 	'heckl_ap_defaults_applied',
-	'rs_last_feed_fetch',
-	'rs_rss_fetch_offset',
-	'rs_ap_outbox_offset',
-	'rs_ap_follow_user_id',
+	'heckl_last_feed_fetch',
+	'heckl_rss_fetch_offset',
+	'heckl_ap_outbox_offset',
+	'heckl_ap_follow_user_id',
 	// Subscription + favorites state.
-	'rs_rss_subscriptions',
-	'rs_websub_subscriptions',
-	'rs_following_favorites',
+	'heckl_rss_subscriptions',
+	'heckl_websub_subscriptions',
+	'heckl_following_favorites',
 	// Privacy / visibility flags.
-	'rs_following_public',
-	'rs_purge_on_uninstall',
-	'rs_auto_pretty_permalinks',
+	'heckl_following_public',
+	'heckl_purge_on_uninstall',
+	'heckl_auto_pretty_permalinks',
 	// WP.com OAuth token + state.
-	'rs_wpcom_access_token',
-	'rs_wpcom_oauth_state',
+	'heckl_wpcom_access_token',
+	'heckl_wpcom_oauth_state',
 ];
 foreach ( $heckl_purge_options as $heckl_option ) {
 	delete_option( $heckl_option );
@@ -144,9 +144,9 @@ foreach ( $heckl_purge_options as $heckl_option ) {
 //    Iterate users and call delete_user_meta — proper API path that
 //    invalidates the user-meta cache.
 $heckl_purge_user_meta_keys = [
-	'rs_profile_handle',
-	'rs_profile_avatar_id',
-	'rs_profile_banner_id',
+	'heckl_profile_handle',
+	'heckl_profile_avatar_id',
+	'heckl_profile_banner_id',
 ];
 foreach ( get_users( [ 'fields' => [ 'ID' ] ] ) as $heckl_user ) {
 	foreach ( $heckl_purge_user_meta_keys as $heckl_meta_key ) {

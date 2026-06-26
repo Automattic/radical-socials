@@ -40,23 +40,23 @@ function EditorFocusManager( { children } ) {
 		return () => cancelAnimationFrame( id );
 	}, [] );
 
-	return <div ref={ containerRef } className="rs-editor-writing-area">{ children }</div>;
+	return <div ref={ containerRef } className="heckl-editor-writing-area">{ children }</div>;
 }
 
 function MediaBar() {
 	const { insertBlocks } = useDispatch( 'core/block-editor' );
 	return (
-		<div className="rs-media-bar">
+		<div className="heckl-media-bar">
 			{ MEDIA_BLOCKS.map( ( { label, name, color, icon } ) => (
 				<button
 					key={ name }
 					type="button"
-					className="rs-media-btn"
-					style={ { '--rs-media-color': color } }
+					className="heckl-media-btn"
+					style={ { '--heckl-media-color': color } }
 					onClick={ () => insertBlocks( createBlock( name ) ) }
 				>
-					<span className="rs-media-btn__icon"><Icon icon={ icon } size={ 24 } /></span>
-					<span className="rs-media-btn__label">{ label }</span>
+					<span className="heckl-media-btn__icon"><Icon icon={ icon } size={ 24 } /></span>
+					<span className="heckl-media-btn__label">{ label }</span>
 				</button>
 			) ) }
 		</div>
@@ -229,7 +229,7 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 	return (
 		<ShortcutProvider>
 			<SlotFillProvider>
-				<form className="rs-social-editor" onSubmit={ handleSubmit }>
+				<form className="heckl-social-editor" onSubmit={ handleSubmit }>
 					<BlockEditorProvider
 						value={ blocks }
 						onInput={ setBlocks }
@@ -248,7 +248,7 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 						<MediaBar />
 					</BlockEditorProvider>
 
-					<div className="rs-editor-meta">
+					<div className="heckl-editor-meta">
 						<input
 							type="text"
 							placeholder="#tags"
@@ -257,9 +257,9 @@ export default function SocialEditor( { onSuccess, onCancel } ) {
 						/>
 					</div>
 
-					{ error && <p className="rs-editor-error">{ error }</p> }
+					{ error && <p className="heckl-editor-error">{ error }</p> }
 
-					<div className="rs-editor-actions">
+					<div className="heckl-editor-actions">
 						{ onCancel && (
 							<button type="button" onClick={ onCancel }>
 								Cancel

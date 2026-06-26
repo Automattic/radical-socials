@@ -1,13 +1,13 @@
 /*
  * Heckl — Custom Bar
  *
- * Desktop (> --rs-bp-desk): fixed vertical rail on the left.
- *   Collapsed: --rs-w wide, icons only.
- *   Hover/focus: --rs-w-open wide, labels slide in beside icons.
- *   Content is pushed right by --rs-w via an inline <style> in <head>.
+ * Desktop (> --heckl-bp-desk): fixed vertical rail on the left.
+ *   Collapsed: --heckl-w wide, icons only.
+ *   Hover/focus: --heckl-w-open wide, labels slide in beside icons.
+ *   Content is pushed right by --heckl-w via an inline style attached to this handle.
  *
- * Mobile (<= --rs-bp-mob): fixed strip at the bottom, icons only.
- *   Content is pushed up by --rs-h via the same inline <style>.
+ * Mobile (<= --heckl-bp-mob): fixed strip at the bottom, icons only.
+ *   Content is pushed up by --heckl-h via the same enqueued inline style.
  *
  * Breakpoint values (1201px / 1200px) are hardcoded in the @media rules
  * and kept in sync with Radical_Socials_Custom_Bar::BREAKPOINT in PHP.
@@ -15,29 +15,29 @@
 
 /* ── Variables ─────────────────────────────────────────────────── */
 :root {
-	--rs-w:       48px;    /* collapsed rail width        */
-	--rs-w-open: 200px;    /* expanded rail width         */
-	--rs-h:       48px;    /* item height / mobile height */
-	--rs-icon:    20px;    /* dashicon size               */
-	--rs-gap:     10px;    /* icon → label gap            */
+	--heckl-w:       48px;    /* collapsed rail width        */
+	--heckl-w-open: 200px;    /* expanded rail width         */
+	--heckl-h:       48px;    /* item height / mobile height */
+	--heckl-icon:    20px;    /* dashicon size               */
+	--heckl-gap:     10px;    /* icon → label gap            */
 
-	--rs-bg:      #1d2327;
-	--rs-color:   #c3c4c7;
-	--rs-hover:   #ffffff;
-	--rs-border:  rgba(255, 255, 255, 0.1);
-	--rs-ease:    180ms ease;
+	--heckl-bg:      #1d2327;
+	--heckl-color:   #c3c4c7;
+	--heckl-hover:   #ffffff;
+	--heckl-border:  rgba(255, 255, 255, 0.1);
+	--heckl-ease:    180ms ease;
 }
 
 /* ── Bar shell ─────────────────────────────────────────────────── */
-#rs-bar {
+#heckl-bar {
 	position:   fixed;
 	z-index:    9999;
-	background: var(--rs-bg);
+	background: var(--heckl-bg);
 	margin:     0;
 	padding:    0;
 }
 
-#rs-bar ul {
+#heckl-bar ul {
 	display:    flex;
 	justify-content: center;
 	list-style: none;
@@ -46,46 +46,46 @@
 }
 
 /* ── Links (shared) ────────────────────────────────────────────── */
-.rs-bar-link {
+.heckl-bar-link {
 	display:         flex;
 	align-items:     center;
 	text-decoration: none;
-	color:           var(--rs-color);
-	transition:      color var(--rs-ease), background-color var(--rs-ease);
+	color:           var(--heckl-color);
+	transition:      color var(--heckl-ease), background-color var(--heckl-ease);
 }
 
-.rs-bar-link:hover,
-.rs-bar-link:focus-visible {
-	color:            var(--rs-hover);
+.heckl-bar-link:hover,
+.heckl-bar-link:focus-visible {
+	color:            var(--heckl-hover);
 	background-color: rgba(255, 255, 255, 0.07);
 	outline:          none;
 }
 
 /* ── Icons (shared) ────────────────────────────────────────────── */
-.rs-bar-link .dashicons {
-	font-size:   var(--rs-icon);
-	width:       var(--rs-icon);
-	height:      var(--rs-icon);
+.heckl-bar-link .dashicons {
+	font-size:   var(--heckl-icon);
+	width:       var(--heckl-icon);
+	height:      var(--heckl-icon);
 	line-height: 1;
 	flex-shrink: 0;
 }
 
-.rs-bar-link .rs-bar-avatar {
-	width:         var(--rs-icon);
-	height:        var(--rs-icon);
+.heckl-bar-link .heckl-bar-avatar {
+	width:         var(--heckl-icon);
+	height:        var(--heckl-icon);
 	border-radius: 50%;
 	flex-shrink:   0;
 	display:       block;
 }
 
 /* ── Icon wrapper + badge ──────────────────────────────────────── */
-.rs-bar-icon-wrap {
+.heckl-bar-icon-wrap {
 	position:    relative;
 	display:     inline-flex;
 	flex-shrink: 0;
 }
 
-.rs-bar-badge {
+.heckl-bar-badge {
 	position:    absolute;
 	top:         -4px;
 	right:       -5px;
@@ -106,46 +106,46 @@
 /* ── Desktop ───────────────────────────────────────────────────── */
 @media (min-width: 1201px) {
 
-	#rs-bar {
+	#heckl-bar {
 		top:          0;
 		left:         0;
 		bottom:       0;
-		width:        var(--rs-w);
+		width:        var(--heckl-w);
 		min-width:    0;
 		overflow:     hidden;
-		transition:   width var(--rs-ease);
-		border-right: 1px solid var(--rs-border);
+		transition:   width var(--heckl-ease);
+		border-right: 1px solid var(--heckl-border);
 	}
 
-	#rs-bar:hover,
-	#rs-bar:focus-within {
-		width:    var(--rs-w-open);
+	#heckl-bar:hover,
+	#heckl-bar:focus-within {
+		width:    var(--heckl-w-open);
 		overflow: visible;
 	}
 
-	#rs-bar ul {
+	#heckl-bar ul {
 		flex-direction:  column;
 		height:          100%;
 	}
 
-	.rs-bar-link {
-		gap:         var(--rs-gap);
-		padding:     0 calc((var(--rs-w) - var(--rs-icon)) / 2);
-		height:      var(--rs-h);
+	.heckl-bar-link {
+		gap:         var(--heckl-gap);
+		padding:     0 calc((var(--heckl-w) - var(--heckl-icon)) / 2);
+		height:      var(--heckl-h);
 		line-height: 1;
 		white-space: nowrap;
 		box-sizing:  border-box;
 	}
 
-	.rs-bar-label {
+	.heckl-bar-label {
 		opacity:    0;
 		max-width:  0;
 		overflow:   hidden;
-		transition: opacity var(--rs-ease), max-width var(--rs-ease);
+		transition: opacity var(--heckl-ease), max-width var(--heckl-ease);
 	}
 
-	#rs-bar:hover        .rs-bar-label,
-	#rs-bar:focus-within .rs-bar-label {
+	#heckl-bar:hover        .heckl-bar-label,
+	#heckl-bar:focus-within .heckl-bar-label {
 		opacity:   1;
 		max-width: 150px;
 	}
@@ -154,28 +154,28 @@
 /* ── Mobile ────────────────────────────────────────────────────── */
 @media (max-width: 1200px) {
 
-	#rs-bar {
+	#heckl-bar {
 		bottom:     0;
 		left:       0;
 		right:      0;
-		height:     var(--rs-h);
-		border-top: 1px solid var(--rs-border);
+		height:     var(--heckl-h);
+		border-top: 1px solid var(--heckl-border);
 	}
 
-	#rs-bar ul {
+	#heckl-bar ul {
 		flex-direction: row;
 		align-items:    center;
 		height:         100%;
 	}
 
-	.rs-bar-link {
+	.heckl-bar-link {
 		justify-content: center;
-		width:           var(--rs-h);
+		width:           var(--heckl-h);
 		height:          100%;
 	}
 
 	/* Visually hidden, screen-reader accessible */
-	.rs-bar-label {
+	.heckl-bar-label {
 		position:   absolute;
 		width:      1px;
 		height:     1px;

@@ -2,7 +2,7 @@
 /**
  * WP.com OAuth Proxy
  *
- * Runs only when this site is configured as the broker (RS_WPCOM_PROXY_MODE).
+ * Runs only when this site is configured as the broker (HECKL_WPCOM_PROXY_MODE).
  * Brokers OAuth handshakes between consumer Heckl installs and
  * WordPress.com — consumer sites never see the WP.com client_secret.
  *
@@ -40,7 +40,7 @@ class Radical_Socials_WPCOM_Proxy {
 	const REST_NAMESPACE = 'heckl/v1';
 	const ROUTE_BASE     = '/wpcom-proxy';
 	const STATE_TTL      = 600; // 10 minutes.
-	const STATE_PREFIX   = 'rs_wpcom_proxy_state_';
+	const STATE_PREFIX   = 'heckl_wpcom_proxy_state_';
 	const AUTHORIZE_URL  = 'https://public-api.wordpress.com/oauth2/authorize';
 	const TOKEN_URL      = 'https://public-api.wordpress.com/oauth2/token';
 
@@ -53,9 +53,9 @@ class Radical_Socials_WPCOM_Proxy {
 	}
 
 	public static function is_proxy_mode(): bool {
-		return defined( 'RS_WPCOM_PROXY_MODE' ) && RS_WPCOM_PROXY_MODE
-			&& defined( 'RS_WPCOM_CLIENT_ID' )    && RS_WPCOM_CLIENT_ID
-			&& defined( 'RS_WPCOM_CLIENT_SECRET' ) && RS_WPCOM_CLIENT_SECRET;
+		return defined( 'HECKL_WPCOM_PROXY_MODE' ) && HECKL_WPCOM_PROXY_MODE
+			&& defined( 'HECKL_WPCOM_CLIENT_ID' )    && HECKL_WPCOM_CLIENT_ID
+			&& defined( 'HECKL_WPCOM_CLIENT_SECRET' ) && HECKL_WPCOM_CLIENT_SECRET;
 	}
 
 	public static function register_routes(): void {
@@ -119,7 +119,7 @@ class Radical_Socials_WPCOM_Proxy {
 		set_transient( self::STATE_PREFIX . $state, $origin, self::STATE_TTL );
 
 		$authorize_url = add_query_arg( [
-			'client_id'     => RS_WPCOM_CLIENT_ID,
+			'client_id'     => HECKL_WPCOM_CLIENT_ID,
 			'redirect_uri'  => self::our_callback_url(),
 			'response_type' => 'code',
 			'scope'         => 'global',
@@ -192,8 +192,8 @@ class Radical_Socials_WPCOM_Proxy {
 		$response = wp_safe_remote_post( self::TOKEN_URL, [
 			'timeout' => 15,
 			'body'    => [
-				'client_id'     => RS_WPCOM_CLIENT_ID,
-				'client_secret' => RS_WPCOM_CLIENT_SECRET,
+				'client_id'     => HECKL_WPCOM_CLIENT_ID,
+				'client_secret' => HECKL_WPCOM_CLIENT_SECRET,
 				'code'          => $code,
 				'redirect_uri'  => self::our_callback_url(),
 				'grant_type'    => 'authorization_code',

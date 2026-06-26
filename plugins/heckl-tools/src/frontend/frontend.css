@@ -1,12 +1,12 @@
 /* ─── Collapsed prompt ────────────────────────────────────────────── */
 
-.rs-frontend-editor {
+.heckl-frontend-editor {
 	max-width: 600px;
 	margin: 0 auto 3.5rem;
 	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-.rs-editor-prompt {
+.heckl-editor-prompt {
 	display: block;
 	width: 100%;
 	padding: 0.875rem 1.125rem;
@@ -22,22 +22,22 @@
 	transition: border-color 0.15s ease;
 }
 
-.rs-editor-prompt:hover {
+.heckl-editor-prompt:hover {
 	border-color: var( --wp--preset--color--contrast-2, rgba( 255, 255, 255, 0.35 ) );
 }
 
 /* ─── Editor card ─────────────────────────────────────────────────── */
 
-.rs-social-editor {
+.heckl-social-editor {
 	background: var( --wp--preset--color--base, #151d28 );
 	border: 1px solid var( --wp--preset--color--contrast-3, rgba( 255, 255, 255, 0.12 ) );
 	border-radius: 12px;
 	padding: 1rem 1.125rem 0.875rem;
 	color: var( --wp--preset--color--contrast-2, #ffffff );
-	animation: rs-editor-appear 0.18s ease-out;
+	animation: heckl-editor-appear 0.18s ease-out;
 }
 
-@keyframes rs-editor-appear {
+@keyframes heckl-editor-appear {
 	from {
 		opacity: 0;
 		transform: translateY( -4px );
@@ -49,14 +49,14 @@
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	.rs-social-editor {
+	.heckl-social-editor {
 		animation: none;
 	}
 }
 
 /* ─── Writing area panel ──────────────────────────────────────────── */
 
-.rs-editor-writing-area {
+.heckl-editor-writing-area {
 	background: rgba( 255, 255, 255, 0.04 );
 	border: 1px solid var( --wp--preset--color--contrast-3, rgba( 255, 255, 255, 0.12 ) );
 	border-radius: 8px;
@@ -66,16 +66,16 @@
 
 /* ─── Block editor internals ──────────────────────────────────────── */
 
-.rs-social-editor .block-editor-block-list__layout {
+.heckl-social-editor .block-editor-block-list__layout {
 	min-height: unset;
 	padding: 0.25rem 0;
 }
 
-.rs-social-editor .block-editor-block-list__insertion-point {
+.heckl-social-editor .block-editor-block-list__insertion-point {
 	display: none;
 }
 
-.rs-social-editor .block-editor-block-list__empty-block-inserter {
+.heckl-social-editor .block-editor-block-list__empty-block-inserter {
 	opacity: 0;
 	pointer-events: none;
 }
@@ -86,22 +86,22 @@
 }
 
 /* Paragraph text and placeholder */
-.rs-social-editor .wp-block-paragraph.block-editor-rich-text__editable {
+.heckl-social-editor .wp-block-paragraph.block-editor-rich-text__editable {
 	padding: 0.25rem 0;
 	color: var( --wp--preset--color--contrast-2, #ffffff );
 }
 
-.rs-social-editor [data-rich-text-placeholder]::before {
+.heckl-social-editor [data-rich-text-placeholder]::before {
 	content: attr( data-rich-text-placeholder );
 	color: var( --wp--preset--color--contrast-1, #999999 );
 }
 
 /* Responsive images with rounded corners */
-.rs-social-editor .wp-block-image {
+.heckl-social-editor .wp-block-image {
 	max-width: 100%;
 }
 
-.rs-social-editor .wp-block-image img {
+.heckl-social-editor .wp-block-image img {
 	max-width: 100%;
 	height: auto;
 	display: block;
@@ -110,14 +110,14 @@
 
 /* ─── Media bar — Tumblr-style circular icon buttons ─────────────── */
 
-.rs-media-bar {
+.heckl-media-bar {
 	display: flex;
 	gap: 1.25rem;
 	padding: 0.875rem 0 0.5rem;
 	margin-top: 0.5rem;
 }
 
-.rs-media-btn {
+.heckl-media-btn {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -129,28 +129,28 @@
 	font-family: inherit;
 }
 
-.rs-media-btn__icon {
+.heckl-media-btn__icon {
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	width: 38px;
 	height: 38px;
 	border-radius: 50%;
-	background: var( --rs-media-color, #555555 );
+	background: var( --heckl-media-color, #555555 );
 	color: #ffffff;
 	transition: filter 0.15s ease, transform 0.1s ease;
 }
 
-.rs-media-btn:hover .rs-media-btn__icon {
+.heckl-media-btn:hover .heckl-media-btn__icon {
 	filter: brightness( 1.15 );
 	transform: scale( 1.06 );
 }
 
-.rs-media-btn:active .rs-media-btn__icon {
+.heckl-media-btn:active .heckl-media-btn__icon {
 	transform: scale( 0.96 );
 }
 
-.rs-media-btn__label {
+.heckl-media-btn__label {
 	font-size: 0.6875rem;
 	color: var( --wp--preset--color--contrast-1, #999999 );
 	letter-spacing: 0.02em;
@@ -158,11 +158,11 @@
 
 /* ─── Tags input ──────────────────────────────────────────────────── */
 
-.rs-editor-meta {
+.heckl-editor-meta {
 	margin-top: 0.625rem;
 }
 
-.rs-editor-meta input {
+.heckl-editor-meta input {
 	width: 100%;
 	padding: 0.375rem 0.75rem;
 	background: rgba( 255, 255, 255, 0.04 );
@@ -176,17 +176,17 @@
 	transition: border-color 0.15s ease;
 }
 
-.rs-editor-meta input::placeholder {
+.heckl-editor-meta input::placeholder {
 	color: var( --wp--preset--color--contrast-1, #999999 );
 }
 
-.rs-editor-meta input:focus {
+.heckl-editor-meta input:focus {
 	border-color: rgba( 255, 255, 255, 0.35 );
 }
 
 /* ─── Error ───────────────────────────────────────────────────────── */
 
-.rs-editor-error {
+.heckl-editor-error {
 	color: #ff6b6b;
 	font-size: var( --wp--preset--font-size--small, 0.875rem );
 	margin: 0.375rem 0 0;
@@ -194,7 +194,7 @@
 
 /* ─── Actions — social-style footer row ──────────────────────────── */
 
-.rs-editor-actions {
+.heckl-editor-actions {
 	display: flex;
 	justify-content: flex-end;
 	align-items: center;
@@ -203,7 +203,7 @@
 	padding-top: 0.75rem;
 }
 
-.rs-editor-actions button[type="button"] {
+.heckl-editor-actions button[type="button"] {
 	background: none;
 	border: none;
 	color: var( --wp--preset--color--contrast-1, #999999 );
@@ -214,11 +214,11 @@
 	transition: color 0.15s ease;
 }
 
-.rs-editor-actions button[type="button"]:hover {
+.heckl-editor-actions button[type="button"]:hover {
 	color: var( --wp--preset--color--contrast-2, #ffffff );
 }
 
-.rs-editor-actions button[type="submit"] {
+.heckl-editor-actions button[type="submit"] {
 	background: var( --wp--preset--color--contrast-2, #ffffff );
 	color: var( --wp--preset--color--base, #151d28 );
 	border: none;
@@ -231,36 +231,36 @@
 	transition: opacity 0.15s ease;
 }
 
-.rs-editor-actions button[type="submit"]:hover:not( :disabled ) {
+.heckl-editor-actions button[type="submit"]:hover:not( :disabled ) {
 	opacity: 0.88;
 }
 
-.rs-editor-actions button[type="submit"]:disabled {
+.heckl-editor-actions button[type="submit"]:disabled {
 	opacity: 0.35;
 	cursor: not-allowed;
 }
 
 /* ─── Loading state ───────────────────────────────────────────────── */
 
-.rs-editor-loading {
+.heckl-editor-loading {
 	min-height: 120px;
 }
 
 /* ─── Modal ───────────────────────────────────────────────────────── */
 
-.rs-modal-dialog .components-modal__header-heading {
+.heckl-modal-dialog .components-modal__header-heading {
 	color: var( --wp--preset--color--contrast-2, #ffffff );
 }
 
-.rs-modal-dialog .components-button[aria-label="Close"] {
+.heckl-modal-dialog .components-button[aria-label="Close"] {
 	color: var( --wp--preset--color--contrast-1, #999999 );
 }
 
-.rs-modal-dialog .components-button[aria-label="Close"]:hover {
+.heckl-modal-dialog .components-button[aria-label="Close"]:hover {
 	color: var( --wp--preset--color--contrast-2, #ffffff );
 }
 
-.rs-modal-dialog {
+.heckl-modal-dialog {
 	background: var( --wp--preset--color--base, #151d28 );
 	border: 1px solid var( --wp--preset--color--contrast-3, rgba( 255, 255, 255, 0.12 ) );
 	border-radius: 12px;

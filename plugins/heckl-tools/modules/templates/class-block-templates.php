@@ -1,10 +1,10 @@
 <?php
 /**
- * Register plugin-default block templates for the rs_feed_item and
- * rs_favorite archives.
+ * Register plugin-default block templates for the heckl_feed_item and
+ * heckl_favorite archives.
  *
  * The plugin is intended to work on any active theme — but most themes
- * won't define `archive-rs_feed_item.html` / `archive-rs_favorite.html`,
+ * won't define `archive-heckl_feed_item.html` / `archive-heckl_favorite.html`,
  * so without a fallback /following and /favorites would render with the
  * theme's generic archive layout (missing sidebars, the rs feed query,
  * etc.). These plugin-registered templates fill the gap.
@@ -31,11 +31,11 @@ defined( 'ABSPATH' ) || exit;
  */
 function heckl_block_template_registry(): array {
 	return [
-		'archive-rs_feed_item' => [
+		'archive-heckl_feed_item' => [
 			'title'       => __( 'Feed Archive', 'heckl-tools' ),
 			'description' => __( 'Default layout for the Feed archive when the active theme does not provide one.', 'heckl-tools' ),
 		],
-		'archive-rs_favorite' => [
+		'archive-heckl_favorite' => [
 			'title'       => __( 'Favorites Archive', 'heckl-tools' ),
 			'description' => __( 'Default layout for the Favorites archive when the active theme does not provide one.', 'heckl-tools' ),
 		],

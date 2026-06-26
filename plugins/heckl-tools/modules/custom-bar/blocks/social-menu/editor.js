@@ -22,7 +22,7 @@
 				links.map( function ( link ) {
 					return el( 'li', {
 						key:       link.id,
-						className: 'wp-block-heckl-social-menu__item is-rs-link-' + link.id,
+						className: 'wp-block-heckl-social-menu__item is-heckl-link-' + link.id,
 					},
 						el( 'a', {
 							href:    link.url,

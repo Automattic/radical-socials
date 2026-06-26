@@ -164,7 +164,7 @@ class Radical_Socials_ActivityPub_Fetcher {
 	 * followed actors costs one HTTP call, not N.
 	 *
 	 * Feed-item attribution: source is the booster (so the existing prune
-	 * logic — which matches _rs_item_source_url against the following list —
+	 * logic — which matches _heckl_item_source_url against the following list —
 	 * doesn't sweep boosted items as orphans). The original author surfaces
 	 * via the author_* fields and a "Boosted by" badge prepended to content.
 	 *
@@ -270,7 +270,7 @@ class Radical_Socials_ActivityPub_Fetcher {
 		// whichever actor the current site uses for AP — same source of
 		// truth as add_activitypub / unfollow / the REST list path, so
 		// the four code paths can't drift.
-		$stored  = get_option( 'rs_ap_follow_user_id', false );
+		$stored  = get_option( 'heckl_ap_follow_user_id', false );
 		$user_id = false === $stored
 			? self::ap_actor_id()
 			: (int) $stored;
@@ -285,16 +285,16 @@ class Radical_Socials_ActivityPub_Fetcher {
 
 		// Poll up to 10 actors per run, rotating through all of them so every
 		// actor gets polled eventually without making the run too slow.
-		$offset = (int) get_option( 'rs_ap_outbox_offset', 0 );
+		$offset = (int) get_option( 'heckl_ap_outbox_offset', 0 );
 		$offset = $offset % $total;
 		$actors = array_slice( $all_actors, $offset, 10 );
-		update_option( 'rs_ap_outbox_offset', ( $offset + count( $actors ) ) % $total, false );
+		update_option( 'heckl_ap_outbox_offset', ( $offset + count( $actors ) ) % $total, false );
 
 		foreach ( $actors as $post ) {
 			$actor_url     = $post->guid;
-			$outbox_url    = get_post_meta( $post->ID, '_rs_outbox_url', true );
-			$icon_url      = get_post_meta( $post->ID, '_rs_actor_icon_url', true );
-			$display       = get_post_meta( $post->ID, '_rs_actor_display_name', true );
+			$outbox_url    = get_post_meta( $post->ID, '_heckl_outbox_url', true );
+			$icon_url      = get_post_meta( $post->ID, '_heckl_actor_icon_url', true );
+			$display       = get_post_meta( $post->ID, '_heckl_actor_display_name', true );
 			$poll_started  = microtime( true );
 			$poll_error    = '';
 
@@ -307,7 +307,7 @@ class Radical_Socials_ActivityPub_Fetcher {
 						$candidate_outbox_url = esc_url_raw( (string) $actor_json['outbox'] );
 						if ( self::is_safe_remote_url( $candidate_outbox_url ) ) {
 							$outbox_url = $candidate_outbox_url;
-							update_post_meta( $post->ID, '_rs_outbox_url', $outbox_url );
+							update_post_meta( $post->ID, '_heckl_outbox_url', $outbox_url );
 						}
 					}
 					$new_icon = isset( $actor_json['icon']['url'] )
@@ -315,14 +315,14 @@ class Radical_Socials_ActivityPub_Fetcher {
 						: '';
 					if ( $new_icon && $new_icon !== $icon_url ) {
 						$icon_url = $new_icon;
-						update_post_meta( $post->ID, '_rs_actor_icon_url', $icon_url );
+						update_post_meta( $post->ID, '_heckl_actor_icon_url', $icon_url );
 					}
 					$new_display = isset( $actor_json['name'] )
 						? wp_strip_all_tags( (string) $actor_json['name'] )
 						: '';
 					if ( $new_display && $new_display !== $display ) {
 						$display = $new_display;
-						update_post_meta( $post->ID, '_rs_actor_display_name', $display );
+						update_post_meta( $post->ID, '_heckl_actor_display_name', $display );
 					}
 				}
 			}
@@ -380,7 +380,7 @@ class Radical_Socials_ActivityPub_Fetcher {
 
 	/**
 	 * Persist outbox-poll health onto the ap_actor post. Stored as a single
-	 * serialized meta key (_rs_health) instead of one key per field so each
+	 * serialized meta key (_heckl_health) instead of one key per field so each
 	 * actor's health update is exactly one DB write, not six. Mirrors the
 	 * shape Feed_Fetcher::record_rss_health() writes for RSS subscriptions
 	 * so the REST list endpoint can expose both via the same JSON envelope.
@@ -388,7 +388,7 @@ class Radical_Socials_ActivityPub_Fetcher {
 	 * @param array{status:string,error:string,elapsed_ms:int} $health
 	 */
 	private static function record_actor_health( int $post_id, array $health ): void {
-		$prev = get_post_meta( $post_id, '_rs_health', true );
+		$prev = get_post_meta( $post_id, '_heckl_health', true );
 		$prev = is_array( $prev ) ? $prev : [];
 
 		$consecutive = 'failed' === $health['status']
@@ -398,7 +398,7 @@ class Radical_Socials_ActivityPub_Fetcher {
 			? time()
 			: (int) ( $prev['last_success'] ?? 0 );
 
-		update_post_meta( $post_id, '_rs_health', [
+		update_post_meta( $post_id, '_heckl_health', [
 			'status'                => $health['status'],
 			'last_checked'          => time(),
 			'last_success'          => $last_success,
@@ -618,7 +618,7 @@ class Radical_Socials_ActivityPub_Fetcher {
 	 *
 	 * Everything that describes the item — avatar, display name, the
 	 * post body, the optional "Boosted by …" line, reply context and
-	 * media attachments — gets baked into one `<div class="rs-ap-card">`
+	 * media attachments — gets baked into one `<div class="heckl-ap-card">`
 	 * structure inside the item's content. This lets the entire visual
 	 * card live inside `post_content`, so a theme template that reorders
 	 * or removes outer blocks (post title, post date, our author blocks)
@@ -626,12 +626,12 @@ class Radical_Socials_ActivityPub_Fetcher {
 	 * following.css) hides those outer blocks for AP items as siblings.
 	 *
 	 * Structure:
-	 *   <div class="rs-ap-card">
-	 *     <p class="rs-boost-context">…</p>     (only for boosts)
-	 *     <img class="rs-ap-avatar" …/>
-	 *     <div class="rs-ap-name"><a>…</a></div>
-	 *     <div class="rs-ap-body">
-	 *       <p class="rs-reply-context">…</p>   (when it's a reply)
+	 *   <div class="heckl-ap-card">
+	 *     <p class="heckl-boost-context">…</p>     (only for boosts)
+	 *     <img class="heckl-ap-avatar" …/>
+	 *     <div class="heckl-ap-name"><a>…</a></div>
+	 *     <div class="heckl-ap-body">
+	 *       <p class="heckl-reply-context">…</p>   (when it's a reply)
 	 *       [post body paragraphs]
 	 *       [attachments]
 	 *     </div>
@@ -653,12 +653,12 @@ class Radical_Socials_ActivityPub_Fetcher {
 			// The avatar is wrapped in a <div> rather than emitted as a
 			// bare <img>, because `wpautop` (which runs on `the_content`)
 			// wraps loose <img> tags in <p>. That extra <p> becomes a
-			// direct grid child of `.rs-ap-card`, has no grid-area, and
+			// direct grid child of `.heckl-ap-card`, has no grid-area, and
 			// auto-places itself into the first free cell — pushing the
 			// real layout around and leaving the avatar cell empty. A
 			// <div> is a block element, so wpautop leaves it alone.
 			$avatar_html = sprintf(
-				'<div class="rs-ap-avatar"><img src="%s" alt="" loading="lazy" decoding="async" /></div>',
+				'<div class="heckl-ap-avatar"><img src="%s" alt="" loading="lazy" decoding="async" /></div>',
 				esc_url( $author_icon_url )
 			);
 		}
@@ -680,11 +680,11 @@ class Radical_Socials_ActivityPub_Fetcher {
 					esc_html( $display_text )
 				)
 				: esc_html( $display_text );
-			$parts[] = sprintf( '<span class="rs-ap-displayname">%s</span>', $inner );
+			$parts[] = sprintf( '<span class="heckl-ap-displayname">%s</span>', $inner );
 		}
 
 		if ( '' !== $author_name && '' !== $handle ) {
-			$parts[] = sprintf( '<span class="rs-ap-handle">@%s</span>', esc_html( $handle ) );
+			$parts[] = sprintf( '<span class="heckl-ap-handle">@%s</span>', esc_html( $handle ) );
 		}
 
 		$time_html = self::render_publication_time( $published_iso );
@@ -693,11 +693,11 @@ class Radical_Socials_ActivityPub_Fetcher {
 		}
 
 		$name_html = $parts
-			? sprintf( '<div class="rs-ap-name">%s</div>', implode( '', $parts ) )
+			? sprintf( '<div class="heckl-ap-name">%s</div>', implode( '', $parts ) )
 			: '';
 
 		return sprintf(
-			'<div class="rs-ap-card">%s%s%s<div class="rs-ap-body">%s</div></div>',
+			'<div class="heckl-ap-card">%s%s%s<div class="heckl-ap-body">%s</div></div>',
 			$boost_html,
 			$avatar_html,
 			$name_html,
@@ -734,7 +734,7 @@ class Radical_Socials_ActivityPub_Fetcher {
 			$ts
 		);
 		return sprintf(
-			'<time class="rs-ap-time" datetime="%s">%s</time>',
+			'<time class="heckl-ap-time" datetime="%s">%s</time>',
 			esc_attr( gmdate( 'c', $ts ) ),
 			esc_html( (string) $label )
 		);
@@ -753,7 +753,7 @@ class Radical_Socials_ActivityPub_Fetcher {
 	 *
 	 * Operates on the composed body — reply context, post HTML, attachments —
 	 * so attachment figures are always emitted as top-level block children
-	 * of `.rs-ap-body`.
+	 * of `.heckl-ap-body`.
 	 */
 	private static function clean_body_html( string $html ): string {
 		if ( '' === $html ) {
@@ -802,7 +802,7 @@ class Radical_Socials_ActivityPub_Fetcher {
 	 * content. Plain text only — no unicode arrow glyph, because WP's
 	 * client-side emoji JS rewrites a number of arrow characters as <img>
 	 * tags pointing at s.w.org. The visual icon, if any, should come from
-	 * CSS (::before on .rs-boost-context) so it can't be substituted.
+	 * CSS (::before on .heckl-boost-context) so it can't be substituted.
 	 */
 	private static function render_boost_context( string $booster_actor_url, string $booster_display ): string {
 		if ( '' === $booster_actor_url ) {
@@ -817,7 +817,7 @@ class Radical_Socials_ActivityPub_Fetcher {
 			: esc_html__( 'Boosted', 'heckl-tools' );
 
 		return sprintf(
-			'<p class="rs-boost-context"><a href="%s" target="_blank" rel="noopener noreferrer nofollow">%s</a></p>',
+			'<p class="heckl-boost-context"><a href="%s" target="_blank" rel="noopener noreferrer nofollow">%s</a></p>',
 			esc_url( $booster_actor_url ),
 			$label
 		);
@@ -842,8 +842,8 @@ class Radical_Socials_ActivityPub_Fetcher {
 			return [ '', '' ];
 		}
 		return [
-			(string) get_post_meta( $actor_id, '_rs_actor_display_name', true ),
-			(string) get_post_meta( $actor_id, '_rs_actor_icon_url', true ),
+			(string) get_post_meta( $actor_id, '_heckl_actor_display_name', true ),
+			(string) get_post_meta( $actor_id, '_heckl_actor_icon_url', true ),
 		];
 	}
 
@@ -875,7 +875,7 @@ class Radical_Socials_ActivityPub_Fetcher {
 
 		// 2. Cross-run transient — boosts dereference the same authors
 		// repeatedly, so a few hours of caching saves real bandwidth.
-		$transient_key = 'rs_ap_author_' . md5( $actor_url );
+		$transient_key = 'heckl_ap_author_' . md5( $actor_url );
 		$cached        = get_transient( $transient_key );
 		if ( is_array( $cached ) && isset( $cached[0], $cached[1] ) ) {
 			return [ (string) $cached[0], (string) $cached[1] ];
@@ -957,7 +957,7 @@ class Radical_Socials_ActivityPub_Fetcher {
 			: esc_html__( '↪️ In reply to a post', 'heckl-tools' );
 
 		return sprintf(
-			'<p class="rs-reply-context"><a href="%s" target="_blank" rel="noopener noreferrer nofollow">%s</a></p>',
+			'<p class="heckl-reply-context"><a href="%s" target="_blank" rel="noopener noreferrer nofollow">%s</a></p>',
 			esc_url( $parent_url ),
 			$label // already escaped above; sprintf placeholder is %s
 		);

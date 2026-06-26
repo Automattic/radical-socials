@@ -13,18 +13,18 @@ defined( 'ABSPATH' ) || exit;
 
 class Radical_Socials_Settings_Page {
 
-	const PROFILE_HANDLE_META = 'rs_profile_handle';
-	const PROFILE_AVATAR_META = 'rs_profile_avatar_id';
-	const PROFILE_BANNER_META = 'rs_profile_banner_id';
+	const PROFILE_HANDLE_META = 'heckl_profile_handle';
+	const PROFILE_AVATAR_META = 'heckl_profile_avatar_id';
+	const PROFILE_BANNER_META = 'heckl_profile_banner_id';
 
 	/**
 	 * Per-user transient namespace for one-shot post-redirect notices.
 	 * Using a transient keyed by the current user id (instead of a
-	 * `?rs_settings=updated` query arg) means render-time reads don't
+	 * `?heckl_settings=updated` query arg) means render-time reads don't
 	 * touch `$_GET` and therefore don't need a nonce, and a stale link
 	 * can't replay the notice for someone else.
 	 */
-	const NOTICE_TRANSIENT_PREFIX = 'rs_settings_notice_';
+	const NOTICE_TRANSIENT_PREFIX = 'heckl_settings_notice_';
 	const NOTICE_TTL              = 60; // seconds; long enough to outlive the redirect, short enough to self-clean.
 
 	/**
@@ -65,8 +65,8 @@ class Radical_Socials_Settings_Page {
 		add_action( 'admin_init',            [ __CLASS__, 'handle_profile_save' ] );
 		add_action( 'admin_init',            [ __CLASS__, 'handle_following_privacy_save' ] );
 		add_action( 'admin_init',            [ __CLASS__, 'handle_wpcom_disconnect' ] );
-		add_action( 'admin_post_rs_install_activitypub', [ __CLASS__, 'handle_install_activitypub' ] );
-		add_action( 'admin_post_rs_save_handle',         [ __CLASS__, 'handle_save_handle' ] );
+		add_action( 'admin_post_heckl_install_activitypub', [ __CLASS__, 'handle_install_activitypub' ] );
+		add_action( 'admin_post_heckl_save_handle',         [ __CLASS__, 'handle_save_handle' ] );
 
 		// Diagnostics is a developer-only surface. Skip the form-action
 		// listener entirely on non-dev installs so the POST handler doesn't
@@ -81,13 +81,13 @@ class Radical_Socials_Settings_Page {
 	 * Are we running in a development install? Diagnostics, fetch-now
 	 * buttons, and other internal-introspection tools render only when
 	 * this is true. The canonical signal is WP_DEBUG (set in wp-config.php
-	 * on dev sites); RS_DEV is an opt-in override for the rare case
+	 * on dev sites); HECKL_DEV is an opt-in override for the rare case
 	 * someone wants Diagnostics on a non-debug install without flipping
 	 * WP_DEBUG globally.
 	 */
 	public static function is_dev_mode(): bool {
 		return ( defined( 'WP_DEBUG' ) && WP_DEBUG )
-			|| ( defined( 'RS_DEV' ) && RS_DEV );
+			|| ( defined( 'HECKL_DEV' ) && HECKL_DEV );
 	}
 
 	/**
@@ -95,26 +95,26 @@ class Radical_Socials_Settings_Page {
 	 * admin_init so wp_safe_redirect() can set Location before any output.
 	 *
 	 * Supported actions (one per request):
-	 *   rs_diag=run_fetch    — runs Feed_Fetcher::run() inline (blocking,
+	 *   heckl_diag=run_fetch    — runs Feed_Fetcher::run() inline (blocking,
 	 *                          up to 10 min). Last-resort when cron is dead.
-	 *   rs_diag=queue_fetch  — queues a refresh through the normal cron path
+	 *   heckl_diag=queue_fetch  — queues a refresh through the normal cron path
 	 *                          and clears any stuck lock.
-	 *   rs_diag=clear_lock   — manually clears rs_feed_refresh_lock.
-	 *   rs_diag=test_feed    — fetches the first RSS subscription URL with a
+	 *   heckl_diag=clear_lock   — manually clears heckl_feed_refresh_lock.
+	 *   heckl_diag=test_feed    — fetches the first RSS subscription URL with a
 	 *                          short timeout to verify outbound HTTP works.
 	 */
 	public static function handle_diagnostics_action(): void {
-		if ( ! isset( $_POST['rs_diagnostics_nonce'] ) ) {
+		if ( ! isset( $_POST['heckl_diagnostics_nonce'] ) ) {
 			return;
 		}
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['rs_diagnostics_nonce'] ) ), 'rs_diagnostics_action' ) ) {
+		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['heckl_diagnostics_nonce'] ) ), 'heckl_diagnostics_action' ) ) {
 			return;
 		}
 
-		$action = isset( $_POST['rs_diag'] ) ? sanitize_text_field( wp_unslash( $_POST['rs_diag'] ) ) : '';
+		$action = isset( $_POST['heckl_diag'] ) ? sanitize_text_field( wp_unslash( $_POST['heckl_diag'] ) ) : '';
 		$flag   = 'ok';
 
 		switch ( $action ) {
@@ -142,15 +142,15 @@ class Radical_Socials_Settings_Page {
 				try {
 					Radical_Socials_Feed_Fetcher::run();
 					$flag = 'fetch_ran';
-					set_transient( 'rs_diag_fetch_elapsed', round( microtime( true ) - $started, 1 ), 60 );
+					set_transient( 'heckl_diag_fetch_elapsed', round( microtime( true ) - $started, 1 ), 60 );
 				} catch ( \Throwable $e ) {
 					$flag = 'fetch_error';
-					set_transient( 'rs_diag_fetch_error', $e->getMessage(), 60 );
+					set_transient( 'heckl_diag_fetch_error', $e->getMessage(), 60 );
 				}
 				break;
 
 			case 'test_feed':
-				$subs = (array) get_option( 'rs_rss_subscriptions', [] );
+				$subs = (array) get_option( 'heckl_rss_subscriptions', [] );
 				if ( empty( $subs ) ) {
 					$flag = 'no_subs';
 					break;
@@ -162,13 +162,13 @@ class Radical_Socials_Settings_Page {
 				}
 				$r = wp_safe_remote_get( $url, [ 'timeout' => 10, 'redirection' => 3 ] );
 				if ( is_wp_error( $r ) ) {
-					set_transient( 'rs_diag_test_result', [
+					set_transient( 'heckl_diag_test_result', [
 						'url'   => $url,
 						'ok'    => false,
 						'error' => $r->get_error_message(),
 					], 60 );
 				} else {
-					set_transient( 'rs_diag_test_result', [
+					set_transient( 'heckl_diag_test_result', [
 						'url'   => $url,
 						'ok'    => true,
 						'code'  => (int) wp_remote_retrieve_response_code( $r ),
@@ -182,7 +182,7 @@ class Radical_Socials_Settings_Page {
 				// Same reasoning as run_fetch: no set_time_limit(). The
 				// 20-feeds-per-click chunking below keeps each request well
 				// under any reasonable max_execution_time.
-				$results = (array) get_transient( 'rs_diag_feed_test_results' );
+				$results = (array) get_transient( 'heckl_diag_feed_test_results' );
 				if ( ! isset( $results['rows'] ) || ! is_array( $results['rows'] ) ) {
 					$results = [ 'rows' => [] ];
 				}
@@ -190,7 +190,7 @@ class Radical_Socials_Settings_Page {
 
 				// Build the full target list: RSS subscriptions + ActivityPub actors.
 				$targets = [];
-				foreach ( (array) get_option( 'rs_rss_subscriptions', [] ) as $sub ) {
+				foreach ( (array) get_option( 'heckl_rss_subscriptions', [] ) as $sub ) {
 					if ( ! empty( $sub['url'] ) ) {
 						$targets[] = [ 'url' => (string) $sub['url'], 'type' => 'rss' ];
 					}
@@ -241,12 +241,12 @@ class Radical_Socials_Settings_Page {
 
 				$results['total_targets'] = count( $targets );
 				$results['last_run']      = time();
-				set_transient( 'rs_diag_feed_test_results', $results, HOUR_IN_SECONDS );
+				set_transient( 'heckl_diag_feed_test_results', $results, HOUR_IN_SECONDS );
 				$flag = 'feed_test_batch';
 				break;
 
 			case 'reset_feed_test':
-				delete_transient( 'rs_diag_feed_test_results' );
+				delete_transient( 'heckl_diag_feed_test_results' );
 				$flag = 'feed_test_reset';
 				break;
 
@@ -274,13 +274,13 @@ class Radical_Socials_Settings_Page {
 	 * privacy form below.
 	 */
 	public static function handle_profile_save(): void {
-		if ( ! isset( $_POST['rs_settings_nonce'] ) ) {
+		if ( ! isset( $_POST['heckl_settings_nonce'] ) ) {
 			return;
 		}
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['rs_settings_nonce'] ) ), 'rs_settings_save' ) ) {
+		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['heckl_settings_nonce'] ) ), 'heckl_settings_save' ) ) {
 			return;
 		}
 
@@ -295,16 +295,16 @@ class Radical_Socials_Settings_Page {
 		// user can't accidentally wipe the site title by clearing the
 		// field; the user's display_name is fine to be empty (WP falls
 		// back to user_login).
-		if ( isset( $_POST['rs_display_name'] ) ) {
-			$new_display                  = sanitize_text_field( wp_unslash( $_POST['rs_display_name'] ) );
+		if ( isset( $_POST['heckl_display_name'] ) ) {
+			$new_display                  = sanitize_text_field( wp_unslash( $_POST['heckl_display_name'] ) );
 			$user_update['display_name']  = $new_display;
 			if ( '' !== $new_display ) {
 				update_option( 'blogname', $new_display );
 			}
 		}
 
-		if ( isset( $_POST['rs_profile_website'] ) ) {
-			$website = trim( sanitize_text_field( wp_unslash( $_POST['rs_profile_website'] ) ) );
+		if ( isset( $_POST['heckl_profile_website'] ) ) {
+			$website = trim( sanitize_text_field( wp_unslash( $_POST['heckl_profile_website'] ) ) );
 
 			if ( '' !== $website && ! preg_match( '#^[a-z][a-z0-9+.-]*://#i', $website ) ) {
 				$website = 'https://' . $website;
@@ -317,24 +317,24 @@ class Radical_Socials_Settings_Page {
 			wp_update_user( $user_update );
 		}
 
-		if ( isset( $_POST['rs_profile_handle'] ) ) {
+		if ( isset( $_POST['heckl_profile_handle'] ) ) {
 			update_user_meta(
 				$user->ID,
 				self::PROFILE_HANDLE_META,
-				self::sanitize_profile_handle( sanitize_text_field( wp_unslash( $_POST['rs_profile_handle'] ) ) )
+				self::sanitize_profile_handle( sanitize_text_field( wp_unslash( $_POST['heckl_profile_handle'] ) ) )
 			);
 		}
 
-		if ( isset( $_POST['rs_profile_bio'] ) ) {
-			update_user_meta( $user->ID, 'description', sanitize_textarea_field( wp_unslash( $_POST['rs_profile_bio'] ) ) );
+		if ( isset( $_POST['heckl_profile_bio'] ) ) {
+			update_user_meta( $user->ID, 'description', sanitize_textarea_field( wp_unslash( $_POST['heckl_profile_bio'] ) ) );
 		}
 
 		if ( current_user_can( 'upload_files' ) ) {
 			// Read + cast in the caller (post-nonce-verify); the helper
 			// stays a pure data sink so phpcs doesn't have to follow the
 			// nonce-check up the call chain to know the value is trusted.
-			$avatar_post = array_key_exists( 'rs_profile_avatar_id', $_POST ) ? absint( wp_unslash( $_POST['rs_profile_avatar_id'] ) ) : null;
-			$banner_post = array_key_exists( 'rs_profile_banner_id', $_POST ) ? absint( wp_unslash( $_POST['rs_profile_banner_id'] ) ) : null;
+			$avatar_post = array_key_exists( 'heckl_profile_avatar_id', $_POST ) ? absint( wp_unslash( $_POST['heckl_profile_avatar_id'] ) ) : null;
+			$banner_post = array_key_exists( 'heckl_profile_banner_id', $_POST ) ? absint( wp_unslash( $_POST['heckl_profile_banner_id'] ) ) : null;
 			self::save_image_meta( $user->ID, self::PROFILE_AVATAR_META, $avatar_post );
 			self::save_image_meta( $user->ID, self::PROFILE_BANNER_META, $banner_post );
 		}
@@ -372,13 +372,13 @@ class Radical_Socials_Settings_Page {
 	 * so its wp_safe_redirect() lands before the admin header is sent.
 	 */
 	public static function handle_wpcom_disconnect(): void {
-		if ( ! isset( $_GET['rs_action'] ) || 'wpcom_disconnect' !== $_GET['rs_action'] ) {
+		if ( ! isset( $_GET['heckl_action'] ) || 'wpcom_disconnect' !== $_GET['heckl_action'] ) {
 			return;
 		}
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'rs_wpcom_disconnect' ) ) {
+		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'heckl_wpcom_disconnect' ) ) {
 			return;
 		}
 
@@ -389,27 +389,27 @@ class Radical_Socials_Settings_Page {
 	}
 
 	public static function handle_following_privacy_save(): void {
-		if ( ! isset( $_POST['rs_following_privacy_nonce'] ) ) {
+		if ( ! isset( $_POST['heckl_following_privacy_nonce'] ) ) {
 			return;
 		}
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['rs_following_privacy_nonce'] ) ), 'rs_following_privacy_save' ) ) {
+		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['heckl_following_privacy_nonce'] ) ), 'heckl_following_privacy_save' ) ) {
 			return;
 		}
 		update_option(
 			Radical_Socials_Following::PUBLIC_OPTION,
-			! empty( $_POST['rs_following_public'] ),
+			! empty( $_POST['heckl_following_public'] ),
 			false
 		);
 		update_option(
-			'rs_purge_on_uninstall',
-			! empty( $_POST['rs_purge_on_uninstall'] ),
+			'heckl_purge_on_uninstall',
+			! empty( $_POST['heckl_purge_on_uninstall'] ),
 			false
 		);
-		$enable_pretty = ! empty( $_POST['rs_auto_pretty_permalinks'] );
-		update_option( 'rs_auto_pretty_permalinks', $enable_pretty, false );
+		$enable_pretty = ! empty( $_POST['heckl_auto_pretty_permalinks'] );
+		update_option( 'heckl_auto_pretty_permalinks', $enable_pretty, false );
 		if ( $enable_pretty && function_exists( 'heckl_set_pretty_permalinks_if_plain' ) && heckl_set_pretty_permalinks_if_plain() ) {
 			flush_rewrite_rules();
 		}
@@ -433,7 +433,7 @@ class Radical_Socials_Settings_Page {
 	 * to the welcome tab without keeping the flag in the URL bar.
 	 */
 	private static function form_result_key(): string {
-		return 'rs_form_result_' . get_current_user_id();
+		return 'heckl_form_result_' . get_current_user_id();
 	}
 
 	private static function push_form_result( array $data ): void {
@@ -458,7 +458,7 @@ class Radical_Socials_Settings_Page {
 		// Tab styling + welcome wizard cards live in settings.css — load it
 		// on every tab so the header/tab bar is consistent everywhere.
 		wp_enqueue_style(
-			'rs-settings-page',
+			'heckl-settings-page',
 			plugin_dir_url( __FILE__ ) . 'assets/settings.css',
 			[],
 			filemtime( __DIR__ . '/assets/settings.css' ) ?: '1'
@@ -468,16 +468,22 @@ class Radical_Socials_Settings_Page {
 			wp_enqueue_media();
 			wp_enqueue_script( 'site-icon' );
 			wp_enqueue_style( 'site-icon' );
+			$logo_id  = (int) get_theme_mod( 'custom_logo' );
+			$logo_url = $logo_id ? wp_get_attachment_image_url( $logo_id, 'medium' ) : '';
+			wp_add_inline_style(
+				'site-icon',
+				sprintf( ':root { --site-icon-url: url("%s"); }', esc_url_raw( (string) $logo_url ) )
+			);
 
 			wp_enqueue_script(
-				'rs-settings-page',
+				'heckl-settings-page',
 				plugin_dir_url( __FILE__ ) . 'assets/settings.js',
 				[ 'media-editor' ],
 				filemtime( __DIR__ . '/assets/settings.js' ) ?: '1',
 				true
 			);
 			wp_set_script_translations(
-				'rs-settings-page',
+				'heckl-settings-page',
 				'heckl-tools',
 				plugin_dir_path( __FILE__ ) . '../../languages'
 			);
@@ -487,19 +493,19 @@ class Radical_Socials_Settings_Page {
 		// in Step 2, so enqueue the same JS + localized config there too.
 		if ( in_array( self::active_tab(), [ 'following', 'welcome' ], true ) ) {
 			wp_enqueue_script(
-				'rs-following-settings',
+				'heckl-following-settings',
 				plugin_dir_url( __FILE__ ) . 'assets/following.js',
 				[],
 				filemtime( __DIR__ . '/assets/following.js' ) ?: '1',
 				true
 			);
 			wp_set_script_translations(
-				'rs-following-settings',
+				'heckl-following-settings',
 				'heckl-tools',
 				plugin_dir_path( __FILE__ ) . '../../languages'
 			);
 			$nonce = wp_create_nonce( 'wp_rest' );
-			wp_localize_script( 'rs-following-settings', 'rsFollowing', [
+			wp_localize_script( 'heckl-following-settings', 'hecklFollowing', [
 				'activitypubAvailable' => class_exists( '\\Activitypub\\Collection\\Following' ),
 				'apiUrl'              => rest_url( 'heckl/v1/following' ),
 				'importFromAccountUrl' => rest_url( 'heckl/v1/following/import-from-account' ),
@@ -598,7 +604,7 @@ class Radical_Socials_Settings_Page {
 		// The Site Logo is the authoritative profile photo for the site
 		// (see Site Logo save handler above — we mirror it onto
 		// `site_icon`, which AP reads for its blog actor avatar). If the
-		// per-user rs_profile_avatar_id meta isn't set, fall back to the
+		// per-user heckl_profile_avatar_id meta isn't set, fall back to the
 		// Site Logo so the preview shows the same image that's federating
 		// out as the AP profile photo.
 		if ( ! $avatar_url && $logo_id ) {
@@ -612,13 +618,13 @@ class Radical_Socials_Settings_Page {
 
 		$tab_url = fn( string $tab ) => admin_url( 'admin.php?page=heckl-settings&tab=' . $tab );
 		?>
-		<div class="wrap rs-settings-wrap">
-			<div class="rs-settings-header">
-				<div class="rs-settings-title-section">
+		<div class="wrap heckl-settings-wrap">
+			<div class="heckl-settings-header">
+				<div class="heckl-settings-title-section">
 					<h1><?php esc_html_e( 'Heckl Tools', 'heckl-tools' ); ?></h1>
 				</div>
-				<div class="rs-settings-tabs-scroller">
-					<nav class="rs-settings-tabs-wrapper" aria-label="<?php esc_attr_e( 'Settings sections', 'heckl-tools' ); ?>">
+				<div class="heckl-settings-tabs-scroller">
+					<nav class="heckl-settings-tabs-wrapper" aria-label="<?php esc_attr_e( 'Settings sections', 'heckl-tools' ); ?>">
 						<?php
 						$tabs = [
 							'welcome'   => __( 'Welcome', 'heckl-tools' ),
@@ -630,7 +636,7 @@ class Radical_Socials_Settings_Page {
 							$tabs['diagnostics'] = __( 'Diagnostics', 'heckl-tools' );
 						}
 						foreach ( $tabs as $slug => $label ) :
-							$class = 'rs-settings-tab' . ( $slug === $active_tab ? ' active' : '' );
+							$class = 'heckl-settings-tab' . ( $slug === $active_tab ? ' active' : '' );
 							?>
 							<a href="<?php echo esc_url( $tab_url( $slug ) ); ?>" class="<?php echo esc_attr( $class ); ?>"><?php echo esc_html( $label ); ?></a>
 						<?php endforeach; ?>
@@ -669,7 +675,7 @@ class Radical_Socials_Settings_Page {
 
 			<?php if ( ! empty( $notice['oauth_error'] ) ) :
 				$oauth_error_msgs = [
-					'broker_unreachable'    => __( 'The WP.com OAuth broker is unreachable. Try again in a minute, or set RS_WPCOM_CLIENT_ID / RS_WPCOM_CLIENT_SECRET in wp-config.php to use your own WordPress.com app instead.', 'heckl-tools' ),
+					'broker_unreachable'    => __( 'The WP.com OAuth broker is unreachable. Try again in a minute, or set HECKL_WPCOM_CLIENT_ID / HECKL_WPCOM_CLIENT_SECRET in wp-config.php to use your own WordPress.com app instead.', 'heckl-tools' ),
 					'broker_bad_response'   => __( 'The WP.com OAuth broker returned an unexpected response. Try again.', 'heckl-tools' ),
 					'state_mismatch'        => __( 'Could not connect WP.com account — the connect attempt expired or didn\'t match this site. Click Connect again to start fresh.', 'heckl-tools' ),
 					'no_code'               => __( 'WordPress.com didn\'t return an authorization code. Click Connect to try again.', 'heckl-tools' ),
@@ -685,20 +691,20 @@ class Radical_Socials_Settings_Page {
 
 			<?php
 			$wide_tab        = in_array( $active_tab, [ 'following', 'diagnostics' ], true );
-			$settings_class  = 'rs-settings' . ( $wide_tab ? ' rs-settings--wide' : '' );
+			$settings_class  = 'heckl-settings' . ( $wide_tab ? ' heckl-settings--wide' : '' );
 			?>
 			<div class="<?php echo esc_attr( $settings_class ); ?>">
 			<?php if ( 'welcome' === $active_tab ) : ?>
 				<?php self::render_welcome_tab(); ?>
 			<?php elseif ( 'profile' === $active_tab ) : ?>
 
-			<form method="post" class="rs-settings-form">
-				<?php wp_nonce_field( 'rs_settings_save', 'rs_settings_nonce' ); ?>
-				<div class="rs-settings-layout">
-					<section class="rs-profile-preview" aria-label="<?php esc_attr_e( 'Profile preview', 'heckl-tools' ); ?>">
+			<form method="post" class="heckl-settings-form">
+				<?php wp_nonce_field( 'heckl_settings_save', 'heckl_settings_nonce' ); ?>
+				<div class="heckl-settings-layout">
+					<section class="heckl-profile-preview" aria-label="<?php esc_attr_e( 'Profile preview', 'heckl-tools' ); ?>">
 						<div
-							class="rs-profile-cover<?php echo $banner_url ? ' has-image' : ''; ?>"
-							data-rs-profile-cover
+							class="heckl-profile-cover<?php echo $banner_url ? ' has-image' : ''; ?>"
+							data-heckl-profile-cover
 							data-empty-label="<?php esc_attr_e( 'Cover photo', 'heckl-tools' ); ?>"
 							style="<?php echo $banner_url ? esc_attr( 'background-image: url("' . esc_url_raw( $banner_url ) . '");' ) : ''; ?>"
 						>
@@ -706,76 +712,76 @@ class Radical_Socials_Settings_Page {
 								<span><?php esc_html_e( 'Cover photo', 'heckl-tools' ); ?></span>
 							<?php endif; ?>
 						</div>
-						<div class="rs-profile-preview-body">
-							<div class="rs-profile-avatar-preview" data-rs-profile-avatar data-empty-initial="<?php echo esc_attr( $initial ); ?>">
+						<div class="heckl-profile-preview-body">
+							<div class="heckl-profile-avatar-preview" data-heckl-profile-avatar data-empty-initial="<?php echo esc_attr( $initial ); ?>">
 								<?php if ( $avatar_url ) : ?>
 									<img src="<?php echo esc_url( $avatar_url ); ?>" alt="" />
 								<?php else : ?>
 									<span><?php echo esc_html( $initial ); ?></span>
 								<?php endif; ?>
 							</div>
-							<div class="rs-profile-preview-copy">
+							<div class="heckl-profile-preview-copy">
 								<h2>
 									<?php echo esc_html( $display ); ?>
 								</h2>
-								<p class="rs-profile-handle">
+								<p class="heckl-profile-handle">
 									@<?php echo esc_html( $handle ); ?>
 								</p>
-								<p class="rs-profile-bio"><?php echo esc_html( $bio_preview ); ?></p>
+								<p class="heckl-profile-bio"><?php echo esc_html( $bio_preview ); ?></p>
 								<?php
 								$website_label = preg_replace( '#^https?://#i', '', $website );
 								?>
-								<p class="rs-profile-website<?php echo $website ? '' : ' is-empty'; ?>">
+								<p class="heckl-profile-website<?php echo $website ? '' : ' is-empty'; ?>">
 									<?php echo esc_html( untrailingslashit( $website_label ) ); ?>
 								</p>
 							</div>
 						</div>
 					</section>
 
-					<div class="rs-settings-panels">
-						<section class="rs-settings-panel">
+					<div class="heckl-settings-panels">
+						<section class="heckl-settings-panel">
 							<h2><?php esc_html_e( 'Profile', 'heckl-tools' ); ?></h2>
-							<div class="rs-field">
-								<label for="rs_display_name"><?php esc_html_e( 'Name', 'heckl-tools' ); ?></label>
+							<div class="heckl-field">
+								<label for="heckl_display_name"><?php esc_html_e( 'Name', 'heckl-tools' ); ?></label>
 								<input
-									name="rs_display_name"
+									name="heckl_display_name"
 									type="text"
-									id="rs_display_name"
+									id="heckl_display_name"
 									value="<?php echo esc_attr( $display ); ?>"
 									class="regular-text"
 								/>
 							</div>
-							<div class="rs-field">
-								<label for="rs_profile_handle"><?php esc_html_e( 'Handle', 'heckl-tools' ); ?></label>
-								<div class="rs-handle-input">
+							<div class="heckl-field">
+								<label for="heckl_profile_handle"><?php esc_html_e( 'Handle', 'heckl-tools' ); ?></label>
+								<div class="heckl-handle-input">
 									<span aria-hidden="true">@</span>
 									<input
-										name="rs_profile_handle"
+										name="heckl_profile_handle"
 										type="text"
-										id="rs_profile_handle"
+										id="heckl_profile_handle"
 										value="<?php echo esc_attr( $handle ); ?>"
 										autocomplete="off"
 									/>
 								</div>
 								<p class="description"><?php esc_html_e( 'Shown on your profile. This does not change your WordPress login.', 'heckl-tools' ); ?></p>
 							</div>
-							<div class="rs-field">
-								<label for="rs_profile_bio"><?php esc_html_e( 'Bio', 'heckl-tools' ); ?></label>
+							<div class="heckl-field">
+								<label for="heckl_profile_bio"><?php esc_html_e( 'Bio', 'heckl-tools' ); ?></label>
 								<textarea
-									name="rs_profile_bio"
-									id="rs_profile_bio"
+									name="heckl_profile_bio"
+									id="heckl_profile_bio"
 									rows="4"
 									maxlength="160"
 									class="large-text"
 								><?php echo esc_textarea( $bio ); ?></textarea>
 							</div>
-							<div class="rs-field">
-								<label for="rs_profile_website"><?php esc_html_e( 'Website', 'heckl-tools' ); ?></label>
+							<div class="heckl-field">
+								<label for="heckl_profile_website"><?php esc_html_e( 'Website', 'heckl-tools' ); ?></label>
 								<input
-									name="rs_profile_website"
+									name="heckl_profile_website"
 									type="text"
 									inputmode="url"
-									id="rs_profile_website"
+									id="heckl_profile_website"
 									value="<?php echo esc_attr( $website ); ?>"
 									class="regular-text"
 									placeholder="https://example.com"
@@ -783,15 +789,12 @@ class Radical_Socials_Settings_Page {
 							</div>
 						</section>
 
-						<section class="rs-settings-panel">
+						<section class="heckl-settings-panel">
 							<h2><?php esc_html_e( 'Site logo', 'heckl-tools' ); ?></h2>
 
 							<?php if ( current_user_can( 'upload_files' ) ) : ?>
-							<div class="rs-field hide-if-no-js site-icon-section">
+							<div class="heckl-field hide-if-no-js site-icon-section">
 								<label class="screen-reader-text"><?php esc_html_e( 'Site logo', 'heckl-tools' ); ?></label>
-								<style>
-								:root { --site-icon-url: url( '<?php echo esc_url( $logo_url ); ?>' ); }
-								</style>
 
 								<div id="site-icon-preview" class="<?php echo esc_attr( $classes_for_preview ); ?>">
 									<div class="direction-wrap">
@@ -849,36 +852,36 @@ class Radical_Socials_Settings_Page {
 						</section>
 
 						<?php if ( current_user_can( 'upload_files' ) ) : ?>
-						<section class="rs-settings-panel">
+						<section class="heckl-settings-panel">
 							<h2><?php esc_html_e( 'Cover photo', 'heckl-tools' ); ?></h2>
-							<div class="rs-media-grid">
+							<div class="heckl-media-grid">
 								<div
-									class="rs-media-control"
-									data-rs-media-control
-									data-rs-media-target="cover"
+									class="heckl-media-control"
+									data-heckl-media-control
+									data-heckl-media-target="cover"
 									data-empty-label="<?php esc_attr_e( 'Cover photo', 'heckl-tools' ); ?>"
 									data-add-text="<?php esc_attr_e( 'Add cover', 'heckl-tools' ); ?>"
 									data-change-text="<?php esc_attr_e( 'Change cover', 'heckl-tools' ); ?>"
 								>
-									<div class="rs-media-preview rs-media-preview-cover<?php echo $banner_url ? ' has-image' : ''; ?>" data-rs-media-preview>
+									<div class="heckl-media-preview heckl-media-preview-cover<?php echo $banner_url ? ' has-image' : ''; ?>" data-heckl-media-preview>
 										<?php if ( $banner_url ) : ?>
 											<img src="<?php echo esc_url( $banner_url ); ?>" alt="" />
 										<?php else : ?>
 											<span><?php esc_html_e( 'Cover photo', 'heckl-tools' ); ?></span>
 										<?php endif; ?>
 									</div>
-									<input type="hidden" name="rs_profile_banner_id" value="<?php echo esc_attr( $banner_id ?: '' ); ?>" data-rs-media-input>
-									<div class="rs-media-actions">
+									<input type="hidden" name="heckl_profile_banner_id" value="<?php echo esc_attr( $banner_id ?: '' ); ?>" data-heckl-media-input>
+									<div class="heckl-media-actions">
 										<button
 											type="button"
 											class="button"
-											data-rs-media-open
+											data-heckl-media-open
 											data-title="<?php esc_attr_e( 'Select cover photo', 'heckl-tools' ); ?>"
 											data-button="<?php esc_attr_e( 'Use this cover', 'heckl-tools' ); ?>"
 										>
 											<?php echo $banner_url ? esc_html__( 'Change cover', 'heckl-tools' ) : esc_html__( 'Add cover', 'heckl-tools' ); ?>
 										</button>
-										<button type="button" class="button button-link-delete<?php echo $banner_url ? '' : ' hidden'; ?>" data-rs-media-remove>
+										<button type="button" class="button button-link-delete<?php echo $banner_url ? '' : ' hidden'; ?>" data-heckl-media-remove>
 											<?php esc_html_e( 'Remove', 'heckl-tools' ); ?>
 										</button>
 									</div>
@@ -893,59 +896,7 @@ class Radical_Socials_Settings_Page {
 
 			<?php elseif ( 'following' === $active_tab ) : ?>
 
-			<style>
-			.rs-following-layout {
-				display: grid;
-				grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.65fr);
-				gap: 24px;
-				align-items: start;
-				margin-top: 20px;
-			}
-			@media (max-width: 960px) {
-				.rs-following-layout { grid-template-columns: 1fr; }
-			}
-			.rs-following-table {
-				margin-top: 0;
-				table-layout: fixed;
-				width: 100%;
-			}
-			.rs-following-table th,
-			.rs-following-table td {
-				box-sizing: border-box;
-				overflow-wrap: anywhere;
-				vertical-align: top;
-			}
-			.rs-following-table th {
-				overflow-wrap: normal;
-				white-space: nowrap;
-			}
-			.rs-following-table .rs-col-fav { width: 44px; }
-			.rs-following-table .rs-col-health { width: 58px; }
-			.rs-following-table .rs-col-type { width: 60px; }
-			.rs-following-table .rs-col-categories { width: 88px; }
-			.rs-following-table .rs-col-actions { width: 72px; text-align: right; }
-			.rs-following-table tbody tr:nth-child(even) td { background: #f6f7f7; }
-			.rs-type-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
-			.rs-type-rss         { background: #f0f6fc; color: #0073aa; }
-			.rs-type-activitypub { background: #f3f0ff; color: #6b21a8; }
-			.rs-type-wpcom       { background: #f0fff4; color: #166534; }
-			.rs-category-tag { display: inline-block; box-sizing: border-box; max-width: 100%; margin: 1px 3px 1px 0; padding: 1px 5px; overflow: hidden; border-radius: 3px; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; background: #fef9e7; color: #7c5e00; border: 1px solid #f0d060; }
-			.rs-error { color: #dc3232; }
-
-			/* Signal-strength indicator. Three bars; CSS selects how many are active
-			   and what colour, based on the parent's status modifier class. */
-			.rs-health { display: inline-flex; cursor: help; line-height: 0; }
-			.rs-health .rs-health-bar { fill: #dcdcde; transition: fill .15s; }
-			.rs-health-ok   .rs-health-bar-1,
-			.rs-health-ok   .rs-health-bar-2,
-			.rs-health-ok   .rs-health-bar-3 { fill: #00a32a; }
-			.rs-health-slow .rs-health-bar-1,
-			.rs-health-slow .rs-health-bar-2 { fill: #dba617; }
-			.rs-health-failed .rs-health-bar-1 { fill: #d63638; }
-			.rs-health-untested .rs-health-bar { fill: #c3c4c7; }
-			</style>
-
-			<div class="rs-following-layout">
+			<div class="heckl-following-layout">
 
 				<!-- Left column: controls -->
 				<div>
@@ -953,8 +904,8 @@ class Radical_Socials_Settings_Page {
 					$following_page    = get_page_by_path( 'following', OBJECT, 'page' );
 					$following_url     = $following_page ? get_permalink( $following_page->ID ) : home_url( '/following/' );
 					$following_public  = (bool) get_option( Radical_Socials_Following::PUBLIC_OPTION, false );
-					$purge_on_uninstall = (bool) get_option( 'rs_purge_on_uninstall', false );
-					$auto_pretty_permalinks = (bool) get_option( 'rs_auto_pretty_permalinks', false );
+					$purge_on_uninstall = (bool) get_option( 'heckl_purge_on_uninstall', false );
+					$auto_pretty_permalinks = (bool) get_option( 'heckl_auto_pretty_permalinks', false );
 					$is_plain_permalinks = '' === (string) get_option( 'permalink_structure', '' );
 					?>
 					<p class="description"><?php printf(
@@ -964,10 +915,10 @@ class Radical_Socials_Settings_Page {
 					); ?></p>
 
 					<form method="post" style="margin:16px 0 24px;padding:12px 14px;border:1px solid #dcdcde;border-radius:4px;background:#f6f7f7">
-						<?php wp_nonce_field( 'rs_following_privacy_save', 'rs_following_privacy_nonce' ); ?>
+						<?php wp_nonce_field( 'heckl_following_privacy_save', 'heckl_following_privacy_nonce' ); ?>
 						<strong style="display:block;margin-bottom:6px"><?php esc_html_e( 'Visibility and data', 'heckl-tools' ); ?></strong>
 						<label style="display:flex;gap:8px;align-items:flex-start">
-							<input type="checkbox" name="rs_following_public" value="1" <?php checked( $following_public ); ?> />
+							<input type="checkbox" name="heckl_following_public" value="1" <?php checked( $following_public ); ?> />
 							<span>
 								<?php esc_html_e( 'Show Following to visitors', 'heckl-tools' ); ?>
 								<br>
@@ -975,7 +926,7 @@ class Radical_Socials_Settings_Page {
 							</span>
 						</label>
 						<label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px">
-							<input type="checkbox" name="rs_purge_on_uninstall" value="1" <?php checked( $purge_on_uninstall ); ?> />
+							<input type="checkbox" name="heckl_purge_on_uninstall" value="1" <?php checked( $purge_on_uninstall ); ?> />
 							<span>
 								<?php esc_html_e( 'Delete feed data on uninstall', 'heckl-tools' ); ?>
 								<br>
@@ -983,7 +934,7 @@ class Radical_Socials_Settings_Page {
 							</span>
 						</label>
 						<label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px">
-							<input type="checkbox" name="rs_auto_pretty_permalinks" value="1" <?php checked( $auto_pretty_permalinks || ! $is_plain_permalinks ); ?> <?php disabled( ! $is_plain_permalinks ); ?> />
+							<input type="checkbox" name="heckl_auto_pretty_permalinks" value="1" <?php checked( $auto_pretty_permalinks || ! $is_plain_permalinks ); ?> <?php disabled( ! $is_plain_permalinks ); ?> />
 							<span>
 								<?php esc_html_e( 'Use pretty permalinks for Heckl URLs', 'heckl-tools' ); ?>
 								<br>
@@ -1007,7 +958,7 @@ class Radical_Socials_Settings_Page {
 					<p style="margin-top:12px">
 						<?php if ( Radical_Socials_WPCOM_OAuth::is_connected() ) : ?>
 							<?php esc_html_e( 'WP.com account connected.', 'heckl-tools' ); ?>
-							<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=heckl-settings&rs_action=wpcom_disconnect' ), 'rs_wpcom_disconnect' ) ); ?>" class="button button-small button-secondary" style="margin-left:8px"><?php esc_html_e( 'Disconnect', 'heckl-tools' ); ?></a>
+							<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=heckl-settings&heckl_action=wpcom_disconnect' ), 'heckl_wpcom_disconnect' ) ); ?>" class="button button-small button-secondary" style="margin-left:8px"><?php esc_html_e( 'Disconnect', 'heckl-tools' ); ?></a>
 						<?php else : ?>
 							<a href="<?php echo esc_url( Radical_Socials_WPCOM_OAuth::connect_url() ); ?>" class="button button-primary"><?php esc_html_e( 'Connect WP.com Account', 'heckl-tools' ); ?></a>
 							<span class="description" style="margin-left:8px"><?php esc_html_e( 'Add WP.com Reader.', 'heckl-tools' ); ?></span>
@@ -1017,7 +968,7 @@ class Radical_Socials_Settings_Page {
 
 					<?php $ap_active = class_exists( '\\Activitypub\\Collection\\Following' ); ?>
 					<div style="margin-top:16px">
-						<label for="rs-add-input"><strong><?php esc_html_e( 'Add feeds or accounts', 'heckl-tools' ); ?></strong></label>
+						<label for="heckl-add-input"><strong><?php esc_html_e( 'Add feeds or accounts', 'heckl-tools' ); ?></strong></label>
 						<p class="description" style="margin-bottom:8px">
 							<?php if ( $ap_active ) : ?>
 								<?php esc_html_e( 'One RSS URL or Fediverse handle per line.', 'heckl-tools' ); ?>
@@ -1032,15 +983,15 @@ class Radical_Socials_Settings_Page {
 								?>
 							<?php endif; ?>
 						</p>
-						<textarea id="rs-add-input" rows="5" class="large-text" placeholder="<?php echo esc_attr( $ap_active ? "https://example.com/feed\n@someone@mastodon.social" : 'https://example.com/feed' ); ?>"></textarea>
+						<textarea id="heckl-add-input" rows="5" class="large-text" placeholder="<?php echo esc_attr( $ap_active ? "https://example.com/feed\n@someone@mastodon.social" : 'https://example.com/feed' ); ?>"></textarea>
 						<p>
-							<button id="rs-add-btn" type="button" class="button button-primary"><?php esc_html_e( 'Add', 'heckl-tools' ); ?></button>
+							<button id="heckl-add-btn" type="button" class="button button-primary"><?php esc_html_e( 'Add', 'heckl-tools' ); ?></button>
 						</p>
-						<div id="rs-add-progress" hidden style="margin-top:8px">
-							<progress id="rs-add-progress-bar" value="0" max="100" style="width:100%;max-width:100%;display:block"></progress>
-							<span id="rs-add-progress-text"></span>
+						<div id="heckl-add-progress" hidden style="margin-top:8px">
+							<progress id="heckl-add-progress-bar" value="0" max="100" style="width:100%;max-width:100%;display:block"></progress>
+							<span id="heckl-add-progress-text"></span>
 						</div>
-						<div id="rs-add-failures" hidden style="margin-top:8px"></div>
+						<div id="heckl-add-failures" hidden style="margin-top:8px"></div>
 					</div>
 
 					<?php if ( $ap_active ) : ?>
@@ -1049,13 +1000,13 @@ class Radical_Socials_Settings_Page {
 						<p class="description" style="margin:4px 0 8px">
 							<?php esc_html_e( 'Add follows from a public Fediverse account.', 'heckl-tools' ); ?>
 						</p>
-						<input type="text" id="rs-import-account-input" class="regular-text" placeholder="@you@mastodon.social">
-						<button id="rs-import-account-btn" type="button" class="button button-secondary">
+						<input type="text" id="heckl-import-account-input" class="regular-text" placeholder="@you@mastodon.social">
+						<button id="heckl-import-account-btn" type="button" class="button button-secondary">
 							<?php esc_html_e( 'Import follows', 'heckl-tools' ); ?>
 						</button>
-						<div id="rs-import-account-progress" hidden style="margin-top:8px">
-							<progress id="rs-import-account-bar" value="0" max="100" style="width:100%;max-width:100%;display:block"></progress>
-							<span id="rs-import-account-text"></span>
+						<div id="heckl-import-account-progress" hidden style="margin-top:8px">
+							<progress id="heckl-import-account-bar" value="0" max="100" style="width:100%;max-width:100%;display:block"></progress>
+							<span id="heckl-import-account-text"></span>
 						</div>
 					</div>
 					<?php endif; ?>
@@ -1065,8 +1016,8 @@ class Radical_Socials_Settings_Page {
 						<p class="description" style="margin:4px 0 8px">
 							<?php esc_html_e( 'Upload feeds from another reader.', 'heckl-tools' ); ?>
 						</p>
-						<input type="file" id="rs-opml-file" accept=".opml,.xml" style="margin-bottom:8px;display:block">
-						<button id="rs-opml-import-btn" type="button" class="button button-secondary">
+						<input type="file" id="heckl-opml-file" accept=".opml,.xml" style="margin-bottom:8px;display:block">
+						<button id="heckl-opml-import-btn" type="button" class="button button-secondary">
 							<?php esc_html_e( 'Import OPML', 'heckl-tools' ); ?>
 						</button>
 					</div>
@@ -1076,7 +1027,7 @@ class Radical_Socials_Settings_Page {
 						<p class="description" style="margin:4px 0 8px">
 							<?php esc_html_e( 'Download your RSS subscriptions.', 'heckl-tools' ); ?>
 						</p>
-						<a id="rs-opml-export-link" class="button button-secondary" download>
+						<a id="heckl-opml-export-link" class="button button-secondary" download>
 							<?php esc_html_e( 'Export OPML', 'heckl-tools' ); ?>
 						</a>
 					</div>
@@ -1084,8 +1035,8 @@ class Radical_Socials_Settings_Page {
 
 				<!-- Right column: feeds table -->
 				<div>
-					<h3 id="rs-feeds-heading" style="margin-top:0"><?php esc_html_e( 'Feeds', 'heckl-tools' ); ?></h3>
-					<div id="rs-following-table-wrap"></div>
+					<h3 id="heckl-feeds-heading" style="margin-top:0"><?php esc_html_e( 'Feeds', 'heckl-tools' ); ?></h3>
+					<div id="heckl-following-table-wrap"></div>
 				</div>
 
 			</div>
@@ -1093,7 +1044,7 @@ class Radical_Socials_Settings_Page {
 			<?php elseif ( 'diagnostics' === $active_tab ) : ?>
 				<?php self::render_diagnostics_tab( (string) ( $notice['diag_result'] ?? '' ) ); ?>
 			<?php endif; ?>
-			</div><!-- .rs-settings -->
+			</div><!-- .heckl-settings -->
 		</div>
 		<?php
 	}
@@ -1108,7 +1059,7 @@ class Radical_Socials_Settings_Page {
 	public static function wizard_status(): array {
 		$ap_active = class_exists( '\\Activitypub\\Collection\\Following' );
 
-		$rss_count   = count( (array) get_option( 'rs_rss_subscriptions', [] ) );
+		$rss_count   = count( (array) get_option( 'heckl_rss_subscriptions', [] ) );
 		$ap_count    = $ap_active
 			? (int) ( new WP_Query( [ 'post_type' => 'ap_actor', 'fields' => 'ids', 'posts_per_page' => 1, 'no_found_rows' => false ] ) )->found_posts
 			: 0;
@@ -1146,12 +1097,12 @@ class Radical_Socials_Settings_Page {
 		$step_class = function ( int $n ) use ( $active_step, $step1_done, $step2_done, $step3_done ): string {
 			$done = [ 1 => $step1_done, 2 => $step2_done, 3 => $step3_done ][ $n ];
 			if ( $done ) {
-				return 'rs-welcome-step is-done';
+				return 'heckl-welcome-step is-done';
 			}
 			if ( $active_step === $n ) {
-				return 'rs-welcome-step is-active';
+				return 'heckl-welcome-step is-active';
 			}
-			return 'rs-welcome-step';
+			return 'heckl-welcome-step';
 		};
 
 		$step_marker = function ( int $n ) use ( $step1_done, $step2_done, $step3_done ): string {
@@ -1184,22 +1135,22 @@ class Radical_Socials_Settings_Page {
 			<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Handle saved.', 'heckl-tools' ); ?></p></div>
 		<?php endif; ?>
 
-		<ol class="rs-welcome-steps">
+		<ol class="heckl-welcome-steps">
 
 			<!-- Step 1: Install ActivityPub + handle -->
 			<li class="<?php echo esc_attr( $step_class( 1 ) ); ?>">
-				<div class="rs-welcome-step__marker"><?php echo esc_html( $step_marker( 1 ) ); ?></div>
-				<div class="rs-welcome-step__body">
+				<div class="heckl-welcome-step__marker"><?php echo esc_html( $step_marker( 1 ) ); ?></div>
+				<div class="heckl-welcome-step__body">
 					<h2><?php esc_html_e( 'Connect to the Fediverse', 'heckl-tools' ); ?></h2>
 					<?php if ( ! $ap_active ) : ?>
 						<p><?php esc_html_e( 'Install the ActivityPub plugin so you can follow Mastodon / Pixelfed / Peertube accounts and so your own posts reach the Fediverse. This is one click — we\'ll install it and bring you right back here.', 'heckl-tools' ); ?></p>
 						<p class="description" style="margin:-4px 0 12px">
 							<a href="https://en.wikipedia.org/wiki/Fediverse" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'What is the Fediverse?', 'heckl-tools' ); ?></a>
 						</p>
-						<div class="rs-welcome-step__actions">
+						<div class="heckl-welcome-step__actions">
 							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;margin:0">
-								<input type="hidden" name="action" value="rs_install_activitypub" />
-								<?php wp_nonce_field( 'rs_install_activitypub' ); ?>
+								<input type="hidden" name="action" value="heckl_install_activitypub" />
+								<?php wp_nonce_field( 'heckl_install_activitypub' ); ?>
 								<button type="submit" class="button button-primary"><?php esc_html_e( 'Install &amp; activate ActivityPub', 'heckl-tools' ); ?></button>
 							</form>
 						</div>
@@ -1211,12 +1162,12 @@ class Radical_Socials_Settings_Page {
 						$host = wp_parse_url( home_url(), PHP_URL_HOST );
 						?>
 						<p><?php esc_html_e( 'ActivityPub is active. This is the @handle that other Fediverse accounts will use to follow you:', 'heckl-tools' ); ?></p>
-						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="rs-welcome-step__actions" style="width:100%">
-							<input type="hidden" name="action" value="rs_save_handle" />
-							<?php wp_nonce_field( 'rs_save_handle' ); ?>
-							<span class="rs-welcome-handle-preview">@<input
+						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="heckl-welcome-step__actions" style="width:100%">
+							<input type="hidden" name="action" value="heckl_save_handle" />
+							<?php wp_nonce_field( 'heckl_save_handle' ); ?>
+							<span class="heckl-welcome-handle-preview">@<input
 								type="text"
-								name="rs_blog_identifier"
+								name="heckl_blog_identifier"
 								value="<?php echo esc_attr( $blog_identifier ); ?>"
 								pattern="[A-Za-z0-9_\-]+"
 								maxlength="40"
@@ -1230,12 +1181,12 @@ class Radical_Socials_Settings_Page {
 
 			<!-- Step 2: Add accounts to follow -->
 			<li class="<?php echo esc_attr( $step_class( 2 ) ); ?>">
-				<div class="rs-welcome-step__marker"><?php echo esc_html( $step_marker( 2 ) ); ?></div>
-				<div class="rs-welcome-step__body">
+				<div class="heckl-welcome-step__marker"><?php echo esc_html( $step_marker( 2 ) ); ?></div>
+				<div class="heckl-welcome-step__body">
 					<h2><?php esc_html_e( 'Add accounts to follow', 'heckl-tools' ); ?></h2>
 					<p><?php esc_html_e( 'Add the feeds that will show on the following page', 'heckl-tools' ); ?></p>
 
-					<div class="rs-welcome-step__addbox">
+					<div class="heckl-welcome-step__addbox">
 						<strong><?php esc_html_e( 'Paste feeds or handles', 'heckl-tools' ); ?></strong>
 						<p class="description" style="margin:4px 0 8px">
 							<?php if ( $ap_active ) : ?>
@@ -1244,45 +1195,45 @@ class Radical_Socials_Settings_Page {
 								<?php esc_html_e( 'One per line. RSS/Atom feed URLs.', 'heckl-tools' ); ?>
 							<?php endif; ?>
 						</p>
-						<textarea id="rs-add-input" rows="4" class="large-text" placeholder="<?php echo esc_attr( $ap_active ? "https://example.com/feed\n@someone@mastodon.social" : 'https://example.com/feed' ); ?>"></textarea>
+						<textarea id="heckl-add-input" rows="4" class="large-text" placeholder="<?php echo esc_attr( $ap_active ? "https://example.com/feed\n@someone@mastodon.social" : 'https://example.com/feed' ); ?>"></textarea>
 						<p style="margin-top:6px">
-							<button id="rs-add-btn" type="button" class="button button-primary"><?php esc_html_e( 'Add', 'heckl-tools' ); ?></button>
+							<button id="heckl-add-btn" type="button" class="button button-primary"><?php esc_html_e( 'Add', 'heckl-tools' ); ?></button>
 						</p>
-						<div id="rs-add-progress" hidden style="margin-top:8px">
-							<progress id="rs-add-progress-bar" value="0" max="100" style="width:100%;max-width:100%;display:block"></progress>
-							<span id="rs-add-progress-text"></span>
+						<div id="heckl-add-progress" hidden style="margin-top:8px">
+							<progress id="heckl-add-progress-bar" value="0" max="100" style="width:100%;max-width:100%;display:block"></progress>
+							<span id="heckl-add-progress-text"></span>
 						</div>
-						<div id="rs-add-failures" hidden style="margin-top:8px"></div>
+						<div id="heckl-add-failures" hidden style="margin-top:8px"></div>
 					</div>
 
 					<?php if ( $ap_active ) : ?>
-					<div class="rs-welcome-step__addbox">
+					<div class="heckl-welcome-step__addbox">
 						<strong><?php esc_html_e( 'Import fediverse followed accounts', 'heckl-tools' ); ?></strong>
 						<p class="description" style="margin:4px 0 8px">
 							<?php esc_html_e( 'The account\'s "Show following" privacy setting must be on.. Works for Mastodon or any ActivityPub account', 'heckl-tools' ); ?>
 						</p>
-						<input type="text" id="rs-import-account-input" class="regular-text" placeholder="@you@mastodon.social" />
-						<button id="rs-import-account-btn" type="button" class="button button-secondary"><?php esc_html_e( 'Import follows', 'heckl-tools' ); ?></button>
-						<div id="rs-import-account-progress" hidden style="margin-top:8px">
-							<progress id="rs-import-account-bar" value="0" max="100" style="width:100%;max-width:100%;display:block"></progress>
-							<span id="rs-import-account-text"></span>
+						<input type="text" id="heckl-import-account-input" class="regular-text" placeholder="@you@mastodon.social" />
+						<button id="heckl-import-account-btn" type="button" class="button button-secondary"><?php esc_html_e( 'Import follows', 'heckl-tools' ); ?></button>
+						<div id="heckl-import-account-progress" hidden style="margin-top:8px">
+							<progress id="heckl-import-account-bar" value="0" max="100" style="width:100%;max-width:100%;display:block"></progress>
+							<span id="heckl-import-account-text"></span>
 						</div>
 					</div>
 					<?php endif; ?>
 
-					<div class="rs-welcome-step__addbox">
+					<div class="heckl-welcome-step__addbox">
 						<strong><?php esc_html_e( 'Import an OPML file', 'heckl-tools' ); ?></strong>
 						<p class="description" style="margin:4px 0 8px">
 							<?php esc_html_e( 'Export your RSS feeds from another reader and import them here.', 'heckl-tools' ); ?>
 						</p>
 						<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-							<input type="file" id="rs-opml-file" accept=".opml,.xml" />
-							<button id="rs-opml-import-btn" type="button" class="button button-secondary"><?php esc_html_e( 'Import OPML', 'heckl-tools' ); ?></button>
+							<input type="file" id="heckl-opml-file" accept=".opml,.xml" />
+							<button id="heckl-opml-import-btn" type="button" class="button button-secondary"><?php esc_html_e( 'Import OPML', 'heckl-tools' ); ?></button>
 						</div>
 					</div>
 
 					<?php if ( class_exists( 'Radical_Socials_WPCOM_OAuth' ) && Radical_Socials_WPCOM_OAuth::is_configured() ) : ?>
-					<div class="rs-welcome-step__addbox">
+					<div class="heckl-welcome-step__addbox">
 						<strong><?php esc_html_e( 'Connect your WordPress.com account', 'heckl-tools' ); ?></strong>
 						<p class="description" style="margin:4px 0 8px">
 							<?php esc_html_e( 'We\'ll pull the sites you follow in the WP.com Reader and add them as feeds. Tokens stay on this site only.', 'heckl-tools' ); ?>
@@ -1299,12 +1250,12 @@ class Radical_Socials_Settings_Page {
 			</li>
 
 			<!-- Step 3: First post -->
-			<li id="rs-welcome-step-3" class="<?php echo esc_attr( $step_class( 3 ) ); ?>">
-				<div class="rs-welcome-step__marker"><?php echo esc_html( $step_marker( 3 ) ); ?></div>
-				<div class="rs-welcome-step__body">
+			<li id="heckl-welcome-step-3" class="<?php echo esc_attr( $step_class( 3 ) ); ?>">
+				<div class="heckl-welcome-step__marker"><?php echo esc_html( $step_marker( 3 ) ); ?></div>
+				<div class="heckl-welcome-step__body">
 					<h2><?php esc_html_e( 'Post your first post', 'heckl-tools' ); ?></h2>
 					<p><?php esc_html_e( 'That\'s it! Start writing your first post from your home page, it appears in your own timeline and (with ActivityPub on) lands in your Fediverse followers\' feeds.', 'heckl-tools' ); ?></p>
-					<div class="rs-welcome-step__actions">
+					<div class="heckl-welcome-step__actions">
 						<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="button button-primary"><?php esc_html_e( 'Go to my home page', 'heckl-tools' ); ?></a>
 					</div>
 				</div>
@@ -1322,10 +1273,9 @@ class Radical_Socials_Settings_Page {
 		if ( ! current_user_can( 'install_plugins' ) ) {
 			wp_die( esc_html__( 'You do not have permission to install plugins.', 'heckl-tools' ) );
 		}
-		check_admin_referer( 'rs_install_activitypub' );
+		check_admin_referer( 'heckl_install_activitypub' );
 
 		require_once ABSPATH . 'wp-admin/includes/file.php';
-		require_once ABSPATH . 'wp-admin/includes/misc.php';
 		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
 		require_once ABSPATH . 'wp-admin/includes/plugin-install.php';
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
@@ -1400,9 +1350,9 @@ class Radical_Socials_Settings_Page {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'You do not have permission to do that.', 'heckl-tools' ) );
 		}
-		check_admin_referer( 'rs_save_handle' );
+		check_admin_referer( 'heckl_save_handle' );
 
-		$candidate = isset( $_POST['rs_blog_identifier'] ) ? sanitize_user( wp_unslash( $_POST['rs_blog_identifier'] ), true ) : '';
+		$candidate = isset( $_POST['heckl_blog_identifier'] ) ? sanitize_user( wp_unslash( $_POST['heckl_blog_identifier'] ), true ) : '';
 		if ( '' !== $candidate ) {
 			update_option( 'activitypub_blog_identifier', $candidate );
 		}
@@ -1413,12 +1363,12 @@ class Radical_Socials_Settings_Page {
 
 	private static function render_diagnostics_tab( string $result = '' ): void {
 		$lock          = get_transient( Radical_Socials_Following::REFRESH_LOCK );
-		$last          = (int) get_option( 'rs_last_feed_fetch', 0 );
+		$last          = (int) get_option( 'heckl_last_feed_fetch', 0 );
 		$next_ts       = wp_next_scheduled( Radical_Socials_Following::FETCH_HOOK );
 		$schedule_name = $next_ts ? wp_get_schedule( Radical_Socials_Following::FETCH_HOOK ) : '';
-		$rss_count     = count( (array) get_option( 'rs_rss_subscriptions', [] ) );
+		$rss_count     = count( (array) get_option( 'heckl_rss_subscriptions', [] ) );
 		$ap_count      = count( get_posts( [ 'post_type' => 'ap_actor', 'numberposts' => -1, 'fields' => 'ids', 'post_status' => 'any' ] ) );
-		$item_total    = (int) wp_count_posts( 'rs_feed_item' )->publish;
+		$item_total    = (int) wp_count_posts( 'heckl_feed_item' )->publish;
 
 		$cron_disabled = defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON;
 		$mem_bytes     = wp_convert_hr_to_bytes( (string) ini_get( 'memory_limit' ) );
@@ -1426,12 +1376,12 @@ class Radical_Socials_Settings_Page {
 
 		// Surface single-shot post-action messages stored in short-lived transients.
 		// $result is passed in by the caller after take_notice() — no $_GET read.
-		$elapsed  = get_transient( 'rs_diag_fetch_elapsed' );
-		$err_msg  = get_transient( 'rs_diag_fetch_error' );
-		$test     = get_transient( 'rs_diag_test_result' );
-		if ( $elapsed !== false ) delete_transient( 'rs_diag_fetch_elapsed' );
-		if ( $err_msg !== false ) delete_transient( 'rs_diag_fetch_error' );
-		if ( $test    !== false ) delete_transient( 'rs_diag_test_result' );
+		$elapsed  = get_transient( 'heckl_diag_fetch_elapsed' );
+		$err_msg  = get_transient( 'heckl_diag_fetch_error' );
+		$test     = get_transient( 'heckl_diag_test_result' );
+		if ( $elapsed !== false ) delete_transient( 'heckl_diag_fetch_elapsed' );
+		if ( $err_msg !== false ) delete_transient( 'heckl_diag_fetch_error' );
+		if ( $test    !== false ) delete_transient( 'heckl_diag_test_result' );
 
 		// Build the warning list.
 		$warnings = [];
@@ -1477,7 +1427,7 @@ class Radical_Socials_Settings_Page {
 		// Action result notice.
 		$result_notice = self::diagnostics_result_notice( $result, $elapsed, $err_msg, $test );
 
-		$nonce = wp_create_nonce( 'rs_diagnostics_action' );
+		$nonce = wp_create_nonce( 'heckl_diagnostics_action' );
 		?>
 		<div style="margin-top:20px;max-width:840px">
 			<?php echo wp_kses_post( $result_notice ); ?>
@@ -1564,40 +1514,40 @@ class Radical_Socials_Settings_Page {
 			<p class="description"><?php esc_html_e( 'When cron isn\'t firing, use these manually.', 'heckl-tools' ); ?></p>
 
 			<form method="post" style="display:inline-block;margin-right:8px">
-				<input type="hidden" name="rs_diagnostics_nonce" value="<?php echo esc_attr( $nonce ); ?>" />
-				<input type="hidden" name="rs_diag" value="queue_fetch" />
+				<input type="hidden" name="heckl_diagnostics_nonce" value="<?php echo esc_attr( $nonce ); ?>" />
+				<input type="hidden" name="heckl_diag" value="queue_fetch" />
 				<button type="submit" class="button button-secondary"><?php esc_html_e( 'Queue a refresh', 'heckl-tools' ); ?></button>
 			</form>
 
 			<form method="post" style="display:inline-block;margin-right:8px"
 				  onsubmit="this.querySelector('button').disabled = true; this.querySelector('button').textContent = <?php echo wp_json_encode( __( 'Fetching… this may take up to 10 minutes', 'heckl-tools' ) ); ?>;">
-				<input type="hidden" name="rs_diagnostics_nonce" value="<?php echo esc_attr( $nonce ); ?>" />
-				<input type="hidden" name="rs_diag" value="run_fetch" />
+				<input type="hidden" name="heckl_diagnostics_nonce" value="<?php echo esc_attr( $nonce ); ?>" />
+				<input type="hidden" name="heckl_diag" value="run_fetch" />
 				<button type="submit" class="button button-primary"><?php esc_html_e( 'Run fetch now (inline)', 'heckl-tools' ); ?></button>
 			</form>
 
 			<form method="post" style="display:inline-block;margin-right:8px">
-				<input type="hidden" name="rs_diagnostics_nonce" value="<?php echo esc_attr( $nonce ); ?>" />
-				<input type="hidden" name="rs_diag" value="clear_lock" />
+				<input type="hidden" name="heckl_diagnostics_nonce" value="<?php echo esc_attr( $nonce ); ?>" />
+				<input type="hidden" name="heckl_diag" value="clear_lock" />
 				<button type="submit" class="button button-secondary"<?php disabled( $lock === false ); ?>><?php esc_html_e( 'Clear refresh lock', 'heckl-tools' ); ?></button>
 			</form>
 
 			<form method="post" style="display:inline-block;margin-right:8px">
-				<input type="hidden" name="rs_diagnostics_nonce" value="<?php echo esc_attr( $nonce ); ?>" />
-				<input type="hidden" name="rs_diag" value="test_feed" />
+				<input type="hidden" name="heckl_diagnostics_nonce" value="<?php echo esc_attr( $nonce ); ?>" />
+				<input type="hidden" name="heckl_diag" value="test_feed" />
 				<button type="submit" class="button button-secondary"<?php disabled( 0 === $rss_count ); ?>><?php esc_html_e( 'Test one feed', 'heckl-tools' ); ?></button>
 			</form>
 
 			<?php
-			$feed_test    = (array) get_transient( 'rs_diag_feed_test_results' );
+			$feed_test    = (array) get_transient( 'heckl_diag_feed_test_results' );
 			$feed_rows    = isset( $feed_test['rows'] ) && is_array( $feed_test['rows'] ) ? $feed_test['rows'] : [];
 			$feed_total   = isset( $feed_test['total_targets'] ) ? (int) $feed_test['total_targets'] : ( $rss_count + $ap_count );
 			$feed_tested  = count( $feed_rows );
 			$feed_remaining = max( 0, $feed_total - $feed_tested );
 			?>
 			<form method="post" style="display:inline-block;margin-right:8px">
-				<input type="hidden" name="rs_diagnostics_nonce" value="<?php echo esc_attr( $nonce ); ?>" />
-				<input type="hidden" name="rs_diag" value="test_feeds" />
+				<input type="hidden" name="heckl_diagnostics_nonce" value="<?php echo esc_attr( $nonce ); ?>" />
+				<input type="hidden" name="heckl_diag" value="test_feeds" />
 				<button type="submit" class="button button-secondary"<?php disabled( 0 === ( $rss_count + $ap_count ) || 0 === $feed_remaining ); ?>>
 					<?php
 					if ( 0 === $feed_tested ) {
@@ -1616,8 +1566,8 @@ class Radical_Socials_Settings_Page {
 
 			<?php if ( $feed_tested > 0 ) : ?>
 				<form method="post" style="display:inline-block">
-					<input type="hidden" name="rs_diagnostics_nonce" value="<?php echo esc_attr( $nonce ); ?>" />
-					<input type="hidden" name="rs_diag" value="reset_feed_test" />
+					<input type="hidden" name="heckl_diagnostics_nonce" value="<?php echo esc_attr( $nonce ); ?>" />
+					<input type="hidden" name="heckl_diag" value="reset_feed_test" />
 					<button type="submit" class="button-link" style="color:#888"><?php esc_html_e( 'Reset feed-test results', 'heckl-tools' ); ?></button>
 				</form>
 			<?php endif; ?>

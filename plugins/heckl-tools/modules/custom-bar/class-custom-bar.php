@@ -18,13 +18,13 @@ defined( 'ABSPATH' ) || exit;
 
 class Radical_Socials_Custom_Bar {
 
-	/** Collapsed rail width (px). Kept in sync with --rs-w in the CSS. */
+	/** Collapsed rail width (px). Kept in sync with --heckl-w in the CSS. */
 	const W = 48;
 
-	/** Mobile bar height (px). Kept in sync with --rs-h in the CSS. */
+	/** Mobile bar height (px). Kept in sync with --heckl-h in the CSS. */
 	const H = 48;
 
-	/** Desktop breakpoint (px). Kept in sync with --rs-bp-* in the CSS. */
+	/** Desktop breakpoint (px). Kept in sync with --heckl-bp-* in the CSS. */
 	const BREAKPOINT = 1200;
 
 	public static function init(): void {
@@ -41,7 +41,6 @@ class Radical_Socials_Custom_Bar {
 
 		// Everything below only matters for logged-in users.
 		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'enqueue'        ] );
-		add_action( 'wp_head',            [ __CLASS__, 'offset_styles'  ], 1 );
 		add_action( 'wp_footer',          [ __CLASS__, 'render'         ] );
 		add_filter( 'body_class',         [ __CLASS__, 'add_body_class' ] );
 	}
@@ -100,7 +99,7 @@ class Radical_Socials_Custom_Bar {
 				'label' => __( 'Create', 'heckl-tools' ),
 				'url'   => '#',
 				'icon'  => 'dashicons-plus-alt2',
-				'attrs' => [ 'data-rs-action' => 'open-editor' ],
+				'attrs' => [ 'data-heckl-action' => 'open-editor' ],
 			];
 		}
 
@@ -135,38 +134,22 @@ class Radical_Socials_Custom_Bar {
 		}
 
 		wp_enqueue_style(
-			'rs-custom-bar',
+			'heckl-custom-bar',
 			plugin_dir_url( __FILE__ ) . 'assets/custom-bar.css',
 			[ 'dashicons' ],
 			filemtime( __DIR__ . '/assets/custom-bar.css' ) ?: '1'
 		);
-	}
 
-	/**
-	 * Output a small inline style block that displaces page content so the
-	 * bar never overlaps it when collapsed.
-	 *
-	 * Desktop → push content right by the collapsed rail width.
-	 * Mobile  → push content up by the bar height.
-	 */
-	public static function offset_styles(): void {
-		if ( ! is_user_logged_in() ) {
-			return;
-		}
-
-		$w  = self::W;
-		$h  = self::H;
-		$bp = self::BREAKPOINT;
-		?>
-		<style id="rs-bar-offset">
-		@media (min-width: <?php echo (int) ( $bp + 1 ); ?>px) {
-			html { margin-left: <?php echo (int) $w; ?>px; }
-		}
-		@media (max-width: <?php echo (int) $bp; ?>px) {
-			body { padding-bottom: <?php echo (int) $h; ?>px; }
-		}
-		</style>
-		<?php
+		wp_add_inline_style(
+			'heckl-custom-bar',
+			sprintf(
+				'@media (min-width: %1$dpx) { html { margin-left: %2$dpx; } } @media (max-width: %3$dpx) { body { padding-bottom: %4$dpx; } }',
+				(int) ( self::BREAKPOINT + 1 ),
+				(int) self::W,
+				(int) self::BREAKPOINT,
+				(int) self::H
+			)
+		);
 	}
 
 	/**
@@ -178,21 +161,21 @@ class Radical_Socials_Custom_Bar {
 		}
 
 		$user      = wp_get_current_user();
-		$avatar_id = (int) get_user_meta( $user->ID, 'rs_profile_avatar_id', true );
+		$avatar_id = (int) get_user_meta( $user->ID, 'heckl_profile_avatar_id', true );
 		$avatar    = $avatar_id ? wp_get_attachment_image(
 			$avatar_id,
 			[ self::H, self::H ],
 			false,
 			[
-				'class' => 'rs-bar-avatar',
+				'class' => 'heckl-bar-avatar',
 				'alt'   => esc_attr__( 'Profile', 'heckl-tools' ),
 			]
 		) : '';
-		$avatar    = $avatar ?: get_avatar( $user->ID, self::H, '', esc_attr__( 'Profile', 'heckl-tools' ), [ 'class' => 'rs-bar-avatar' ] );
+		$avatar    = $avatar ?: get_avatar( $user->ID, self::H, '', esc_attr__( 'Profile', 'heckl-tools' ), [ 'class' => 'heckl-bar-avatar' ] );
 		$pending   = (int) wp_count_comments()->moderated;
 		$links     = self::get_links();
 		?>
-		<nav id="rs-bar" aria-label="<?php esc_attr_e( 'Site navigation', 'heckl-tools' ); ?>">
+		<nav id="heckl-bar" aria-label="<?php esc_attr_e( 'Site navigation', 'heckl-tools' ); ?>">
 			<ul>
 				<?php foreach ( $links as $link ) : ?>
 					<?php
@@ -202,18 +185,18 @@ class Radical_Socials_Custom_Bar {
 						: $link['label'];
 					?>
 					<li>
-						<a href="<?php echo esc_url( $link['url'] ); ?>" class="rs-bar-link" aria-label="<?php echo esc_attr( $aria ); ?>"<?php foreach ( $link['attrs'] ?? [] as $name => $value ) : ?> <?php echo esc_attr( $name ); ?>="<?php echo esc_attr( $value ); ?>"<?php endforeach; ?>>
+						<a href="<?php echo esc_url( $link['url'] ); ?>" class="heckl-bar-link" aria-label="<?php echo esc_attr( $aria ); ?>"<?php foreach ( $link['attrs'] ?? [] as $name => $value ) : ?> <?php echo esc_attr( $name ); ?>="<?php echo esc_attr( $value ); ?>"<?php endforeach; ?>>
 							<?php if ( 'profile' === $link['id'] ) : ?>
 								<?php echo wp_kses_post( $avatar ); ?>
 							<?php elseif ( 'comments' === $link['id'] && $pending > 0 ) : ?>
-								<span class="rs-bar-icon-wrap">
+								<span class="heckl-bar-icon-wrap">
 									<span class="dashicons <?php echo esc_attr( $link['icon'] ); ?>" aria-hidden="true"></span>
-									<span class="rs-bar-badge" aria-hidden="true"><?php echo $pending > 99 ? '99+' : (int) $pending; ?></span>
+									<span class="heckl-bar-badge" aria-hidden="true"><?php echo $pending > 99 ? '99+' : (int) $pending; ?></span>
 								</span>
 							<?php else : ?>
 								<span class="dashicons <?php echo esc_attr( $link['icon'] ); ?>" aria-hidden="true"></span>
 							<?php endif; ?>
-							<span class="rs-bar-label"><?php echo esc_html( $link['label'] ); ?></span>
+							<span class="heckl-bar-label"><?php echo esc_html( $link['label'] ); ?></span>
 						</a>
 					</li>
 				<?php endforeach; ?>
@@ -230,7 +213,7 @@ class Radical_Socials_Custom_Bar {
 	 */
 	public static function add_body_class( array $classes ): array {
 		if ( is_user_logged_in() ) {
-			$classes[] = 'has-rs-bar';
+			$classes[] = 'has-heckl-bar';
 		}
 
 		return $classes;

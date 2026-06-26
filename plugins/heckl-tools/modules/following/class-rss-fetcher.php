@@ -260,7 +260,7 @@ class Radical_Socials_RSS_Fetcher {
 	 * replacements for any that return errors. Returns the number updated.
 	 */
 	public static function migrate_dead_urls(): int {
-		$subs    = (array) get_option( 'rs_rss_subscriptions', [] );
+		$subs    = (array) get_option( 'heckl_rss_subscriptions', [] );
 		$updated = 0;
 		foreach ( $subs as &$sub ) {
 			if ( ! self::is_safe_remote_url( $sub['url'] ) ) {
@@ -279,7 +279,7 @@ class Radical_Socials_RSS_Fetcher {
 		}
 		unset( $sub );
 		if ( $updated ) {
-			update_option( 'rs_rss_subscriptions', $subs, false );
+			update_option( 'heckl_rss_subscriptions', $subs, false );
 		}
 		return $updated;
 	}
@@ -407,7 +407,7 @@ class Radical_Socials_RSS_Fetcher {
 	 * Used by fetch() when it discovers a better URL during a cron run.
 	 */
 	private static function save_url_update( string $old_url, string $new_url ): void {
-		$subs = (array) get_option( 'rs_rss_subscriptions', [] );
+		$subs = (array) get_option( 'heckl_rss_subscriptions', [] );
 		foreach ( $subs as &$sub ) {
 			if ( $sub['url'] === $old_url ) {
 				$sub['url'] = $new_url;
@@ -415,7 +415,7 @@ class Radical_Socials_RSS_Fetcher {
 			}
 		}
 		unset( $sub );
-		update_option( 'rs_rss_subscriptions', $subs, false );
+		update_option( 'heckl_rss_subscriptions', $subs, false );
 	}
 
 	private static function extract_first_image( string $html ): string {
@@ -430,7 +430,7 @@ class Radical_Socials_RSS_Fetcher {
 			'timeout'            => self::HTTP_TIMEOUT,
 			'redirection'        => self::HTTP_REDIRECTION,
 			'reject_unsafe_urls' => true,
-			'user-agent'         => 'Mozilla/5.0 (compatible; Heckl/1.0; +https://github.com/Automattic/heckl)',
+			'user-agent'         => 'Mozilla/5.0 (compatible; Heckl/1.0; +https://automattic.com)',
 		];
 	}
 
@@ -453,7 +453,7 @@ class Radical_Socials_RSS_Fetcher {
 	 * @return string[]
 	 */
 	public static function get_feed_urls(): array {
-		$subs = (array) get_option( 'rs_rss_subscriptions', [] );
+		$subs = (array) get_option( 'heckl_rss_subscriptions', [] );
 		return array_values( array_filter( array_column( $subs, 'url' ), [ __CLASS__, 'is_safe_remote_url' ] ) );
 	}
 }

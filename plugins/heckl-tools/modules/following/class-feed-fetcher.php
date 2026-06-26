@@ -3,7 +3,7 @@
  * Feed Fetcher
  *
  * Orchestrates all feed sources (WP.com Reader, RSS, ActivityPub), upserts
- * the results into the rs_feed_item CPT, and enforces the rolling item cap.
+ * the results into the heckl_feed_item CPT, and enforces the rolling item cap.
  *
  * Upsert key: post_name = md5(item URL) — prevents duplicates across runs.
  *
@@ -39,7 +39,7 @@ class Radical_Socials_Feed_Fetcher {
 			self::prune_orphaned_items();
 			self::enforce_cap();
 
-			update_option( 'rs_last_feed_fetch', time(), false );
+			update_option( 'heckl_last_feed_fetch', time(), false );
 		} finally {
 			if ( class_exists( 'Radical_Socials_Following' ) ) {
 				delete_transient( Radical_Socials_Following::REFRESH_LOCK );
@@ -53,12 +53,12 @@ class Radical_Socials_Feed_Fetcher {
 	 * routinely kill PHP at 300s — processing 100+ feeds serially in one tick
 	 * runs out of time, the process gets killed mid-fetch, and the refresh
 	 * lock can end up stranded. AP outbox polling already chunks to 10/run
-	 * via `rs_ap_outbox_offset`; we mirror that shape here.
+	 * via `heckl_ap_outbox_offset`; we mirror that shape here.
 	 */
 	const RSS_FETCH_PER_RUN = 10;
 
 	private static function fetch_all_rss(): array {
-		$subs    = (array) get_option( 'rs_rss_subscriptions', [] );
+		$subs    = (array) get_option( 'heckl_rss_subscriptions', [] );
 		$items   = [];
 		$updated = false;
 
@@ -71,14 +71,14 @@ class Radical_Socials_Feed_Fetcher {
 		// FETCH_INTERVAL = 15 min and RSS_FETCH_PER_RUN = 10, an account with
 		// ~200 feeds cycles fully every ~5 hours, which matches the cadence
 		// most social/news feeds publish at without saturating shared hosts.
-		$offset = (int) get_option( 'rs_rss_fetch_offset', 0 );
+		$offset = (int) get_option( 'heckl_rss_fetch_offset', 0 );
 		$offset = $total ? ( $offset % $total ) : 0;
 		$slice  = array_slice( $subs, $offset, self::RSS_FETCH_PER_RUN );
 
 		// Advance the offset *before* doing the work, so a PHP timeout
 		// mid-batch still rotates us forward next run (avoids the same flaky
 		// feed permanently blocking everything behind it).
-		update_option( 'rs_rss_fetch_offset', ( $offset + count( $slice ) ) % $total, false );
+		update_option( 'heckl_rss_fetch_offset', ( $offset + count( $slice ) ) % $total, false );
 
 		// Map slice indices back to the original $subs offsets so we can
 		// write back title/source_url backfills correctly.
@@ -145,7 +145,7 @@ class Radical_Socials_Feed_Fetcher {
 		}
 
 		if ( $updated ) {
-			update_option( 'rs_rss_subscriptions', $subs, false );
+			update_option( 'heckl_rss_subscriptions', $subs, false );
 		}
 
 		return $items;
@@ -154,7 +154,7 @@ class Radical_Socials_Feed_Fetcher {
 	/**
 	 * Stamp an RSS subscription with health info derived from the most recent
 	 * fetch. Mutates the subscription record in place so the caller's bulk
-	 * write to rs_rss_subscriptions persists it.
+	 * write to heckl_rss_subscriptions persists it.
 	 *
 	 * @param array<string, mixed> $sub  Subscription array (by-ref).
 	 * @param array{status:string,error:string,elapsed_ms:int} $health
@@ -213,7 +213,7 @@ class Radical_Socials_Feed_Fetcher {
 		$placeholders = implode( ',', array_fill( 0, count( $guids ), '%s' ) );
 		$rows         = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT ID, post_name FROM {$wpdb->posts} WHERE post_type = 'rs_feed_item' AND post_name IN ($placeholders)", // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+				"SELECT ID, post_name FROM {$wpdb->posts} WHERE post_type = 'heckl_feed_item' AND post_name IN ($placeholders)", // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 				...$guids
 			)
 		);
@@ -228,12 +228,12 @@ class Radical_Socials_Feed_Fetcher {
 		$guid = $item['guid'] ?? md5( $item['url'] ?? uniqid() );
 
 		if ( null === $existing_id ) {
-			$rows        = get_posts( [ 'post_type' => 'rs_feed_item', 'post_status' => 'any', 'name' => $guid, 'fields' => 'ids', 'numberposts' => 1 ] );
+			$rows        = get_posts( [ 'post_type' => 'heckl_feed_item', 'post_status' => 'any', 'name' => $guid, 'fields' => 'ids', 'numberposts' => 1 ] );
 			$existing_id = $rows[0] ?? null;
 		}
 
 		$post_data = [
-			'post_type'    => 'rs_feed_item',
+			'post_type'    => 'heckl_feed_item',
 			'post_status'  => 'publish',
 			'post_name'    => $guid,
 			// Leave the title empty when the source has no real title rather
@@ -242,10 +242,8 @@ class Radical_Socials_Feed_Fetcher {
 			// the post-title block in that case.
 			'post_title'   => (string) ( $item['title'] ?? '' ),
 			// Sanitise to the allowlist, then force rel="noopener" onto any
-			// link the remote feed opens in a new tab — without it, target="_blank"
-			// links in attacker-controlled feed content can reach back via
-			// window.opener (reverse tabnabbing).
-			'post_content' => wp_targeted_link_rel( wp_kses( $item['content'] ?? $item['excerpt'] ?? '', self::kses_allowlist() ) ),
+			// link the remote feed opens in a new tab.
+			'post_content' => self::add_noopener_to_targeted_links( wp_kses( $item['content'] ?? $item['excerpt'] ?? '', self::kses_allowlist() ) ),
 			'post_excerpt' => wp_strip_all_tags( $item['excerpt'] ?? '' ),
 			// Cap parsed date at "tomorrow" so a hostile feed publishing
 			// far-future timestamps can't pin itself permanently at the
@@ -257,14 +255,14 @@ class Radical_Socials_Feed_Fetcher {
 				time() + DAY_IN_SECONDS
 			) ) ),
 			'meta_input'   => [
-				'_rs_item_url'          => $item['url'] ?? '',
-				'_rs_item_source_url'   => $item['source_url'] ?? '',
-				'_rs_item_feed_url'     => $item['feed_url'] ?? '',
-				'_rs_item_thumbnail'    => $item['thumbnail_url'] ?? '',
-				'_rs_item_feed_type'    => $item['feed_type'] ?? 'rss',
-				'_rs_author_name'       => $item['author_name'] ?? '',
-				'_rs_author_icon_url'   => $item['author_icon_url'] ?? '',
-				'_rs_author_url'        => $item['author_url'] ?? '',
+				'_heckl_item_url'          => $item['url'] ?? '',
+				'_heckl_item_source_url'   => $item['source_url'] ?? '',
+				'_heckl_item_feed_url'     => $item['feed_url'] ?? '',
+				'_heckl_item_thumbnail'    => $item['thumbnail_url'] ?? '',
+				'_heckl_item_feed_type'    => $item['feed_type'] ?? 'rss',
+				'_heckl_author_name'       => $item['author_name'] ?? '',
+				'_heckl_author_icon_url'   => $item['author_icon_url'] ?? '',
+				'_heckl_author_url'        => $item['author_url'] ?? '',
 			],
 		];
 
@@ -280,24 +278,48 @@ class Radical_Socials_Feed_Fetcher {
 			// Assign source and type taxonomy terms.
 			$source_name = $item['source_name'] ?: wp_parse_url( $item['source_url'] ?? '', PHP_URL_HOST );
 			if ( $source_name ) {
-				wp_set_post_terms( $post_id, [ $source_name ], 'rs_source' );
+				wp_set_post_terms( $post_id, [ $source_name ], 'heckl_source' );
 			}
 			if ( ! empty( $item['feed_type'] ) ) {
 				$term_id = self::resolve_feed_type_term( (string) $item['feed_type'] );
 				if ( $term_id ) {
-					wp_set_post_terms( $post_id, [ $term_id ], 'rs_feed_type' );
+					wp_set_post_terms( $post_id, [ $term_id ], 'heckl_feed_type' );
 				}
 			}
 			if ( ! empty( $item['feed_categories'] ) ) {
-				wp_set_post_terms( $post_id, (array) $item['feed_categories'], 'rs_feed_category' );
+				wp_set_post_terms( $post_id, (array) $item['feed_categories'], 'heckl_feed_category' );
 			}
 
 			// Store thumbnail URL as featured image if we have one and no image yet.
 			if ( ! empty( $item['thumbnail_url'] ) && ! get_post_thumbnail_id( $post_id ) ) {
 				// Store URL only — avoids sideloading media on every cron run.
-				update_post_meta( $post_id, '_rs_item_thumbnail', $item['thumbnail_url'] );
+				update_post_meta( $post_id, '_heckl_item_thumbnail', $item['thumbnail_url'] );
 			}
 		}
+	}
+
+	private static function add_noopener_to_targeted_links( string $html ): string {
+		if ( false === stripos( $html, 'target' ) || false === stripos( $html, '<a ' ) ) {
+			return $html;
+		}
+
+		$processor = new WP_HTML_Tag_Processor( $html );
+		while ( $processor->next_tag( 'A' ) ) {
+			if ( null === $processor->get_attribute( 'target' ) ) {
+				continue;
+			}
+
+			$rel       = $processor->get_attribute( 'rel' );
+			$rel_value = is_string( $rel ) ? trim( $rel ) : '';
+			$tokens    = preg_split( '/\s+/', strtolower( $rel_value ), -1, PREG_SPLIT_NO_EMPTY );
+			if ( in_array( 'noopener', $tokens, true ) ) {
+				continue;
+			}
+
+			$processor->set_attribute( 'rel', trim( $rel_value . ' noopener' ) );
+		}
+
+		return $processor->get_updated_html();
 	}
 
 	private static function kses_allowlist(): array {
@@ -335,9 +357,9 @@ class Radical_Socials_Feed_Fetcher {
 	}
 
 	/**
-	 * Display names for the three known rs_feed_type slugs. Brand names —
+	 * Display names for the three known heckl_feed_type slugs. Brand names —
 	 * intentionally not translated. The slug stays the machine identifier
-	 * used everywhere else (URL filters, meta `_rs_item_feed_type`, CSS
+	 * used everywhere else (URL filters, meta `_heckl_item_feed_type`, CSS
 	 * classes); only the human-readable label lives here.
 	 */
 	private const FEED_TYPE_NAMES = [
@@ -356,16 +378,16 @@ class Radical_Socials_Feed_Fetcher {
 			return null;
 		}
 		$desired_name = self::FEED_TYPE_NAMES[ $slug ] ?? $slug;
-		$term         = get_term_by( 'slug', $slug, 'rs_feed_type' );
+		$term         = get_term_by( 'slug', $slug, 'heckl_feed_type' );
 
 		if ( $term ) {
 			if ( isset( self::FEED_TYPE_NAMES[ $slug ] ) && $term->name !== $desired_name ) {
-				wp_update_term( $term->term_id, 'rs_feed_type', [ 'name' => $desired_name ] );
+				wp_update_term( $term->term_id, 'heckl_feed_type', [ 'name' => $desired_name ] );
 			}
 			return (int) $term->term_id;
 		}
 
-		$inserted = wp_insert_term( $desired_name, 'rs_feed_type', [ 'slug' => $slug ] );
+		$inserted = wp_insert_term( $desired_name, 'heckl_feed_type', [ 'slug' => $slug ] );
 		if ( is_wp_error( $inserted ) ) {
 			return null;
 		}
@@ -373,7 +395,7 @@ class Radical_Socials_Feed_Fetcher {
 	}
 
 	/**
-	 * Delete rs_feed_item posts whose source feed is no longer in the
+	 * Delete heckl_feed_item posts whose source feed is no longer in the
 	 * current subscription lists (RSS and ActivityPub).
 	 * WP.com is skipped — pruning it would require an extra API call.
 	 */
@@ -383,7 +405,7 @@ class Radical_Socials_Feed_Fetcher {
 	}
 
 	private static function prune_orphaned_rss(): void {
-		$subs = (array) get_option( 'rs_rss_subscriptions', [] );
+		$subs = (array) get_option( 'heckl_rss_subscriptions', [] );
 
 		// Safety: refuse to mass-delete stored items just because the
 		// subscriptions option is empty. The branch was originally
@@ -409,7 +431,7 @@ class Radical_Socials_Feed_Fetcher {
 				 *
 				 * @param int $existing Number of RSS feed items the prune skipped.
 				 */
-				do_action( 'rs_prune_orphaned_rss_refused', $existing );
+				do_action( 'heckl_prune_orphaned_rss_refused', $existing );
 			}
 			return;
 		}
@@ -425,20 +447,20 @@ class Radical_Socials_Feed_Fetcher {
 			return;
 		}
 
-		// Items without the new _rs_item_feed_url meta (i.e. older items
+		// Items without the new _heckl_item_feed_url meta (i.e. older items
 		// upserted before this change) are excluded from orphan deletion so
 		// the migration is non-destructive — they'll naturally rotate out via
 		// enforce_cap as new items come in.
 		$orphans = get_posts( [
-			'post_type'      => 'rs_feed_item',
+			'post_type'      => 'heckl_feed_item',
 			'post_status'    => 'any',
 			'fields'         => 'ids',
 			'posts_per_page' => 9999,
 			'meta_query'     => [
 				'relation' => 'AND',
-				[ 'key' => '_rs_item_feed_type', 'value' => 'rss' ],
-				[ 'key' => '_rs_item_feed_url',  'value' => $known, 'compare' => 'NOT IN' ],
-				[ 'key' => '_rs_item_feed_url',  'value' => '', 'compare' => '!=' ],
+				[ 'key' => '_heckl_item_feed_type', 'value' => 'rss' ],
+				[ 'key' => '_heckl_item_feed_url',  'value' => $known, 'compare' => 'NOT IN' ],
+				[ 'key' => '_heckl_item_feed_url',  'value' => '', 'compare' => '!=' ],
 			],
 		] );
 
@@ -452,7 +474,7 @@ class Radical_Socials_Feed_Fetcher {
 			return;
 		}
 
-		$uid     = (int) get_option( 'rs_ap_follow_user_id', 0 );
+		$uid     = (int) get_option( 'heckl_ap_follow_user_id', 0 );
 		if ( ! $uid ) {
 			$admins = get_users( [ 'role' => 'administrator', 'number' => 1, 'fields' => 'ID' ] );
 			$uid    = $admins ? (int) $admins[0] : 0;
@@ -471,28 +493,28 @@ class Radical_Socials_Feed_Fetcher {
 			$existing = count( self::get_item_ids_by_type( 'activitypub' ) );
 			if ( $existing > 0 ) {
 				/**
-				 * Same shape as `rs_prune_orphaned_rss_refused`, fired
+				 * Same shape as `heckl_prune_orphaned_rss_refused`, fired
 				 * when the AP follow list is empty but cached AP items
 				 * exist. Consumers can hook to log / surface a notice /
 				 * etc.; default is no-op.
 				 *
 				 * @param int $existing Number of AP feed items the prune skipped.
 				 */
-				do_action( 'rs_prune_orphaned_activitypub_refused', $existing );
+				do_action( 'heckl_prune_orphaned_activitypub_refused', $existing );
 			}
 			return;
 		}
 
 		$orphans = get_posts( [
-			'post_type'      => 'rs_feed_item',
+			'post_type'      => 'heckl_feed_item',
 			'post_status'    => 'any',
 			'fields'         => 'ids',
 			'posts_per_page' => 9999,
 			'meta_query'     => [
 				'relation' => 'AND',
-				[ 'key' => '_rs_item_feed_type', 'value' => 'activitypub' ],
-				[ 'key' => '_rs_item_source_url', 'value' => $known, 'compare' => 'NOT IN' ],
-				[ 'key' => '_rs_item_source_url', 'value' => '', 'compare' => '!=' ],
+				[ 'key' => '_heckl_item_feed_type', 'value' => 'activitypub' ],
+				[ 'key' => '_heckl_item_source_url', 'value' => $known, 'compare' => 'NOT IN' ],
+				[ 'key' => '_heckl_item_source_url', 'value' => '', 'compare' => '!=' ],
 			],
 		] );
 
@@ -503,11 +525,11 @@ class Radical_Socials_Feed_Fetcher {
 
 	private static function get_item_ids_by_type( string $type ): array {
 		return get_posts( [
-			'post_type'      => 'rs_feed_item',
+			'post_type'      => 'heckl_feed_item',
 			'post_status'    => 'any',
 			'fields'         => 'ids',
 			'posts_per_page' => 9999,
-			'meta_query'     => [ [ 'key' => '_rs_item_feed_type', 'value' => $type ] ],
+			'meta_query'     => [ [ 'key' => '_heckl_item_feed_type', 'value' => $type ] ],
 		] );
 	}
 
@@ -518,7 +540,7 @@ class Radical_Socials_Feed_Fetcher {
 		// posts_per_page => -1 ignores 'offset' in WordPress; use a large finite number.
 		$excess = get_posts(
 			[
-				'post_type'      => 'rs_feed_item',
+				'post_type'      => 'heckl_feed_item',
 				'post_status'    => 'any',
 				'fields'         => 'ids',
 				'posts_per_page' => 9999,

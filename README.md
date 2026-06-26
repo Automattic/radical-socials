@@ -38,7 +38,7 @@ npm run plugin-zip         # full release zip: build + flatten + stage + zip
 npm run theme-zip          # theme release zip
 ```
 
-`plugin-zip` always runs `build:templates` so the shipped archive carries fresh flattened versions of the theme's `archive-rs_feed_item` / `archive-rs_favorite` templates as plugin defaults. The theme is the source of truth — running the script regenerates the plugin's copies.
+`plugin-zip` always runs `build:templates` so the shipped archive carries fresh flattened versions of the theme's `archive-heckl_feed_item` / `archive-heckl_favorite` templates as plugin defaults. The theme is the source of truth — running the script regenerates the plugin's copies.
 
 ## Repo layout
 

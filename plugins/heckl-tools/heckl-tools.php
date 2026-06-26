@@ -1,7 +1,6 @@
 <?php
 /**
  * Plugin Name:       Heckl Tools
- * Plugin URI:        https://github.com/Automattic/heckl
  * Description:       Escape walled gardens with a self-hosted WordPress site that feels like home.
  * Version:           1.0.2
  * Requires at least: 6.7
@@ -101,12 +100,12 @@ function heckl_activate(): void {
 	// user closes the tab before being redirected, and `for_blog` so the
 	// flag is per-user — a network admin bulk-activating across many
 	// sites doesn't get hijacked to every Welcome page in turn.
-	set_transient( 'rs_welcome_redirect_' . get_current_user_id(), 1, MINUTE_IN_SECONDS );
+	set_transient( 'heckl_welcome_redirect_' . get_current_user_id(), 1, MINUTE_IN_SECONDS );
 
 	// Pretty permalinks improve Heckl's /following/ and /favorites/ URLs,
 	// but changing a site's permalink structure is a site-wide behaviour
 	// change. Only apply it after the admin explicitly enables the option.
-	if ( get_option( 'rs_auto_pretty_permalinks', false ) ) {
+	if ( get_option( 'heckl_auto_pretty_permalinks', false ) ) {
 		heckl_set_pretty_permalinks_if_plain();
 	}
 
@@ -186,7 +185,7 @@ function heckl_maybe_redirect_to_welcome(): void {
 	if ( ! $user_id || ! current_user_can( 'manage_options' ) ) {
 		return;
 	}
-	$key = 'rs_welcome_redirect_' . $user_id;
+	$key = 'heckl_welcome_redirect_' . $user_id;
 	if ( ! get_transient( $key ) ) {
 		return;
 	}
@@ -221,7 +220,7 @@ function heckl_plugin_action_links( array $links ): array {
 add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'heckl_plugin_action_links' );
 
 /**
- * Add an `rs-plugin` class to <body>. Companion themes (Heckl,
+ * Add an `heckl-plugin` class to <body>. Companion themes (Heckl,
  * others) scope their plugin-specific CSS under this selector so the
  * styling is inert when the plugin is missing. Mirrors WooCommerce's
  * `woocommerce-active` body class — the same pattern Storefront and
@@ -231,7 +230,7 @@ add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'heckl_plugin_
  * @return string[]
  */
 function heckl_body_class( array $classes ): array {
-	$classes[] = 'rs-plugin';
+	$classes[] = 'heckl-plugin';
 	return $classes;
 }
 add_filter( 'body_class', 'heckl_body_class' );

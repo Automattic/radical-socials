@@ -3,10 +3,10 @@
  * OPML Import / Export
  *
  * parse()  — converts OPML XML into a flat array of feed records.
- * import() — upserts those records into rs_rss_subscriptions:
+ * import() — upserts those records into heckl_rss_subscriptions:
  *              new feeds are added; existing ones get title/source_url/categories
  *              backfilled if currently empty, and categories are merged.
- * export() — serialises rs_rss_subscriptions back to OPML, grouping feeds
+ * export() — serialises heckl_rss_subscriptions back to OPML, grouping feeds
  *              into <outline> folders by their first category.
  *
  * @package Heckl
@@ -89,7 +89,7 @@ class Radical_Socials_OPML {
 	// ── Import ────────────────────────────────────────────────────────────────
 
 	/**
-	 * Upsert parsed feed records into rs_rss_subscriptions.
+	 * Upsert parsed feed records into heckl_rss_subscriptions.
 	 *
 	 * - New feeds are appended.
 	 * - Existing feeds (matched by URL) get their title, source_url, and
@@ -100,7 +100,7 @@ class Radical_Socials_OPML {
 	 * @return array{added:int, updated:int, skipped:int}
 	 */
 	public static function import( array $feeds ): array {
-		$subs    = (array) get_option( 'rs_rss_subscriptions', [] );
+		$subs    = (array) get_option( 'heckl_rss_subscriptions', [] );
 		$added   = 0;
 		$updated = 0;
 		$skipped = 0; // no-op duplicates (already present, nothing to change).
@@ -180,7 +180,7 @@ class Radical_Socials_OPML {
 		// Always persist if we dropped duplicate rows during the dedupe pass,
 		// even when this import didn't otherwise change anything.
 		if ( $added || $updated || $subs_dedup_dropped > 0 ) {
-			update_option( 'rs_rss_subscriptions', $subs, false );
+			update_option( 'heckl_rss_subscriptions', $subs, false );
 		}
 
 		return compact( 'added', 'updated', 'skipped', 'failed' );
@@ -194,7 +194,7 @@ class Radical_Socials_OPML {
 	 * uncategorised feeds sit directly under <body>.
 	 */
 	public static function export(): string {
-		$subs = (array) get_option( 'rs_rss_subscriptions', [] );
+		$subs = (array) get_option( 'heckl_rss_subscriptions', [] );
 
 		$dom = new DOMDocument( '1.0', 'UTF-8' );
 		$dom->formatOutput = true;

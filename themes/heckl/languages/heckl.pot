@@ -19,14 +19,9 @@ msgstr ""
 msgid "Heckl"
 msgstr ""
 
-#. Theme URI of the theme
-#: style.css
-msgid "https://github.com/Automattic/heckl"
-msgstr ""
-
 #. Description of the theme
 #: style.css
-msgid "A block theme for personal feed readers and social-style content sites, with layouts tuned for photo grids, vertical video, and text timelines. Works on its own and pairs with the Heckl plugin, which adds Following, Favorites, and a frontend post composer."
+msgid "A block theme for personal feed readers and social-style content sites, with layouts tuned for photo grids, vertical video, and text timelines. Works on its own and pairs with the Heckl Tools plugin, which adds Following, Favorites, and a frontend post composer."
 msgstr ""
 
 #. Author of the theme
@@ -46,21 +41,7 @@ msgstr ""
 
 #: patterns/footer-default.php
 msgctxt "Pattern description"
-msgid "Centered credit line with a subtle top divider, sized to match the rest of the theme's chrome."
-msgstr ""
-
-#. translators: %s: WordPress link.
-#: patterns/footer-default.php:17
-#, php-format
-msgid "Proudly powered by %s"
-msgstr ""
-
-#: patterns/footer-default.php:18
-msgid "https://wordpress.org"
-msgstr ""
-
-#: patterns/footer-default.php:18
-msgid "WordPress"
+msgid "Centered site title with a subtle top divider, sized to match the rest of the theme's chrome."
 msgstr ""
 
 #: patterns/hidden-404.php

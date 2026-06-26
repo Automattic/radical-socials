@@ -92,7 +92,7 @@ The broker code is open-source in this repository and does not log or persist to
 What is sent: at handshake start, a random opaque state token and your site's callback URL. After authorization, the WordPress.com authorization code is exchanged via the broker once and then discarded.
 Service: Heckl Tools project broker (operated by the plugin authors, hosted on WordPress.com Atomic).
 
-To opt out entirely: define your own `RS_WPCOM_CLIENT_ID` and `RS_WPCOM_CLIENT_SECRET` in wp-config.php (after registering a WordPress.com app at https://developer.wordpress.com/apps/). The plugin then talks to WordPress.com directly without touching the broker. To use a different broker, define `RS_WPCOM_PROXY_URL` with its base URL. To run your own broker on a separate WordPress site, also define `RS_WPCOM_PROXY_MODE=true` along with the client credentials.
+To opt out entirely: define your own `HECKL_WPCOM_CLIENT_ID` and `HECKL_WPCOM_CLIENT_SECRET` in wp-config.php (after registering a WordPress.com app at https://developer.wordpress.com/apps/). The plugin then talks to WordPress.com directly without touching the broker. To use a different broker, define `HECKL_WPCOM_PROXY_URL` with its base URL. To run your own broker on a separate WordPress site, also define `HECKL_WPCOM_PROXY_MODE=true` along with the client credentials.
 
 = Arbitrary RSS / Atom feed URLs =
 
@@ -156,4 +156,4 @@ First stable release. No prior version to upgrade from.
 
 == Source code ==
 
-Heckl Tools is developed in the open at https://github.com/Automattic/heckl. The unminified source for every script shipped in `build/` lives alongside it in `src/`.
+The unminified source for every script shipped in `build/` lives alongside it in `src/`.

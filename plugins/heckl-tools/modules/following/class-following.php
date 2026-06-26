@@ -2,7 +2,7 @@
 /**
  * Following
  *
- * Registers the rs_feed_item CPT (archive at /following/) and rs_source
+ * Registers the heckl_feed_item CPT (archive at /following/) and heckl_source
  * taxonomy, and the hooks that keep the feed populated.
  *
  * Feed updates arrive via three paths:
@@ -23,17 +23,17 @@ class Radical_Socials_Following {
 	const MAX_ITEMS = 500;
 
 	/** Cron hook for recurring background fetches. */
-	const FETCH_HOOK = 'rs_fetch_following';
+	const FETCH_HOOK = 'heckl_fetch_following';
 
 	/** Recurring schedule for social-style feed refreshes. */
-	const FETCH_SCHEDULE = 'rs_every_15_minutes';
+	const FETCH_SCHEDULE = 'heckl_every_15_minutes';
 	const FETCH_INTERVAL = 15 * MINUTE_IN_SECONDS;
 
 	/** Cron hook for immediate manual refresh fetches. */
-	const REFRESH_HOOK = 'rs_refresh_following_now';
+	const REFRESH_HOOK = 'heckl_refresh_following_now';
 
 	/** Transient lock used to prevent overlapping feed fetches. */
-	const REFRESH_LOCK = 'rs_feed_refresh_lock';
+	const REFRESH_LOCK = 'heckl_feed_refresh_lock';
 
 	const REFRESH_LOCK_QUEUED  = 'queued';
 	const REFRESH_LOCK_RUNNING = 'running';
@@ -59,12 +59,12 @@ class Radical_Socials_Following {
 		// Make all permalink references point to the original article URL.
 		add_filter( 'post_type_link', [ __CLASS__, 'external_permalink' ], 10, 2 );
 
-		// Stamp each rs_feed_item wrapper with `rs-feed-type-{rss|activitypub|wpcom}`
+		// Stamp each heckl_feed_item wrapper with `heckl-feed-type-{rss|activitypub|wpcom}`
 		// so theme CSS can style posts by source.
 		add_filter( 'post_class', [ __CLASS__, 'add_feed_type_post_class' ], 10, 3 );
 
-		// Force rs_feed_item as the queried post type when one of our taxonomies
-		// is in play — rs_feed_item has exclude_from_search=true, so WP's tax
+		// Force heckl_feed_item as the queried post type when one of our taxonomies
+		// is in play — heckl_feed_item has exclude_from_search=true, so WP's tax
 		// archive fallback would otherwise pick post/page/attachment and find 0
 		// results.
 		add_action( 'pre_get_posts', [ __CLASS__, 'force_feed_item_for_taxonomy_archives' ] );
@@ -80,7 +80,7 @@ class Radical_Socials_Following {
 		add_filter( 'render_block_core/post-title', [ __CLASS__, 'hide_empty_or_activitypub_titles' ], 10, 2 );
 		add_filter( 'render_block', [ __CLASS__, 'gate_activitypub_blocks' ], 10, 2 );
 
-		// Gate /following/ and rs_feed_item single views for logged-out users
+		// Gate /following/ and heckl_feed_item single views for logged-out users
 		// when the site owner hasn't opted into a public following page.
 		add_action( 'template_redirect', [ __CLASS__, 'gate_following_access' ], 0 );
 
@@ -190,15 +190,15 @@ class Radical_Socials_Following {
 	// ── CPT & taxonomy ────────────────────────────────────────────────────────
 
 	public static function external_permalink( string $url, WP_Post $post ): string {
-		if ( 'rs_feed_item' !== $post->post_type ) {
+		if ( 'heckl_feed_item' !== $post->post_type ) {
 			return $url;
 		}
-		$external = get_post_meta( $post->ID, '_rs_item_url', true );
+		$external = get_post_meta( $post->ID, '_heckl_item_url', true );
 		return $external ?: $url;
 	}
 
 	/**
-	 * Append `rs-feed-type-{rss|activitypub|wpcom}` to each rs_feed_item's
+	 * Append `heckl-feed-type-{rss|activitypub|wpcom}` to each heckl_feed_item's
 	 * post_class output so themes can style posts by source — e.g. hide the
 	 * author avatar on RSS items where we don't have one, give AP notes a
 	 * tighter typography, mark WP.com posts with a Reader badge, etc.
@@ -207,19 +207,19 @@ class Radical_Socials_Following {
 	 * @param string[] $css_class
 	 */
 	public static function add_feed_type_post_class( array $classes, $css_class, int $post_id ): array {
-		if ( 'rs_feed_item' !== get_post_type( $post_id ) ) {
+		if ( 'heckl_feed_item' !== get_post_type( $post_id ) ) {
 			return $classes;
 		}
-		$feed_type = (string) get_post_meta( $post_id, '_rs_item_feed_type', true );
+		$feed_type = (string) get_post_meta( $post_id, '_heckl_item_feed_type', true );
 		if ( '' !== $feed_type ) {
-			$classes[] = 'rs-feed-type-' . sanitize_html_class( $feed_type );
+			$classes[] = 'heckl-feed-type-' . sanitize_html_class( $feed_type );
 		}
 		return $classes;
 	}
 
 	public static function register_cpt(): void {
 		register_post_type(
-			'rs_feed_item',
+			'heckl_feed_item',
 			[
 				'public'              => false,
 				'publicly_queryable'  => true,
@@ -242,22 +242,22 @@ class Radical_Socials_Following {
 	}
 
 	/**
-	 * Force rs_feed_item as the queried post type for archives on our
-	 * taxonomies (rs_source, rs_feed_type, rs_feed_category).
+	 * Force heckl_feed_item as the queried post type for archives on our
+	 * taxonomies (heckl_source, heckl_feed_type, heckl_feed_category).
 	 *
 	 * Why: WP_Query's taxonomy-archive fallback uses
 	 * `get_post_types(['exclude_from_search' => false])` to decide which post
-	 * types to include. rs_feed_item has exclude_from_search=true, so it's
+	 * types to include. heckl_feed_item has exclude_from_search=true, so it's
 	 * skipped and WP falls back to post/page/attachment — none of which have
 	 * our taxonomies, hence 0 results.
 	 */
 	/**
 	 * Merge any of our taxonomy filters present on the current URL into the
-	 * rs-following-feed Query block's WP_Query args. The template hardcodes
+	 * heckl-following-feed Query block's WP_Query args. The template hardcodes
 	 * inherit=false (so the site editor can resolve a preview), which means
 	 * the block otherwise ignores the URL's taxonomy filter.
 	 *
-	 * Reads query vars directly because URLs like `/?rs_feed_type=rss` set
+	 * Reads query vars directly because URLs like `/?heckl_feed_type=rss` set
 	 * the taxonomy as a filter on the home query rather than triggering a
 	 * proper tax archive (we don't register a rewrite for our taxonomies), so
 	 * get_queried_object() doesn't return a WP_Term in that case.
@@ -265,15 +265,15 @@ class Radical_Socials_Following {
 	public static function inherit_taxonomy_in_feed_query( array $query, $block, int $page ): array {
 		// The filter fires while rendering core/post-template, which inherits
 		// the parent Query block's attributes via block context. Identify our
-		// feed query by the parent's postType — only the rs-following-feed
-		// query block queries rs_feed_item with inherit=false.
+		// feed query by the parent's postType — only the heckl-following-feed
+		// query block queries heckl_feed_item with inherit=false.
 		$parent_post_type = $block->context['query']['postType'] ?? '';
-		if ( 'rs_feed_item' !== $parent_post_type ) {
+		if ( 'heckl_feed_item' !== $parent_post_type ) {
 			return $query;
 		}
 
 		$tax_clauses = [];
-		foreach ( [ 'rs_source', 'rs_feed_type', 'rs_feed_category' ] as $tax ) {
+		foreach ( [ 'heckl_source', 'heckl_feed_type', 'heckl_feed_category' ] as $tax ) {
 			$term_slug = get_query_var( $tax );
 			if ( $term_slug ) {
 				$tax_clauses[] = [
@@ -300,10 +300,10 @@ class Radical_Socials_Following {
 			return;
 		}
 
-		$our_taxonomies = [ 'rs_source', 'rs_feed_type', 'rs_feed_category' ];
+		$our_taxonomies = [ 'heckl_source', 'heckl_feed_type', 'heckl_feed_category' ];
 		foreach ( $our_taxonomies as $tax ) {
 			if ( $query->get( $tax ) ) {
-				$query->set( 'post_type', 'rs_feed_item' );
+				$query->set( 'post_type', 'heckl_feed_item' );
 				return;
 			}
 		}
@@ -324,21 +324,21 @@ class Radical_Socials_Following {
 			'hierarchical'       => false,
 		];
 
-		register_taxonomy( 'rs_source', 'rs_feed_item', array_merge( $shared, [
+		register_taxonomy( 'heckl_source', 'heckl_feed_item', array_merge( $shared, [
 			'labels' => [
 				'name'          => __( 'Feed Sources', 'heckl-tools' ),
 				'singular_name' => __( 'Feed Source', 'heckl-tools' ),
 			],
 		] ) );
 
-		register_taxonomy( 'rs_feed_type', 'rs_feed_item', array_merge( $shared, [
+		register_taxonomy( 'heckl_feed_type', 'heckl_feed_item', array_merge( $shared, [
 			'labels' => [
 				'name'          => __( 'Feed Types', 'heckl-tools' ),
 				'singular_name' => __( 'Feed Type', 'heckl-tools' ),
 			],
 		] ) );
 
-		register_taxonomy( 'rs_feed_category', 'rs_feed_item', array_merge( $shared, [
+		register_taxonomy( 'heckl_feed_category', 'heckl_feed_item', array_merge( $shared, [
 			'labels' => [
 				'name'          => __( 'Feed Categories', 'heckl-tools' ),
 				'singular_name' => __( 'Feed Category', 'heckl-tools' ),
@@ -357,7 +357,7 @@ class Radical_Socials_Following {
 			return;
 		}
 
-		$last        = (int) get_option( 'rs_last_feed_fetch', 0 );
+		$last        = (int) get_option( 'heckl_last_feed_fetch', 0 );
 		$stale_after = 15 * MINUTE_IN_SECONDS;
 
 		if ( time() - $last < $stale_after ) {
@@ -367,7 +367,7 @@ class Radical_Socials_Following {
 	}
 
 	public static function refresh_secret(): string {
-		return wp_hash( 'rs_feed_refresh_' . wp_salt() );
+		return wp_hash( 'heckl_feed_refresh_' . wp_salt() );
 	}
 
 	/**
@@ -446,7 +446,7 @@ class Radical_Socials_Following {
 
 		$plugin_url = plugin_dir_url( dirname( dirname( __DIR__ ) ) . '/heckl.php' );
 
-		if ( is_post_type_archive( [ 'rs_feed_item', 'rs_favorite' ] ) ) {
+		if ( is_post_type_archive( [ 'heckl_feed_item', 'heckl_favorite' ] ) ) {
 			wp_enqueue_script_module(
 				'heckl/following',
 				$plugin_url . 'modules/following/assets/infinite-scroll.js',
@@ -464,15 +464,15 @@ class Radical_Socials_Following {
 	}
 
 	private static function is_feed_archive_view(): bool {
-		if ( is_post_type_archive( [ 'rs_feed_item', 'rs_favorite' ] ) ) {
+		if ( is_post_type_archive( [ 'heckl_feed_item', 'heckl_favorite' ] ) ) {
 			return true;
 		}
 
-		if ( is_tax( [ 'rs_source', 'rs_feed_type', 'rs_feed_category' ] ) ) {
+		if ( is_tax( [ 'heckl_source', 'heckl_feed_type', 'heckl_feed_category' ] ) ) {
 			return true;
 		}
 
-		foreach ( [ 'rs_source', 'rs_feed_type', 'rs_feed_category' ] as $tax ) {
+		foreach ( [ 'heckl_source', 'heckl_feed_type', 'heckl_feed_category' ] as $tax ) {
 			if ( get_query_var( $tax ) ) {
 				return true;
 			}
@@ -482,7 +482,7 @@ class Radical_Socials_Following {
 	}
 
 	/** Option name for the "let logged-out visitors see the following page" toggle. */
-	const PUBLIC_OPTION = 'rs_following_public';
+	const PUBLIC_OPTION = 'heckl_following_public';
 
 	/**
 	 * Whether the current viewer is allowed to see the following feed and its
@@ -494,12 +494,12 @@ class Radical_Socials_Following {
 	}
 
 	/**
-	 * 404 every URL that surfaces rs_feed_item or rs_favorite content for
+	 * 404 every URL that surfaces heckl_feed_item or heckl_favorite content for
 	 * logged-out visitors when the public-following option is off.
 	 *
 	 * Delegates to is_feed_archive_view() so /following/, /favorites/, any
 	 * single view, real taxonomy archives, and home-page taxonomy filters
-	 * (e.g. /?rs_feed_type=activitypub) are all covered by one source of
+	 * (e.g. /?heckl_feed_type=activitypub) are all covered by one source of
 	 * truth — the same predicate enqueue_infinite_scroll() uses.
 	 *
 	 * Single feed-item and favorite views aren't covered by
@@ -513,7 +513,7 @@ class Radical_Socials_Following {
 			return;
 		}
 
-		if ( ! self::is_feed_archive_view() && ! is_singular( [ 'rs_feed_item', 'rs_favorite' ] ) ) {
+		if ( ! self::is_feed_archive_view() && ! is_singular( [ 'heckl_feed_item', 'heckl_favorite' ] ) ) {
 			return;
 		}
 
@@ -524,7 +524,7 @@ class Radical_Socials_Following {
 	}
 
 	/**
-	 * Suppress core/post-title output for rs_feed_item posts when:
+	 * Suppress core/post-title output for heckl_feed_item posts when:
 	 *   - the post is an ActivityPub item (notes have no titles), OR
 	 *   - the title is empty (e.g. RSS items that came through with no title,
 	 *     or older entries that had the now-removed "(untitled)" placeholder
@@ -536,11 +536,11 @@ class Radical_Socials_Following {
 	 */
 	public static function hide_empty_or_activitypub_titles( string $block_content, array $block ): string {
 		$post_id = $block['context']['postId'] ?? get_the_ID();
-		if ( ! $post_id || 'rs_feed_item' !== get_post_type( $post_id ) ) {
+		if ( ! $post_id || 'heckl_feed_item' !== get_post_type( $post_id ) ) {
 			return $block_content;
 		}
 
-		$feed_type = (string) get_post_meta( $post_id, '_rs_item_feed_type', true );
+		$feed_type = (string) get_post_meta( $post_id, '_heckl_item_feed_type', true );
 		if ( 'activitypub' === $feed_type ) {
 			return '';
 		}
@@ -583,7 +583,7 @@ class Radical_Socials_Following {
 		if ( current_user_can( 'manage_options' ) ) {
 			$install_url = self_admin_url( 'plugin-install.php?s=activitypub&tab=search&type=term' );
 			return sprintf(
-				'<p class="rs-activitypub-missing-notice" style="opacity:.7;font-size:.85em"><em>%s</em> <a href="%s">%s</a></p>',
+				'<p class="heckl-activitypub-missing-notice" style="opacity:.7;font-size:.85em"><em>%s</em> <a href="%s">%s</a></p>',
 				esc_html( sprintf( /* translators: %s: block name (e.g. activitypub/reactions) */ __( '%s needs the ActivityPub plugin.', 'heckl-tools' ), $name ) ),
 				esc_url( $install_url ),
 				esc_html__( 'Install it', 'heckl-tools' )
@@ -593,7 +593,7 @@ class Radical_Socials_Following {
 	}
 
 	public static function maybe_add_block_filter(): void {
-		if ( is_post_type_archive( [ 'rs_feed_item', 'rs_favorite' ] ) ) {
+		if ( is_post_type_archive( [ 'heckl_feed_item', 'heckl_favorite' ] ) ) {
 			add_filter( 'render_block', [ __CLASS__, 'wrap_following_query' ], 10, 2 );
 		}
 	}
@@ -610,11 +610,11 @@ class Radical_Socials_Following {
 		if ( 'core/query' !== $block['blockName'] ) {
 			return $html;
 		}
-		if ( ! str_contains( $block['attrs']['className'] ?? '', 'rs-following-feed' ) ) {
+		if ( ! str_contains( $block['attrs']['className'] ?? '', 'heckl-following-feed' ) ) {
 			return $html;
 		}
 
-		$post_type = is_post_type_archive( 'rs_favorite' ) ? 'rs_favorite' : 'rs_feed_item';
+		$post_type = is_post_type_archive( 'heckl_favorite' ) ? 'heckl_favorite' : 'heckl_feed_item';
 		$per_page  = (int) ( $block['attrs']['query']['perPage'] ?? 20 );
 		$query_id  = (int) ( $block['attrs']['queryId'] ?? 0 );
 		$total     = (int) ( wp_count_posts( $post_type )->publish ?? 0 );
@@ -626,10 +626,10 @@ class Radical_Socials_Following {
 			'queryId'  => $query_id,
 			'loading'  => false,
 		] );
-		$sentinel = '<div class="rs-following-sentinel" data-wp-init="callbacks.observeSentinel" aria-hidden="true"></div>';
+		$sentinel = '<div class="heckl-following-sentinel" data-wp-init="callbacks.observeSentinel" aria-hidden="true"></div>';
 
 		// Refresh is only relevant on the following feed, not favorites.
-		$is_following = is_post_type_archive( 'rs_feed_item' );
+		$is_following = is_post_type_archive( 'heckl_feed_item' );
 
 		// `_n_noop` registers both plural forms as a related pair so the
 		// translation tooling at translate.wordpress.org understands the
@@ -641,10 +641,11 @@ class Radical_Socials_Following {
 		// client-side, so we ship both forms.
 		/* translators: %d: number of new posts available in the feed. */
 		$new_posts_forms = _n_noop( '%d new post', '%d new posts', 'heckl-tools' );
+		$can_refresh     = current_user_can( 'manage_options' ) && $is_following;
 		wp_interactivity_state( 'heckl/following', [
 			'refreshUrl'           => rest_url( 'heckl/v1/following/refresh' ),
-			'nonce'                => is_user_logged_in() ? wp_create_nonce( 'wp_rest' ) : '',
-			'canRefresh'           => is_user_logged_in() && $is_following,
+			'nonce'                => $can_refresh ? wp_create_nonce( 'wp_rest' ) : '',
+			'canRefresh'           => $can_refresh,
 			'refreshing'           => false,
 			'pulling'              => false,
 			'refreshLabel'         => __( 'Refresh feed', 'heckl-tools' ),
@@ -655,17 +656,17 @@ class Radical_Socials_Following {
 			'newPostsLabel'        => translate_nooped_plural( $new_posts_forms, 2, 'heckl-tools' ),
 		] );
 
-		$last_fetched = (int) get_option( 'rs_last_feed_fetch', 0 );
+		$last_fetched = (int) get_option( 'heckl_last_feed_fetch', 0 );
 		$last_title   = $last_fetched ? wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $last_fetched ) : '';
 
-		$pull_indicator = ( is_user_logged_in() && $is_following )
-			? '<div class="rs-refresh-bar" data-wp-class--rs-pull-refreshing="state.refreshing">'
-				. '<button class="rs-refresh-btn" data-wp-on--click="actions.refresh" data-wp-bind--disabled="state.refreshing">'
-					. '<span class="rs-pull-arrow" aria-hidden="true">↻</span>'
-					. '<span class="rs-pull-spinner" aria-hidden="true"></span>'
-					. '<span class="rs-refresh-label">' . esc_html__( 'Refresh feed', 'heckl-tools' ) . '</span>'
+		$pull_indicator = $can_refresh
+			? '<div class="heckl-refresh-bar" data-wp-class--heckl-pull-refreshing="state.refreshing">'
+				. '<button class="heckl-refresh-btn" data-wp-on--click="actions.refresh" data-wp-bind--disabled="state.refreshing">'
+					. '<span class="heckl-pull-arrow" aria-hidden="true">↻</span>'
+					. '<span class="heckl-pull-spinner" aria-hidden="true"></span>'
+					. '<span class="heckl-refresh-label">' . esc_html__( 'Refresh feed', 'heckl-tools' ) . '</span>'
 				. '</button>'
-				. '<span class="rs-last-refreshed" data-rs-last-fetched="' . esc_attr( (string) $last_fetched ) . '" title="' . esc_attr( $last_title ) . '">'
+				. '<span class="heckl-last-refreshed" data-heckl-last-fetched="' . esc_attr( (string) $last_fetched ) . '" title="' . esc_attr( $last_title ) . '">'
 					. esc_html( self::last_refreshed_label( $last_fetched ) )
 				. '</span>'
 			. '</div>'
@@ -723,7 +724,7 @@ class Radical_Socials_Following {
 
 	/**
 	 * Called synchronously when the ActivityPub plugin saves a new inbox
-	 * activity. Ingests it into the rs_feed_item CPT immediately.
+	 * activity. Ingests it into the heckl_feed_item CPT immediately.
 	 */
 	public static function on_activitypub_activity( int $post_id, WP_Post $post ): void {
 		// Only process Create activities (new content, not likes/announces).
@@ -737,7 +738,7 @@ class Radical_Socials_Following {
 		if ( $items ) {
 			Radical_Socials_Feed_Fetcher::upsert_item( $items );
 			Radical_Socials_Feed_Fetcher::enforce_cap();
-			update_option( 'rs_last_feed_fetch', time(), false );
+			update_option( 'heckl_last_feed_fetch', time(), false );
 		}
 	}
 }

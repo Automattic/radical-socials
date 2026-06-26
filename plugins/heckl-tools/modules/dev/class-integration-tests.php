@@ -64,11 +64,11 @@ class Radical_Socials_Integration_Tests {
 		// before touching the DB. Worst case (suite is killed) the DB
 		// rows are still bit-identical to what they were before.
 		$this->virtualize_options( [
-			'rs_rss_subscriptions',
-			'rs_websub_subscriptions',
-			'rs_following_favorites',
-			'rs_last_feed_fetch',
-			'rs_wpcom_access_token',
+			'heckl_rss_subscriptions',
+			'heckl_websub_subscriptions',
+			'heckl_following_favorites',
+			'heckl_last_feed_fetch',
+			'heckl_wpcom_access_token',
 		] );
 		$original_user_id = get_current_user_id();
 
@@ -156,7 +156,7 @@ class Radical_Socials_Integration_Tests {
 	}
 
 	private function test_opml_round_trip(): void {
-		update_option( 'rs_rss_subscriptions', [], false );
+		update_option( 'heckl_rss_subscriptions', [], false );
 
 		$xml = '<?xml version="1.0" encoding="UTF-8"?>'
 			. '<opml version="1.0"><body>'
@@ -198,7 +198,7 @@ class Radical_Socials_Integration_Tests {
 			'RSS URL validation should reject non-HTTP URL formats.'
 		);
 
-		update_option( 'rs_rss_subscriptions', [
+		update_option( 'heckl_rss_subscriptions', [
 			[
 				'url'        => 'https://93.184.216.34/feed',
 				'title'      => 'Example',
@@ -229,7 +229,7 @@ class Radical_Socials_Integration_Tests {
 
 	private function test_websub_verification(): void {
 		$feed_url = 'https://example.com/feed';
-		update_option( 'rs_websub_subscriptions', [
+		update_option( 'heckl_websub_subscriptions', [
 			$feed_url => [
 				'hub'    => 'https://hub.example.com/',
 				'secret' => 'secret',
@@ -249,7 +249,7 @@ class Radical_Socials_Integration_Tests {
 		$this->assert_same( 200, $response->get_status(), 'WebSub verification should accept a known dotted hub.topic.' );
 		$this->assert_same( 'challenge-token', $response->get_data(), 'WebSub verification should echo hub.challenge.' );
 
-		$subs = (array) get_option( 'rs_websub_subscriptions', [] );
+		$subs = (array) get_option( 'heckl_websub_subscriptions', [] );
 		$this->assert_same( 3600, (int) $subs[ $feed_url ]['lease_seconds'], 'WebSub verification should store the confirmed lease length.' );
 		$this->assert_true(
 			(int) $subs[ $feed_url ]['lease_expires'] >= $before + 3600,
@@ -263,7 +263,7 @@ class Radical_Socials_Integration_Tests {
 			],
 			function () use ( $feed_url, $subs ): void {
 				Radical_Socials_WebSub_Subscriber::subscribe( $feed_url );
-				$renewed = (array) get_option( 'rs_websub_subscriptions', [] );
+				$renewed = (array) get_option( 'heckl_websub_subscriptions', [] );
 
 				$this->assert_same( 'secret', $renewed[ $feed_url ]['secret'], 'WebSub renewal should keep the existing shared secret.' );
 				$this->assert_same(
@@ -274,7 +274,7 @@ class Radical_Socials_Integration_Tests {
 			}
 		);
 
-		update_option( 'rs_last_feed_fetch', 0, false );
+		update_option( 'heckl_last_feed_fetch', 0, false );
 
 		$body = '<?xml version="1.0" encoding="UTF-8"?>'
 			. '<rss version="2.0"><channel>'
@@ -295,10 +295,10 @@ class Radical_Socials_Integration_Tests {
 
 		$response = Radical_Socials_WebSub_Subscriber::handle_notification( $request );
 		$this->assert_same( 200, $response->get_status(), 'WebSub notification should accept a signed known topic.' );
-		$this->assert_true( 0 < (int) get_option( 'rs_last_feed_fetch', 0 ), 'WebSub notification should update the last refresh timestamp.' );
+		$this->assert_true( 0 < (int) get_option( 'heckl_last_feed_fetch', 0 ), 'WebSub notification should update the last refresh timestamp.' );
 
 		$posts = get_posts( [
-			'post_type'   => 'rs_feed_item',
+			'post_type'   => 'heckl_feed_item',
 			'post_status' => 'publish',
 			'name'        => md5( 'https://example.com/pushed-item' ),
 			'fields'      => 'ids',
@@ -312,7 +312,7 @@ class Radical_Socials_Integration_Tests {
 		$this->ensure_rest_routes();
 
 		$feed_url = 'https://delete.example.com/feed';
-		update_option( 'rs_rss_subscriptions', [
+		update_option( 'heckl_rss_subscriptions', [
 			[
 				'url'        => $feed_url,
 				'title'      => 'Delete Me',
@@ -348,7 +348,7 @@ class Radical_Socials_Integration_Tests {
 			'url'  => $feed_url,
 		] );
 		$this->assert_same( 200, $response->get_status(), 'RSS delete should succeed for a stored subscription.' );
-		$this->assert_same( [], (array) get_option( 'rs_rss_subscriptions', [] ), 'RSS delete should remove the stored subscription.' );
+		$this->assert_same( [], (array) get_option( 'heckl_rss_subscriptions', [] ), 'RSS delete should remove the stored subscription.' );
 	}
 
 	/**
@@ -361,9 +361,9 @@ class Radical_Socials_Integration_Tests {
 	 *   - private/loopback IP → 400 unsafe_url
 	 */
 	private function test_add_routes_routing(): void {
-		update_option( 'rs_rss_subscriptions', [], false );
+		update_option( 'heckl_rss_subscriptions', [], false );
 
-		// 1. Pure RSS URL — should land in rs_rss_subscriptions after fetch.
+		// 1. Pure RSS URL — should land in heckl_rss_subscriptions after fetch.
 		$rss_feed_body = '<?xml version="1.0" encoding="UTF-8"?>'
 			. '<rss version="2.0"><channel>'
 			. '<title>Routing Test</title>'
@@ -383,7 +383,7 @@ class Radical_Socials_Integration_Tests {
 				$request->set_param( 'input', 'https://routing.example/feed' );
 				$response = Radical_Socials_Following_REST::add_following( $request );
 				$this->assert_same( 201, $response->get_status(), 'Plain RSS URL should be added (201).' );
-				$subs = (array) get_option( 'rs_rss_subscriptions', [] );
+				$subs = (array) get_option( 'heckl_rss_subscriptions', [] );
 				$this->assert_same( 1, count( $subs ), 'RSS add should store one subscription.' );
 				$this->assert_same( 'https://routing.example/feed', $subs[0]['url'], 'RSS add should store the canonical URL.' );
 			}
@@ -429,16 +429,16 @@ class Radical_Socials_Integration_Tests {
 		}
 
 		// Cleanup the test subscription.
-		update_option( 'rs_rss_subscriptions', [], false );
+		update_option( 'heckl_rss_subscriptions', [], false );
 	}
 
 	/**
 	 * OPML batch import must land every unique valid URL — earlier versions
-	 * had a read-modify-write race on rs_rss_subscriptions when feeds were
+	 * had a read-modify-write race on heckl_rss_subscriptions when feeds were
 	 * upserted in parallel per-entry; the batch endpoint fixes it.
 	 */
 	private function test_opml_batch_import_no_race(): void {
-		update_option( 'rs_rss_subscriptions', [], false );
+		update_option( 'heckl_rss_subscriptions', [], false );
 
 		// Build an OPML with 25 unique feeds + 3 cross-folder duplicates.
 		$entries = '';
@@ -468,8 +468,8 @@ class Radical_Socials_Integration_Tests {
 		$this->assert_same( 3, $result['updated'], 'OPML batch import should merge the cross-folder duplicates as updates.' );
 		$this->assert_same( 0, $result['failed'], 'OPML batch import should not fail any of these URLs.' );
 
-		$stored = (array) get_option( 'rs_rss_subscriptions', [] );
-		$this->assert_same( 25, count( $stored ), 'rs_rss_subscriptions should hold exactly 25 unique entries.' );
+		$stored = (array) get_option( 'heckl_rss_subscriptions', [] );
+		$this->assert_same( 25, count( $stored ), 'heckl_rss_subscriptions should hold exactly 25 unique entries.' );
 
 		// Re-import: should self-heal duplicates if any sneaked into the option,
 		// and report 0 added / 0 updated / 28 skipped.
@@ -478,14 +478,14 @@ class Radical_Socials_Integration_Tests {
 		$this->assert_same( 0, $result_again['updated'], 'Re-import should update nothing.' );
 		$this->assert_same( 28, $result_again['skipped'], 'Re-import should skip every entry as a duplicate.' );
 
-		update_option( 'rs_rss_subscriptions', [], false );
+		update_option( 'heckl_rss_subscriptions', [], false );
 	}
 
 	/**
 	 * Feed_Fetcher::run() must persist fetched items past prune_orphaned_rss().
-	 * Earlier the prune matched on _rs_item_source_url, which SimplePie populates
+	 * Earlier the prune matched on _heckl_item_source_url, which SimplePie populates
 	 * from <link> and rarely matches the OPML's htmlUrl — every item got
-	 * deleted right after being upserted. The fix pivots prune to _rs_item_feed_url
+	 * deleted right after being upserted. The fix pivots prune to _heckl_item_feed_url
 	 * (the canonical xmlUrl we used to fetch).
 	 */
 	private function test_full_fetcher_run_persists_items(): void {
@@ -493,7 +493,7 @@ class Radical_Socials_Integration_Tests {
 		$source_url = 'https://example.com/wp';  // What we'd store from OPML…
 		$channel_link = 'https://example.com/wp/'; // …which SimplePie reports differently.
 
-		update_option( 'rs_rss_subscriptions', [
+		update_option( 'heckl_rss_subscriptions', [
 			[ 'url' => $feed_url, 'title' => 'Persist Me', 'source_url' => $source_url ],
 		], false );
 
@@ -516,10 +516,10 @@ class Radical_Socials_Integration_Tests {
 				Radical_Socials_Feed_Fetcher::run();
 
 				$items_with_feed_url = get_posts( [
-					'post_type'   => 'rs_feed_item',
+					'post_type'   => 'heckl_feed_item',
 					'fields'      => 'ids',
 					'numberposts' => -1,
-					'meta_key'    => '_rs_item_feed_url',
+					'meta_key'    => '_heckl_item_feed_url',
 					'meta_value'  => $feed_url,
 				] );
 				$this->assert_same( 2, count( $items_with_feed_url ), 'Both fetched items must survive the prune step.' );
@@ -529,7 +529,7 @@ class Radical_Socials_Integration_Tests {
 			}
 		);
 
-		update_option( 'rs_rss_subscriptions', [], false );
+		update_option( 'heckl_rss_subscriptions', [], false );
 	}
 
 	/**
@@ -562,7 +562,7 @@ class Radical_Socials_Integration_Tests {
 	 * live token.
 	 */
 	private function test_wpcom_reader_normalisation(): void {
-		update_option( 'rs_wpcom_access_token', 'fake-token-for-testing', false );
+		update_option( 'heckl_wpcom_access_token', 'fake-token-for-testing', false );
 
 		$following = wp_json_encode( [
 			'subscriptions' => [
@@ -586,14 +586,14 @@ class Radical_Socials_Integration_Tests {
 			}
 		);
 
-		delete_option( 'rs_wpcom_access_token' );
+		delete_option( 'heckl_wpcom_access_token' );
 	}
 
 	/**
 	 * Regression test: every fetcher path (RSS, WP.com, ActivityPub) must
 	 * populate `author_name` / `author_icon_url` / `author_url` in post
 	 * meta. The AP fetcher bakes these into post_content as part of the
-	 * `.rs-ap-card` wrapper; the RSS and WP.com fetchers just record them
+	 * `.heckl-ap-card` wrapper; the RSS and WP.com fetchers just record them
 	 * on the post for future use (no surfacing today). The meta has to
 	 * land regardless of feed type so it's available to anything that
 	 * reads it later — without this guarantee, the old "two avatar blocks
@@ -690,7 +690,7 @@ class Radical_Socials_Integration_Tests {
 	 */
 	private function test_run_releases_lock_on_completion(): void {
 		$feed_url = 'https://93.184.216.34/lockclean';
-		update_option( 'rs_rss_subscriptions', [
+		update_option( 'heckl_rss_subscriptions', [
 			[ 'url' => $feed_url, 'title' => 'Lock', 'source_url' => 'https://example.com/' ],
 		], false );
 		set_transient( Radical_Socials_Following::REFRESH_LOCK, Radical_Socials_Following::REFRESH_LOCK_QUEUED, 600 );
@@ -705,12 +705,12 @@ class Radical_Socials_Integration_Tests {
 			function (): void {
 				Radical_Socials_Feed_Fetcher::run();
 				$this->assert_same( false, get_transient( Radical_Socials_Following::REFRESH_LOCK ), 'Lock must be cleared after a clean run.' );
-				$this->assert_true( (int) get_option( 'rs_last_feed_fetch', 0 ) > 0, 'rs_last_feed_fetch must advance after a clean run.' );
+				$this->assert_true( (int) get_option( 'heckl_last_feed_fetch', 0 ) > 0, 'heckl_last_feed_fetch must advance after a clean run.' );
 			}
 		);
 
-		update_option( 'rs_rss_subscriptions', [], false );
-		foreach ( get_posts( [ 'post_type' => 'rs_feed_item', 'fields' => 'ids', 'numberposts' => -1 ] ) as $id ) {
+		update_option( 'heckl_rss_subscriptions', [], false );
+		foreach ( get_posts( [ 'post_type' => 'heckl_feed_item', 'fields' => 'ids', 'numberposts' => -1 ] ) as $id ) {
 			$this->created_posts[] = (int) $id;
 		}
 	}
@@ -722,17 +722,17 @@ class Radical_Socials_Integration_Tests {
 	 * keeps happening.
 	 */
 	private function test_run_releases_lock_on_exception(): void {
-		update_option( 'rs_rss_subscriptions', [
+		update_option( 'heckl_rss_subscriptions', [
 			[ 'url' => 'https://93.184.216.34/throws', 'title' => 'T', 'source_url' => 'https://t.example/' ],
 		], false );
 		set_transient( Radical_Socials_Following::REFRESH_LOCK, Radical_Socials_Following::REFRESH_LOCK_QUEUED, 600 );
 
 		// Force an exception during the prune step (simpler attach point than
-		// faking SimplePie internals) by deleting the rs_feed_item post type
+		// faking SimplePie internals) by deleting the heckl_feed_item post type
 		// registration mid-run via a hook on render_block — no, simpler: use
 		// pre_get_posts to throw when prune queries.
 		$thrower = static function ( WP_Query $q ): void {
-			if ( 'rs_feed_item' === $q->get( 'post_type' ) && $q->get( 'meta_query' ) ) {
+			if ( 'heckl_feed_item' === $q->get( 'post_type' ) && $q->get( 'meta_query' ) ) {
 				throw new RuntimeException( 'simulated mid-run failure' );
 			}
 		};
@@ -750,7 +750,7 @@ class Radical_Socials_Integration_Tests {
 		$this->assert_true( $threw, 'Test setup should have caused run() to throw.' );
 		$this->assert_same( false, get_transient( Radical_Socials_Following::REFRESH_LOCK ), 'Lock must be cleared even when run() throws.' );
 
-		update_option( 'rs_rss_subscriptions', [], false );
+		update_option( 'heckl_rss_subscriptions', [], false );
 	}
 
 	/**
@@ -763,7 +763,7 @@ class Radical_Socials_Integration_Tests {
 		$bad_url    = 'https://93.184.216.34/bad';
 		$ok2_url    = 'https://93.184.216.34/ok2';
 
-		update_option( 'rs_rss_subscriptions', [
+		update_option( 'heckl_rss_subscriptions', [
 			[ 'url' => $ok_url,  'title' => 'OK',   'source_url' => 'https://ok.example/'   ],
 			[ 'url' => $bad_url, 'title' => 'BAD',  'source_url' => 'https://bad.example/'  ],
 			[ 'url' => $ok2_url, 'title' => 'OK 2', 'source_url' => 'https://ok2.example/'  ],
@@ -788,10 +788,10 @@ class Radical_Socials_Integration_Tests {
 
 				$stored = function ( string $feed_url ): int {
 					return count( get_posts( [
-						'post_type'   => 'rs_feed_item',
+						'post_type'   => 'heckl_feed_item',
 						'fields'      => 'ids',
 						'numberposts' => -1,
-						'meta_key'    => '_rs_item_feed_url',
+						'meta_key'    => '_heckl_item_feed_url',
 						'meta_value'  => $feed_url,
 					] ) );
 				};
@@ -801,8 +801,8 @@ class Radical_Socials_Integration_Tests {
 			}
 		);
 
-		update_option( 'rs_rss_subscriptions', [], false );
-		foreach ( get_posts( [ 'post_type' => 'rs_feed_item', 'fields' => 'ids', 'numberposts' => -1 ] ) as $id ) {
+		update_option( 'heckl_rss_subscriptions', [], false );
+		foreach ( get_posts( [ 'post_type' => 'heckl_feed_item', 'fields' => 'ids', 'numberposts' => -1 ] ) as $id ) {
 			$this->created_posts[] = (int) $id;
 		}
 	}
@@ -811,7 +811,7 @@ class Radical_Socials_Integration_Tests {
 	 * Probe whether the RSS batch is chunked under realistic scale.
 	 * We register 50 subscriptions and call fetch_all_rss() once, counting how
 	 * many distinct HTTP GETs the fetcher attempted. AP outbox already chunks
-	 * to 10 actors/run (`rs_ap_outbox_offset`); the RSS path doesn't, which
+	 * to 10 actors/run (`heckl_ap_outbox_offset`); the RSS path doesn't, which
 	 * means on Hostinger's 300s exec limit a 215-feed account can never finish.
 	 *
 	 * This test passes if either:
@@ -835,7 +835,7 @@ class Radical_Socials_Integration_Tests {
 			$subs[] = [ 'url' => $url, 'title' => "S$i", 'source_url' => 'https://example.com/' ];
 			$mocks[ 'GET ' . $url ] = $this->http_response( $rss, 200 );
 		}
-		update_option( 'rs_rss_subscriptions', $subs, false );
+		update_option( 'heckl_rss_subscriptions', $subs, false );
 
 		$attempted = 0;
 		$counter   = function ( $preempt, array $args, string $url ) use ( &$attempted ) {
@@ -861,8 +861,8 @@ class Radical_Socials_Integration_Tests {
 			"fetch_all_rss should chunk like fetch_outboxes (≤10 per run). Got $attempted of $total processed — production timeout failure mode."
 		);
 
-		update_option( 'rs_rss_subscriptions', [], false );
-		foreach ( get_posts( [ 'post_type' => 'rs_feed_item', 'fields' => 'ids', 'numberposts' => -1 ] ) as $id ) {
+		update_option( 'heckl_rss_subscriptions', [], false );
+		foreach ( get_posts( [ 'post_type' => 'heckl_feed_item', 'fields' => 'ids', 'numberposts' => -1 ] ) as $id ) {
 			$this->created_posts[] = (int) $id;
 		}
 	}
@@ -877,11 +877,11 @@ class Radical_Socials_Integration_Tests {
 		// Pre-set the RUNNING lock to simulate another tick already in flight.
 		set_transient( Radical_Socials_Following::REFRESH_LOCK, Radical_Socials_Following::REFRESH_LOCK_RUNNING, 600 );
 
-		$before = (int) get_option( 'rs_last_feed_fetch', 0 );
+		$before = (int) get_option( 'heckl_last_feed_fetch', 0 );
 		Radical_Socials_Feed_Fetcher::run();
-		$after  = (int) get_option( 'rs_last_feed_fetch', 0 );
+		$after  = (int) get_option( 'heckl_last_feed_fetch', 0 );
 
-		$this->assert_same( $before, $after, 'A run() entering while another is RUNNING must early-return without touching rs_last_feed_fetch.' );
+		$this->assert_same( $before, $after, 'A run() entering while another is RUNNING must early-return without touching heckl_last_feed_fetch.' );
 		$this->assert_same( Radical_Socials_Following::REFRESH_LOCK_RUNNING, get_transient( Radical_Socials_Following::REFRESH_LOCK ), 'The original RUNNING lock must remain in place.' );
 
 		delete_transient( Radical_Socials_Following::REFRESH_LOCK );
@@ -943,7 +943,7 @@ class Radical_Socials_Integration_Tests {
 		// Clear caches between tests so the actor fetch path is exercised.
 		$reset = \Closure::bind( static function () { Radical_Socials_ActivityPub_Fetcher::$object_cache = []; }, null, Radical_Socials_ActivityPub_Fetcher::class );
 		$reset();
-		delete_transient( 'rs_ap_author_' . md5( $author_url ) );
+		delete_transient( 'heckl_ap_author_' . md5( $author_url ) );
 
 		$this->with_http_mocks(
 			[
@@ -958,11 +958,11 @@ class Radical_Socials_Integration_Tests {
 				$this->assert_same( md5( $target_url ), $item['guid'], 'guid must hash the boosted note URL so multiple boosters dedupe to one item.' );
 				$this->assert_same( $booster_url, $item['source_url'], 'source_url must be the booster — otherwise prune removes boosted items.' );
 				$this->assert_same( $author_url, $item['author_url'], 'author_url must be the original poster.' );
-				$this->assert_true( str_contains( $item['content'], 'rs-boost-context' ), 'Boost badge HTML must be present in content.' );
+				$this->assert_true( str_contains( $item['content'], 'heckl-boost-context' ), 'Boost badge HTML must be present in content.' );
 				$this->assert_true( str_contains( $item['content'], 'boosted body' ), 'Boosted note body must be present in content.' );
-				$this->assert_true( str_contains( $item['content'], 'rs-ap-card' ), 'Content is wrapped in the self-contained rs-ap-card layout.' );
-				$this->assert_true( str_contains( $item['content'], 'rs-ap-avatar' ), 'Avatar image is baked into the content header.' );
-				$this->assert_true( str_contains( $item['content'], 'rs-ap-name' ), 'Display name is baked into the content header.' );
+				$this->assert_true( str_contains( $item['content'], 'heckl-ap-card' ), 'Content is wrapped in the self-contained heckl-ap-card layout.' );
+				$this->assert_true( str_contains( $item['content'], 'heckl-ap-avatar' ), 'Avatar image is baked into the content header.' );
+				$this->assert_true( str_contains( $item['content'], 'heckl-ap-name' ), 'Display name is baked into the content header.' );
 			}
 		);
 	}
@@ -1055,7 +1055,7 @@ class Radical_Socials_Integration_Tests {
 		// Clear in-request and cross-run caches so the fetch path is forced.
 		$reset = \Closure::bind( static function () { Radical_Socials_ActivityPub_Fetcher::$object_cache = []; }, null, Radical_Socials_ActivityPub_Fetcher::class );
 		$reset();
-		delete_transient( 'rs_ap_author_' . md5( $author ) );
+		delete_transient( 'heckl_ap_author_' . md5( $author ) );
 
 		$this->with_http_mocks(
 			[
@@ -1077,7 +1077,7 @@ class Radical_Socials_Integration_Tests {
 		);
 
 		// Clean up the transient so subsequent test runs start fresh.
-		delete_transient( 'rs_ap_author_' . md5( $author ) );
+		delete_transient( 'heckl_ap_author_' . md5( $author ) );
 	}
 
 	/**
@@ -1179,15 +1179,15 @@ class Radical_Socials_Integration_Tests {
 	private function test_like_button_ssr_initial_state(): void {
 		$item_url = 'https://example.invalid/ssr-test-' . wp_generate_uuid4();
 		$post_id  = wp_insert_post( [
-			'post_type'    => 'rs_feed_item',
+			'post_type'    => 'heckl_feed_item',
 			'post_status'  => 'publish',
 			'post_title'   => 'SSR test',
 			'post_content' => 'body',
 			'meta_input'   => [
-				'_rs_item_url' => $item_url,
+				'_heckl_item_url' => $item_url,
 			],
 		] );
-		$this->assert_true( ! is_wp_error( $post_id ) && $post_id > 0, 'Test setup: rs_feed_item insert' );
+		$this->assert_true( ! is_wp_error( $post_id ) && $post_id > 0, 'Test setup: heckl_feed_item insert' );
 		$this->created_posts[] = (int) $post_id;
 
 		// Drive the_post() so the block's render.php picks up get_the_ID().
@@ -1210,34 +1210,34 @@ class Radical_Socials_Integration_Tests {
 			// Not favorited: ♥ (filled) must start hidden, ♡ (empty) visible.
 			$html = do_blocks( '<!-- wp:heckl/like-button /-->' );
 			$this->assert_true(
-				(bool) preg_match( '~class="rs-like-icon-filled"[^>]*(?<![\w-])hidden(?=\s|>)~', $html ),
+				(bool) preg_match( '~class="heckl-like-icon-filled"[^>]*(?<![\w-])hidden(?=\s|>)~', $html ),
 				'Unfavorited state: filled ♥ must be rendered with `hidden`.'
 			);
 			$this->assert_true(
-				! preg_match( '~class="rs-like-icon-empty"[^>]*(?<![\w-])hidden(?=\s|>)~', $html ),
+				! preg_match( '~class="heckl-like-icon-empty"[^>]*(?<![\w-])hidden(?=\s|>)~', $html ),
 				'Unfavorited state: empty ♡ must NOT be rendered with `hidden`.'
 			);
 
-			// Favorite by inserting the rs_favorite CPT row the toggle handler
+			// Favorite by inserting the heckl_favorite CPT row the toggle handler
 			// would create. is_favorited() looks this up by slug=md5(url).
 			$fav_id = wp_insert_post( [
-				'post_type'   => 'rs_favorite',
+				'post_type'   => 'heckl_favorite',
 				'post_status' => 'publish',
 				'post_name'   => $fav_slug,
 				'post_title'  => 'SSR test',
-				'meta_input'  => [ '_rs_item_url' => $item_url ],
+				'meta_input'  => [ '_heckl_item_url' => $item_url ],
 			] );
-			$this->assert_true( ! is_wp_error( $fav_id ) && $fav_id > 0, 'Test setup: rs_favorite insert' );
+			$this->assert_true( ! is_wp_error( $fav_id ) && $fav_id > 0, 'Test setup: heckl_favorite insert' );
 			$this->created_posts[] = (int) $fav_id;
 
 			// Favorited: ♥ visible, ♡ hidden.
 			$html = do_blocks( '<!-- wp:heckl/like-button /-->' );
 			$this->assert_true(
-				! preg_match( '~class="rs-like-icon-filled"[^>]*(?<![\w-])hidden(?=\s|>)~', $html ),
+				! preg_match( '~class="heckl-like-icon-filled"[^>]*(?<![\w-])hidden(?=\s|>)~', $html ),
 				'Favorited state: filled ♥ must NOT be rendered with `hidden`.'
 			);
 			$this->assert_true(
-				(bool) preg_match( '~class="rs-like-icon-empty"[^>]*(?<![\w-])hidden(?=\s|>)~', $html ),
+				(bool) preg_match( '~class="heckl-like-icon-empty"[^>]*(?<![\w-])hidden(?=\s|>)~', $html ),
 				'Favorited state: empty ♡ must be rendered with `hidden`.'
 			);
 		} finally {
@@ -1262,7 +1262,7 @@ class Radical_Socials_Integration_Tests {
 	 * @param string[] $names Option names to virtualize.
 	 */
 	private function virtualize_options( array $names ): void {
-		$sentinel = '__rs_virt_unset__';
+		$sentinel = '__heckl_virt_unset__';
 
 		foreach ( $names as $name ) {
 			$current = get_option( $name, $sentinel );
@@ -1346,7 +1346,7 @@ class Radical_Socials_Integration_Tests {
 			return $this->http_mocks[ $key ];
 		}
 
-		return new WP_Error( 'rs_integration_unmocked_request', 'Unexpected HTTP request during integration check: ' . $key );
+		return new WP_Error( 'heckl_integration_unmocked_request', 'Unexpected HTTP request during integration check: ' . $key );
 	}
 
 	/**
@@ -1408,7 +1408,7 @@ class Radical_Socials_Integration_Tests {
 		}
 
 		$suffix  = wp_generate_uuid4();
-		$user_id = wp_create_user( 'rs_integration_admin_' . $suffix, wp_generate_password(), 'rs_integration_admin_' . $suffix . '@example.com' );
+		$user_id = wp_create_user( 'heckl_integration_admin_' . $suffix, wp_generate_password(), 'heckl_integration_admin_' . $suffix . '@example.com' );
 		$this->assert_true( ! is_wp_error( $user_id ), 'Integration check should be able to create an administrator user.' );
 
 		$user = new WP_User( $user_id );

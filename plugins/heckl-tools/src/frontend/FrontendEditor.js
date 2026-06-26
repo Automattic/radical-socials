@@ -17,15 +17,15 @@ export default function FrontendEditor() {
 	}
 
 	return (
-		<div className="rs-frontend-editor">
+		<div className="heckl-frontend-editor">
 			{ ! expanded && (
-				<button className="rs-editor-prompt" onClick={ () => setExpanded( true ) }>
+				<button className="heckl-editor-prompt" onClick={ () => setExpanded( true ) }>
 					What&apos;s on your mind?
 				</button>
 			) }
 
 			{ expanded && (
-				<Suspense fallback={ <div className="rs-editor-loading" /> }>
+				<Suspense fallback={ <div className="heckl-editor-loading" /> }>
 					<SocialEditor onSuccess={ handleSuccess } onCancel={ collapse } />
 				</Suspense>
 			) }

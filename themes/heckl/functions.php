@@ -75,7 +75,7 @@ if ( ! function_exists( 'heckl_theme_editor_inline_css' ) ) :
 		if ( ! is_admin() ) {
 			return;
 		}
-		wp_add_inline_style( 'wp-block-library', '.rs-cover { overflow: visible; }' );
+		wp_add_inline_style( 'wp-block-library', '.heckl-cover { overflow: visible; }' );
 	}
 endif;
 add_action( 'enqueue_block_assets', 'heckl_theme_editor_inline_css' );

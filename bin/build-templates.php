@@ -4,7 +4,7 @@
  * block templates.
  *
  * Heckl ships a plugin that should work on any active theme.
- * Most themes won't define `archive-rs_feed_item` or `archive-rs_favorite`,
+ * Most themes won't define `archive-heckl_feed_item` or `archive-heckl_favorite`,
  * so without a fallback, visiting /following or /favorites on a vanilla
  * theme falls back to the generic archive layout — which is missing the
  * sidebars, the feed query, and the navigation chrome that make this
@@ -15,7 +15,7 @@
  * `<!-- wp:pattern -->` reference, and write the resulting self-contained
  * HTML into plugins/heckl-tools/templates/. The plugin then registers
  * each one via register_block_template() (WP 6.7+). When the active theme
- * provides its own archive-rs_feed_item.html, WP's normal theme-over-plugin
+ * provides its own archive-heckl_feed_item.html, WP's normal theme-over-plugin
  * resolution applies and the theme version wins.
  *
  * Theme is the source of truth: editing the theme + re-running this script
@@ -33,7 +33,7 @@
 
 declare(strict_types=1);
 
-const FLATTEN_TEMPLATES = [ 'archive-rs_feed_item', 'archive-rs_favorite' ];
+const FLATTEN_TEMPLATES = [ 'archive-heckl_feed_item', 'archive-heckl_favorite' ];
 
 $root       = realpath( __DIR__ . '/..' );
 $theme_dir  = $root . '/themes/heckl';
@@ -60,9 +60,9 @@ foreach (
 	] as $name => $impl
 ) {
 	if ( ! function_exists( $name ) ) {
-		eval( "function $name( ...\$args ) { return (\$GLOBALS['__rs_shims']['$name'])(...\$args); }" );
+		eval( "function $name( ...\$args ) { return (\$GLOBALS['__heckl_shims']['$name'])(...\$args); }" );
 	}
-	$GLOBALS['__rs_shims'][ $name ] = $impl;
+	$GLOBALS['__heckl_shims'][ $name ] = $impl;
 }
 foreach (
 	[
@@ -73,9 +73,9 @@ foreach (
 	] as $name => $impl
 ) {
 	if ( ! function_exists( $name ) ) {
-		eval( "function $name( ...\$args ) { (\$GLOBALS['__rs_shims']['$name'])(...\$args); }" );
+		eval( "function $name( ...\$args ) { (\$GLOBALS['__heckl_shims']['$name'])(...\$args); }" );
 	}
-	$GLOBALS['__rs_shims'][ $name ] = $impl;
+	$GLOBALS['__heckl_shims'][ $name ] = $impl;
 }
 
 /**
@@ -87,7 +87,7 @@ foreach (
  * and slurp non-greedily back to the opening `{` — that's stable for
  * our use because no theme block ever puts ` /-->` inside its attrs.
  */
-function rs_find_self_closing_block( string $haystack, string $block_name ): array {
+function heckl_find_self_closing_block( string $haystack, string $block_name ): array {
 	$matches = [];
 	$pattern = sprintf( '~<!-- wp:%s (\{.*?\}) /-->~s', preg_quote( $block_name, '~' ) );
 	preg_match_all( $pattern, $haystack, $matches, PREG_OFFSET_CAPTURE );
@@ -101,7 +101,7 @@ function rs_find_self_closing_block( string $haystack, string $block_name ): arr
  * @param string[] $stack    Slugs visited so far on this branch. Catches
  *                           recursive includes before they blow the stack.
  */
-function rs_flatten( string $content, string $theme_dir, array $stack = [] ): string {
+function heckl_flatten( string $content, string $theme_dir, array $stack = [] ): string {
 	// Template parts (HTML files under parts/).
 	$content = preg_replace_callback(
 		'~<!-- wp:template-part (\{.*?\}) /-->~s',
@@ -121,7 +121,7 @@ function rs_flatten( string $content, string $theme_dir, array $stack = [] ): st
 				fwrite( STDERR, "✘ Missing template part: $path\n" );
 				exit( 1 );
 			}
-			$inner = rs_flatten( file_get_contents( $path ), $theme_dir, [ ...$stack, $key ] );
+			$inner = heckl_flatten( file_get_contents( $path ), $theme_dir, [ ...$stack, $key ] );
 			// `tagName` on template-part means "render this part wrapped in
 			// <tagName>". Preserve that semantics in the flattened markup.
 			$tag = $attrs['tagName'] ?? '';
@@ -156,7 +156,7 @@ function rs_flatten( string $content, string $theme_dir, array $stack = [] ): st
 			ob_start();
 			include $path;
 			$inner = ob_get_clean();
-			return rs_flatten( $inner, $theme_dir, [ ...$stack, $key ] );
+			return heckl_flatten( $inner, $theme_dir, [ ...$stack, $key ] );
 		},
 		$content
 	);
@@ -179,7 +179,7 @@ foreach ( FLATTEN_TEMPLATES as $slug ) {
 		fwrite( STDERR, "✘ Source template missing: $src\n" );
 		exit( 1 );
 	}
-	$flat = rs_flatten( (string) file_get_contents( $src ), $theme_dir );
+	$flat = heckl_flatten( (string) file_get_contents( $src ), $theme_dir );
 	$dest = $output_dir . '/' . $slug . '.html';
 	file_put_contents( $dest, $flat );
 	echo sprintf( "✓ %s.html (%d bytes)\n", $slug, strlen( $flat ) );

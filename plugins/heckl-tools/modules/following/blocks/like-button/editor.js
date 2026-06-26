@@ -5,9 +5,9 @@
 
 	registerBlockType( 'heckl/like-button', {
 		edit: function () {
-			var blockProps = useBlockProps( { className: 'rs-like-button-wrap' } );
+			var blockProps = useBlockProps( { className: 'heckl-like-button-wrap' } );
 			return el( 'div', blockProps,
-				el( 'button', { type: 'button', className: 'rs-like-btn', disabled: true }, '♡' )
+				el( 'button', { type: 'button', className: 'heckl-like-btn', disabled: true }, '♡' )
 			);
 		},
 		save: function () {

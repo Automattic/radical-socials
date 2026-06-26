@@ -17,7 +17,7 @@ class Radical_Socials_Following_REST {
 
 	const REST_NAMESPACE    = 'heckl/v1';
 	const ROUTE             = '/following';
-	const FAVORITES_OPTION  = 'rs_following_favorites';
+	const FAVORITES_OPTION  = 'heckl_following_favorites';
 	const OPML_MAX_BYTES    = 2097152; // 2 MB.
 
 	public static function init(): void {
@@ -121,18 +121,19 @@ class Radical_Socials_Following_REST {
 	// ── Background refresh ────────────────────────────────────────────────────
 
 	public static function verify_refresh_secret( WP_REST_Request $request ): bool {
-		// Design intent (intentionally permissive): any reader/visitor with a
-		// session may refresh their own feed, AND server-to-server cron loopback
-		// can call us with a shared secret. Two callers, two paths.
-		//
-		// For the user path we still require a valid REST nonce on top —
-		// without it, any third-party page a logged-in user visits could
-		// drive feed fetches via CSRF (low impact, but free DoS-amp against
-		// followed hosts). REST's cookie-auth normally enforces this, but the
-		// `X-WP-Nonce` header / `_wpnonce` param must actually be present;
-		// we double-check here so the permission_callback fails loudly on
-		// missing nonces rather than silently letting the request through.
+		// Server-to-server background call authenticated by shared secret.
+		$provided = $request->get_header( 'x_heckl_refresh_secret' );
+		if ( $provided && hash_equals( Radical_Socials_Following::refresh_secret(), $provided ) ) {
+			return true;
+		}
+
+		// User-triggered refresh is a site-wide fetch, so it needs an
+		// authorization check in addition to the REST nonce.
 		if ( is_user_logged_in() ) {
+			if ( ! current_user_can( 'manage_options' ) ) {
+				return false;
+			}
+
 			$nonce = $request->get_header( 'x_wp_nonce' );
 			if ( ! $nonce ) {
 				$nonce = $request->get_param( '_wpnonce' );
@@ -140,9 +141,7 @@ class Radical_Socials_Following_REST {
 			return $nonce && wp_verify_nonce( $nonce, 'wp_rest' );
 		}
 
-		// Server-to-server background call authenticated by shared secret.
-		$provided = $request->get_header( 'x_rs_refresh_secret' );
-		return $provided && hash_equals( Radical_Socials_Following::refresh_secret(), $provided );
+		return false;
 	}
 
 	public static function handle_refresh(): WP_REST_Response {
@@ -164,7 +163,7 @@ class Radical_Socials_Following_REST {
 			'ok'           => true,
 			'queued'       => $queued,
 			'refreshing'   => $queued || (bool) get_transient( Radical_Socials_Following::REFRESH_LOCK ),
-			'last_fetched' => (int) get_option( 'rs_last_feed_fetch', 0 ),
+			'last_fetched' => (int) get_option( 'heckl_last_feed_fetch', 0 ),
 		], $queued ? 202 : 200 );
 	}
 
@@ -265,7 +264,7 @@ class Radical_Socials_Following_REST {
 	 * Upsert a full list of OPML feeds in one request. The earlier per-entry
 	 * endpoint (handle_opml_entry) is preserved for backwards-compat but isn't
 	 * safe to call concurrently — each call does a read-modify-write on the
-	 * rs_rss_subscriptions option, so parallel requests clobber each other.
+	 * heckl_rss_subscriptions option, so parallel requests clobber each other.
 	 * This endpoint processes the entire array in a single import() call, so
 	 * one option read at the start and one write at the end.
 	 */
@@ -459,7 +458,7 @@ class Radical_Socials_Following_REST {
 	}
 
 	private static function list_rss(): array {
-		$subs  = (array) get_option( 'rs_rss_subscriptions', [] );
+		$subs  = (array) get_option( 'heckl_rss_subscriptions', [] );
 		$items = [];
 		foreach ( $subs as $sub ) {
 			$items[] = [
@@ -509,7 +508,7 @@ class Radical_Socials_Following_REST {
 			$acct   = get_post_meta( $post->ID, '_activitypub_acct', true );
 			$display = $acct ?: $post->post_title ?: $post->guid;
 
-			$health = get_post_meta( $post->ID, '_rs_health', true );
+			$health = get_post_meta( $post->ID, '_heckl_health', true );
 
 			$items[] = [
 				'id'     => (string) $post->ID,
@@ -566,7 +565,7 @@ class Radical_Socials_Following_REST {
 	}
 
 	private static function add_rss( string $url ): WP_REST_Response {
-		$subs = (array) get_option( 'rs_rss_subscriptions', [] );
+		$subs = (array) get_option( 'heckl_rss_subscriptions', [] );
 		$urls = array_column( $subs, 'url' );
 
 		// Resolve to canonical URL before storing (handles moved/http→https feeds).
@@ -586,11 +585,11 @@ class Radical_Socials_Following_REST {
 				Radical_Socials_Feed_Fetcher::upsert_item( $item );
 			}
 			Radical_Socials_Feed_Fetcher::enforce_cap();
-			update_option( 'rs_last_feed_fetch', time(), false );
+			update_option( 'heckl_last_feed_fetch', time(), false );
 		}
 
 		$subs[] = [ 'url' => $resolved, 'title' => $title, 'source_url' => $source_url ];
-		update_option( 'rs_rss_subscriptions', $subs, false );
+		update_option( 'heckl_rss_subscriptions', $subs, false );
 
 		// Try WebSub — fire-and-forget, failure is non-fatal.
 		Radical_Socials_WebSub_Subscriber::subscribe( $resolved );
@@ -619,7 +618,7 @@ class Radical_Socials_Following_REST {
 		}
 
 		// Remember which actor id owns ActivityPub follows so the outbox poller can find them.
-		update_option( 'rs_ap_follow_user_id', $uid, false );
+		update_option( 'heckl_ap_follow_user_id', $uid, false );
 
 		return new WP_REST_Response( [
 			'id'    => (string) $result,
@@ -638,7 +637,7 @@ class Radical_Socials_Following_REST {
 
 		switch ( $type ) {
 			case 'rss':
-				$subs        = (array) get_option( 'rs_rss_subscriptions', [] );
+				$subs        = (array) get_option( 'heckl_rss_subscriptions', [] );
 				$deleted_sub = null;
 				$subs        = array_values(
 					array_filter( $subs, function ( $s ) use ( $id, &$deleted_sub ) {
@@ -654,7 +653,7 @@ class Radical_Socials_Following_REST {
 					return new WP_REST_Response( [ 'error' => 'rss_subscription_not_found' ], 404 );
 				}
 
-				update_option( 'rs_rss_subscriptions', $subs, false );
+				update_option( 'heckl_rss_subscriptions', $subs, false );
 				Radical_Socials_WebSub_Subscriber::unsubscribe( $deleted_sub['url'] );
 				self::delete_feed_items_for_source( $deleted_sub );
 
@@ -722,13 +721,13 @@ class Radical_Socials_Following_REST {
 	}
 
 	/**
-	 * Delete all rs_feed_item posts belonging to a removed RSS subscription.
-	 * Matches by _rs_item_source_url meta (homepage URL) when available,
-	 * otherwise falls back to the rs_source taxonomy term (feed title).
+	 * Delete all heckl_feed_item posts belonging to a removed RSS subscription.
+	 * Matches by _heckl_item_source_url meta (homepage URL) when available,
+	 * otherwise falls back to the heckl_source taxonomy term (feed title).
 	 */
 	private static function delete_feed_items_for_source( array $sub ): void {
 		$args = [
-			'post_type'      => 'rs_feed_item',
+			'post_type'      => 'heckl_feed_item',
 			'post_status'    => 'any',
 			'fields'         => 'ids',
 			'posts_per_page' => 9999,
@@ -737,14 +736,14 @@ class Radical_Socials_Following_REST {
 		if ( ! empty( $sub['source_url'] ) ) {
 			$args['meta_query'] = [
 				[
-					'key'   => '_rs_item_source_url',
+					'key'   => '_heckl_item_source_url',
 					'value' => $sub['source_url'],
 				],
 			];
 		} elseif ( ! empty( $sub['title'] ) ) {
 			$args['tax_query'] = [
 				[
-					'taxonomy' => 'rs_source',
+					'taxonomy' => 'heckl_source',
 					'field'    => 'name',
 					'terms'    => $sub['title'],
 				],

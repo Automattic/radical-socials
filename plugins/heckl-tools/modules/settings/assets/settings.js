@@ -44,7 +44,7 @@
 	}
 
 	function updateProfileAvatar( url ) {
-		const avatar = doc.querySelector( '[data-rs-profile-avatar]' );
+		const avatar = doc.querySelector( '[data-heckl-profile-avatar]' );
 
 		if ( ! avatar ) {
 			return;
@@ -66,7 +66,7 @@
 	}
 
 	function updateProfileCover( url, emptyLabel ) {
-		const cover = doc.querySelector( '[data-rs-profile-cover]' );
+		const cover = doc.querySelector( '[data-heckl-profile-cover]' );
 
 		if ( ! cover ) {
 			return;
@@ -85,11 +85,11 @@
 	}
 
 	function initMediaControl( control ) {
-		const input = control.querySelector( '[data-rs-media-input]' );
-		const preview = control.querySelector( '[data-rs-media-preview]' );
-		const open = control.querySelector( '[data-rs-media-open]' );
-		const remove = control.querySelector( '[data-rs-media-remove]' );
-		const target = control.dataset.rsMediaTarget;
+		const input = control.querySelector( '[data-heckl-media-input]' );
+		const preview = control.querySelector( '[data-heckl-media-preview]' );
+		const open = control.querySelector( '[data-heckl-media-open]' );
+		const remove = control.querySelector( '[data-heckl-media-remove]' );
+		const target = control.dataset.hecklMediaTarget;
 		const emptyLabel =
 			control.dataset.emptyLabel ||
 			( target === 'cover' ? 'Cover photo' : 'Profile photo' );
@@ -152,6 +152,6 @@
 	}
 
 	doc
-		.querySelectorAll( '[data-rs-media-control]' )
+		.querySelectorAll( '[data-heckl-media-control]' )
 		.forEach( initMediaControl );
 }() );
