@@ -1102,13 +1102,7 @@ class Radical_Socials_Integration_Tests {
 	private function test_hooked_block_insertions(): void {
 		// Apply `hooked_block_types` against each anchor and assert that
 		// the resulting list contains each expected hook exactly once.
-		$nav_hooks = apply_filters(
-			'hooked_block_types',
-			array(),
-			'last_child',
-			'core/navigation',
-			null
-		);
+		$nav_hooks = self::apply_hooked_block_type_callbacks( [], 'last_child', 'core/navigation' );
 		$this->assert_same(
 			1,
 			count( array_keys( $nav_hooks, 'heckl/following-link', true ) ),
@@ -1123,13 +1117,7 @@ class Radical_Socials_Integration_Tests {
 		// like-button is declared via blockHooks only; assert it does NOT
 		// also appear in the imperative filter list (a duplicate would
 		// produce two hearts per feed item again).
-		$pt_imperative_hooks = apply_filters(
-			'hooked_block_types',
-			array(),
-			'last_child',
-			'core/post-template',
-			null
-		);
+		$pt_imperative_hooks = self::apply_hooked_block_type_callbacks( [], 'last_child', 'core/post-template' );
 		$this->assert_same(
 			0,
 			count( array_keys( $pt_imperative_hooks, 'heckl/like-button', true ) ),
@@ -1165,6 +1153,29 @@ class Radical_Socials_Integration_Tests {
 			$favorites && empty( $favorites->block_hooks ),
 			'heckl/favorites-link must NOT declare blockHooks (imperative filter is the sole insertion path).'
 		);
+	}
+
+	private static function apply_hooked_block_type_callbacks( array $hooked_blocks, string $position, string $anchor_block ): array {
+		global $wp_filter;
+
+		$hook = $wp_filter['hooked_block_types'] ?? null;
+		if ( ! $hook instanceof WP_Hook ) {
+			return $hooked_blocks;
+		}
+
+		foreach ( $hook->callbacks as $callbacks ) {
+			foreach ( $callbacks as $callback ) {
+				if ( empty( $callback['function'] ) || ! is_callable( $callback['function'] ) ) {
+					continue;
+				}
+
+				$accepted_args = (int) ( $callback['accepted_args'] ?? 1 );
+				$args          = array_slice( [ $hooked_blocks, $position, $anchor_block, null ], 0, $accepted_args );
+				$hooked_blocks = (array) call_user_func_array( $callback['function'], $args );
+			}
+		}
+
+		return $hooked_blocks;
 	}
 
 	/**

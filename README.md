@@ -40,6 +40,8 @@ npm run theme-zip          # theme release zip
 
 `plugin-zip` always runs `build:templates` so the shipped archive carries fresh flattened versions of the theme's `archive-heckl_feed_item` / `archive-heckl_favorite` templates as plugin defaults. The theme is the source of truth — running the script regenerates the plugin's copies.
 
+The plugin release zip includes the unminified JavaScript and CSS source in `plugins/heckl-tools/src/`. The compiled files in `plugins/heckl-tools/build/` can be regenerated with `npm run build`.
+
 ## Repo layout
 
 ```

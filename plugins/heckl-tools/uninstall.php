@@ -41,6 +41,8 @@ $heckl_always_delete_options = [
 	'heckl_ap_outbox_offset',
 	'heckl_ap_follow_user_id',
 	'heckl_auto_pretty_permalinks',
+	'heckl_activitypub_default_blog_mode',
+	'heckl_activitypub_blog_identifier',
 ];
 foreach ( $heckl_always_delete_options as $heckl_option ) {
 	delete_option( $heckl_option );
@@ -124,6 +126,8 @@ $heckl_purge_options = [
 	'heckl_rss_fetch_offset',
 	'heckl_ap_outbox_offset',
 	'heckl_ap_follow_user_id',
+	'heckl_activitypub_default_blog_mode',
+	'heckl_activitypub_blog_identifier',
 	// Subscription + favorites state.
 	'heckl_rss_subscriptions',
 	'heckl_websub_subscriptions',

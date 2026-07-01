@@ -472,7 +472,7 @@ class Radical_Socials_Settings_Page {
 			$logo_url = $logo_id ? wp_get_attachment_image_url( $logo_id, 'medium' ) : '';
 			wp_add_inline_style(
 				'site-icon',
-				sprintf( ':root { --site-icon-url: url("%s"); }', esc_url_raw( (string) $logo_url ) )
+				sprintf( ':root { --site-icon-url: url("%s"); }', esc_url( (string) $logo_url ) )
 			);
 
 			wp_enqueue_script(
@@ -706,7 +706,7 @@ class Radical_Socials_Settings_Page {
 							class="heckl-profile-cover<?php echo $banner_url ? ' has-image' : ''; ?>"
 							data-heckl-profile-cover
 							data-empty-label="<?php esc_attr_e( 'Cover photo', 'heckl-tools' ); ?>"
-							style="<?php echo $banner_url ? esc_attr( 'background-image: url("' . esc_url_raw( $banner_url ) . '");' ) : ''; ?>"
+							style="<?php echo $banner_url ? esc_attr( 'background-image: url("' . esc_url( $banner_url ) . '");' ) : ''; ?>"
 						>
 							<?php if ( ! $banner_url ) : ?>
 								<span><?php esc_html_e( 'Cover photo', 'heckl-tools' ); ?></span>
@@ -1134,7 +1134,6 @@ class Radical_Socials_Settings_Page {
 		<?php if ( $handle_saved ) : ?>
 			<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Handle saved.', 'heckl-tools' ); ?></p></div>
 		<?php endif; ?>
-
 		<ol class="heckl-welcome-steps">
 
 			<!-- Step 1: Install ActivityPub + handle -->
@@ -1155,26 +1154,50 @@ class Radical_Socials_Settings_Page {
 							</form>
 						</div>
 					<?php else :
-						$blog_identifier = get_option( 'activitypub_blog_identifier', '' );
+						$saved_ap_identifier = function_exists( 'heckl_saved_activitypub_blog_identifier' )
+							? heckl_saved_activitypub_blog_identifier()
+							: '';
+						$blog_identifier = '' !== $saved_ap_identifier
+							? $saved_ap_identifier
+							: sanitize_user( (string) get_option( defined( 'HECKL_ACTIVITYPUB_BLOG_IDENTIFIER_OPTION' ) ? HECKL_ACTIVITYPUB_BLOG_IDENTIFIER_OPTION : 'heckl_activitypub_blog_identifier', '' ), true );
 						if ( '' === $blog_identifier ) {
 							$blog_identifier = sanitize_title( get_bloginfo( 'name' ) ) ?: 'site';
 						}
-						$host = wp_parse_url( home_url(), PHP_URL_HOST );
+						$host                  = wp_parse_url( home_url(), PHP_URL_HOST );
+						$mode                  = (string) get_option( 'activitypub_actor_mode', '' );
+						$blog_mode_enabled     = defined( 'ACTIVITYPUB_BLOG_MODE' ) && ACTIVITYPUB_BLOG_MODE === $mode;
+						$combined_mode_enabled = defined( 'ACTIVITYPUB_ACTOR_AND_BLOG_MODE' ) && ACTIVITYPUB_ACTOR_AND_BLOG_MODE === $mode;
+						$activitypub_url       = self_admin_url( 'options-general.php?page=activitypub' );
+						$blog_profile_url      = add_query_arg( 'tab', 'blog-profile', $activitypub_url );
 						?>
-						<p><?php esc_html_e( 'ActivityPub is active. This is the @handle that other Fediverse accounts will use to follow you:', 'heckl-tools' ); ?></p>
-						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="heckl-welcome-step__actions" style="width:100%">
-							<input type="hidden" name="action" value="heckl_save_handle" />
-							<?php wp_nonce_field( 'heckl_save_handle' ); ?>
-							<span class="heckl-welcome-handle-preview">@<input
-								type="text"
-								name="heckl_blog_identifier"
-								value="<?php echo esc_attr( $blog_identifier ); ?>"
-								pattern="[A-Za-z0-9_\-]+"
-								maxlength="40"
-								style="border:0;background:transparent;font-family:inherit"
-							/>@<?php echo esc_html( $host ); ?></span>
-							<button type="submit" class="button button-secondary"><?php esc_html_e( 'Save handle', 'heckl-tools' ); ?></button>
-						</form>
+						<?php if ( $blog_mode_enabled || $combined_mode_enabled ) : ?>
+							<p><?php esc_html_e( 'ActivityPub is active. This is the site-wide @handle that other Fediverse accounts can use to follow you:', 'heckl-tools' ); ?></p>
+							<?php if ( '' === $saved_ap_identifier ) : ?>
+								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="heckl-welcome-step__actions" style="width:100%">
+									<input type="hidden" name="action" value="heckl_save_handle" />
+									<?php wp_nonce_field( 'heckl_save_handle' ); ?>
+									<span class="heckl-welcome-handle-preview">@<input
+										type="text"
+										name="heckl_blog_identifier"
+										value="<?php echo esc_attr( $blog_identifier ); ?>"
+										pattern="[A-Za-z0-9_\-]+"
+										maxlength="40"
+										style="border:0;background:transparent;font-family:inherit"
+									/>@<?php echo esc_html( is_string( $host ) ? $host : '' ); ?></span>
+									<button type="submit" class="button button-secondary"><?php esc_html_e( 'Save handle', 'heckl-tools' ); ?></button>
+								</form>
+							<?php else : ?>
+								<div class="heckl-welcome-step__actions" style="width:100%">
+									<span class="heckl-welcome-handle-preview">@<?php echo esc_html( $blog_identifier ); ?>@<?php echo esc_html( is_string( $host ) ? $host : '' ); ?></span>
+									<a href="<?php echo esc_url( $blog_profile_url ); ?>" class="button button-secondary"><?php esc_html_e( 'Edit in ActivityPub', 'heckl-tools' ); ?></a>
+								</div>
+							<?php endif; ?>
+						<?php else : ?>
+							<p><?php esc_html_e( 'ActivityPub is active. Fediverse profile type and handle settings are managed by the ActivityPub plugin.', 'heckl-tools' ); ?></p>
+							<p class="heckl-welcome-step__actions">
+								<a href="<?php echo esc_url( $activitypub_url ); ?>" class="button button-secondary"><?php esc_html_e( 'Open ActivityPub settings', 'heckl-tools' ); ?></a>
+							</p>
+						<?php endif; ?>
 					<?php endif; ?>
 				</div>
 			</li>
@@ -1344,7 +1367,11 @@ class Radical_Socials_Settings_Page {
 	}
 
 	/**
-	 * admin-post handler: save the AP blog actor handle from step 1.
+	 * admin-post handler: save Heckl's default AP blog actor handle.
+	 *
+	 * The value is stored under Heckl's prefix and exposed to ActivityPub via
+	 * `default_option_activitypub_blog_identifier`, so ActivityPub's own saved
+	 * option remains the source of truth whenever the user configures it there.
 	 */
 	public static function handle_save_handle(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
@@ -1352,9 +1379,12 @@ class Radical_Socials_Settings_Page {
 		}
 		check_admin_referer( 'heckl_save_handle' );
 
-		$candidate = isset( $_POST['heckl_blog_identifier'] ) ? sanitize_user( wp_unslash( $_POST['heckl_blog_identifier'] ), true ) : '';
+		$candidate   = isset( $_POST['heckl_blog_identifier'] ) ? sanitize_user( wp_unslash( $_POST['heckl_blog_identifier'] ), true ) : '';
+		$option_name = defined( 'HECKL_ACTIVITYPUB_BLOG_IDENTIFIER_OPTION' ) ? HECKL_ACTIVITYPUB_BLOG_IDENTIFIER_OPTION : 'heckl_activitypub_blog_identifier';
 		if ( '' !== $candidate ) {
-			update_option( 'activitypub_blog_identifier', $candidate );
+			update_option( $option_name, $candidate, false );
+		} else {
+			delete_option( $option_name );
 		}
 		self::push_form_result( [ 'kind' => 'handle_saved' ] );
 		wp_safe_redirect( admin_url( 'admin.php?page=heckl-settings&tab=welcome' ) );

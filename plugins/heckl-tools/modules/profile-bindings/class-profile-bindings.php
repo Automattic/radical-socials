@@ -85,7 +85,14 @@ class Radical_Socials_Profile_Bindings {
 	public static function get_handle( $source_args, $block_instance, $attribute_name ): ?string {
 		unset( $source_args, $block_instance, $attribute_name );
 
-		$identifier = (string) get_option( 'activitypub_blog_identifier', '' );
+		$mode                  = (string) get_option( 'activitypub_actor_mode', '' );
+		$blog_mode_enabled     = defined( 'ACTIVITYPUB_BLOG_MODE' ) && ACTIVITYPUB_BLOG_MODE === $mode;
+		$combined_mode_enabled = defined( 'ACTIVITYPUB_ACTOR_AND_BLOG_MODE' ) && ACTIVITYPUB_ACTOR_AND_BLOG_MODE === $mode;
+		if ( ! $blog_mode_enabled && ! $combined_mode_enabled ) {
+			return null;
+		}
+
+		$identifier = sanitize_user( (string) get_option( 'activitypub_blog_identifier', '' ), true );
 		if ( '' === $identifier ) {
 			// AP's own fallback when no explicit identifier has been set
 			// — the slugified blog name.

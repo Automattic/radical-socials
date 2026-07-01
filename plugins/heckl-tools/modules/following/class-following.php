@@ -430,7 +430,7 @@ class Radical_Socials_Following {
 			wp_remote_post( site_url( 'wp-cron.php?doing_wp_cron=' . sprintf( '%.22F', microtime( true ) ) ), [
 				'timeout'   => 0.01,
 				'blocking'  => false,
-				'sslverify' => apply_filters( 'https_local_ssl_verify', false ),
+				'sslverify' => false,
 			] );
 		}
 

@@ -20,6 +20,12 @@ defined( 'ABSPATH' ) || exit;
 
 // Bump when plugin rewrite registrations change and existing sites need a refresh.
 const HECKL_REWRITE_VERSION = 'following-archives-v1';
+const HECKL_ACTIVITYPUB_DEFAULT_BLOG_MODE_OPTION = 'heckl_activitypub_default_blog_mode';
+const HECKL_ACTIVITYPUB_BLOG_IDENTIFIER_OPTION  = 'heckl_activitypub_blog_identifier';
+
+function heckl_default_option_filter_name( string $option_name ): string {
+	return 'default_option_' . $option_name;
+}
 
 // ── Modules ──────────────────────────────────────────────────────────────────
 
@@ -111,35 +117,56 @@ function heckl_activate(): void {
 
 	flush_rewrite_rules();
 	update_option( 'heckl_rewrite_version', HECKL_REWRITE_VERSION, false );
-
-	// Use the single blog-wide actor. Identity (name, logo) syncs from WP options automatically.
-	if ( defined( 'ACTIVITYPUB_BLOG_MODE' ) && ! get_option( 'activitypub_actor_mode' ) ) {
-		update_option( 'activitypub_actor_mode', ACTIVITYPUB_BLOG_MODE );
-	}
 }
 register_activation_hook( __FILE__, 'heckl_activate' );
 
 /**
- * Apply our ActivityPub onboarding defaults (single blog-wide actor) the
- * first time AP is loaded. The `heckl_activate()` hook also
- * applies these, but only fires if AP happens to already be active at the
- * moment our plugin is activated. With AP now optional, users routinely
- * install us first and AP later — this catches that ordering. Idempotent
- * via the `heckl_ap_defaults_applied` flag.
+ * Default ActivityPub to a site-wide actor for Heckl installs without writing
+ * to ActivityPub-owned options. If the site later saves ActivityPub's own
+ * actor-mode option, that saved value takes precedence over this default.
+ *
+ * @param mixed $default_value Default option value from WordPress/ActivityPub.
+ * @return mixed
  */
-function heckl_apply_ap_defaults_when_ready(): void {
-	if ( get_option( 'heckl_ap_defaults_applied' ) ) {
-		return;
-	}
+function heckl_default_activitypub_actor_mode( $default_value ) {
 	if ( ! defined( 'ACTIVITYPUB_BLOG_MODE' ) ) {
-		return;
+		return $default_value;
 	}
-	if ( ! get_option( 'activitypub_actor_mode' ) ) {
-		update_option( 'activitypub_actor_mode', ACTIVITYPUB_BLOG_MODE );
+	if ( defined( 'ACTIVITYPUB_DISABLE_BLOG_USER' ) && ACTIVITYPUB_DISABLE_BLOG_USER ) {
+		return $default_value;
 	}
-	update_option( 'heckl_ap_defaults_applied', 1, false );
+
+	return (bool) get_option( HECKL_ACTIVITYPUB_DEFAULT_BLOG_MODE_OPTION, true )
+		? ACTIVITYPUB_BLOG_MODE
+		: $default_value;
 }
-add_action( 'plugins_loaded', 'heckl_apply_ap_defaults_when_ready', 30 );
+add_filter( heckl_default_option_filter_name( 'activitypub_actor_mode' ), 'heckl_default_activitypub_actor_mode' );
+
+/**
+ * Let Heckl's one-screen onboarding provide the Blog Profile username as an
+ * ActivityPub default. ActivityPub's own saved option still wins if present.
+ *
+ * @param mixed $default_value Default option value from WordPress/ActivityPub.
+ * @return mixed
+ */
+function heckl_default_activitypub_blog_identifier( $default_value ) {
+	$identifier = sanitize_user( (string) get_option( HECKL_ACTIVITYPUB_BLOG_IDENTIFIER_OPTION, '' ), true );
+	return '' !== $identifier ? $identifier : $default_value;
+}
+add_filter( heckl_default_option_filter_name( 'activitypub_blog_identifier' ), 'heckl_default_activitypub_blog_identifier' );
+
+/**
+ * Read ActivityPub's saved Blog Profile username without Heckl's default
+ * filter. Used only to decide whether the wizard can edit the Heckl default
+ * or should point to ActivityPub's own settings for an already-saved value.
+ */
+function heckl_saved_activitypub_blog_identifier(): string {
+	remove_filter( 'default_option_activitypub_blog_identifier', 'heckl_default_activitypub_blog_identifier' );
+	$identifier = sanitize_user( (string) get_option( 'activitypub_blog_identifier', '' ), true );
+	add_filter( 'default_option_activitypub_blog_identifier', 'heckl_default_activitypub_blog_identifier' );
+
+	return $identifier;
+}
 
 /**
  * Read a query-string parameter from the current request URI without
