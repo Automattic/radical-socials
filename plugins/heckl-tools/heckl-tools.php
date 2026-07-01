@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Heckl Tools
  * Description:       Escape walled gardens with a self-hosted WordPress site that feels like home.
- * Version:           1.0.3
+ * Version:           1.0.4
  * Requires at least: 6.7
  * Tested up to:      7.0
  * Requires PHP:      8.0
