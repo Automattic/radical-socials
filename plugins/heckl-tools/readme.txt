@@ -127,6 +127,9 @@ Heckl Tools does not collect, store, or transmit usage analytics, telemetry, or 
 
 == Upgrade Notice ==
 
+= 1.0.4 =
+Initial WordPress.org directory release. Safe to update.
+
 = 1.0.1 =
 Maintenance release. Activation no longer changes your permalink settings unless you opt in, plus editor and packaging fixes. Safe to update.
 
@@ -134,6 +137,11 @@ Maintenance release. Activation no longer changes your permalink settings unless
 First stable release. No prior version to upgrade from.
 
 == Changelog ==
+
+= 1.0.4 =
+* Initial WordPress.org directory release.
+* Improved ActivityPub defaults so Heckl Tools works simply on new sites without overwriting ActivityPub's own saved settings.
+* Tightened escaping and release packaging for WordPress.org distribution.
 
 = 1.0.1 =
 * Activation no longer changes the site's permalink structure automatically; pretty permalinks are only applied when explicitly enabled.

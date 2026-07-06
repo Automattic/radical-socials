@@ -42,6 +42,17 @@ npm run theme-zip          # theme release zip
 
 The plugin release zip includes the unminified JavaScript and CSS source in `plugins/heckl-tools/src/`. The compiled files in `plugins/heckl-tools/build/` can be regenerated with `npm run build`.
 
+## Releases
+
+```bash
+npm run release:plugin -- 1.0.5
+git push && git push origin plugin-v1.0.5
+```
+
+Pushing a `plugin-v*` tag builds the plugin zip, creates a GitHub Release, and deploys the same release-ready package to the WordPress.org plugin directory. The deploy step requires repository secrets named `SVN_USERNAME` and `SVN_PASSWORD`; the username is the WordPress.org username with commit access to `heckl-tools`, and the password is the separate WordPress.org SVN password.
+
+Pushing a `theme-v*` tag builds and releases the theme zip on GitHub only.
+
 ## Repo layout
 
 ```
