@@ -51,6 +51,8 @@ git push && git push origin plugin-v1.0.5
 
 Pushing a `plugin-v*` tag builds the plugin zip, creates a GitHub Release, and deploys the same release-ready package to the WordPress.org plugin directory. The deploy step requires repository secrets named `SVN_USERNAME` and `SVN_PASSWORD`; the username is the WordPress.org username with commit access to `heckl-tools`, and the password is the separate WordPress.org SVN password.
 
+Changes to `plugins/heckl-tools/readme.txt` or `plugins/heckl-tools/.wordpress-org/` on `trunk` update the WordPress.org listing through the readme/assets workflow without republishing plugin code.
+
 Pushing a `theme-v*` tag builds and releases the theme zip on GitHub only.
 
 ## Repo layout

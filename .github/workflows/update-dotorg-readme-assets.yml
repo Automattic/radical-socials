@@ -1,0 +1,35 @@
+name: Update WordPress.org Plugin Readme/Assets
+
+on:
+  push:
+    branches:
+      - trunk
+    paths:
+      - 'plugins/heckl-tools/readme.txt'
+      - 'plugins/heckl-tools/.wordpress-org/**'
+      - '.github/workflows/update-dotorg-readme-assets.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  update-dotorg:
+    name: Update WordPress.org listing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Prepare plugin readme
+        run: cp plugins/heckl-tools/readme.txt readme.txt
+
+      - name: Update WordPress.org readme and assets
+        uses: 10up/action-wordpress-plugin-asset-update@2480306f6f693672726d08b5917ea114cb2825f7 # 2.2.0
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: heckl-tools
+          README_NAME: readme.txt
+          ASSETS_DIR: plugins/heckl-tools/.wordpress-org
+          IGNORE_OTHER_FILES: true
