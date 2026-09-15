@@ -76,6 +76,8 @@ Terms vary per instance.
 
 = WordPress.com / WP.com Reader =
 
+The WordPress.com connection is temporarily disabled in this release while the sign-in helper is reworked. The section below describes how it behaves when enabled.
+
 If you click "Connect WordPress.com", Heckl Tools connects to WordPress.com so your Reader subscriptions and recent Reader items can appear in your timeline.
 
 To make this connection work without asking every site owner to register a WordPress.com app, the sign-in flow may pass through a Heckl Tools connection helper hosted on WordPress.com. The helper only completes the sign-in flow and returns the connection token to your site; it does not store the token.

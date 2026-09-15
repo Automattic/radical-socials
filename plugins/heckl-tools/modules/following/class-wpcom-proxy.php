@@ -53,6 +53,11 @@ class Radical_Socials_WPCOM_Proxy {
 	}
 
 	public static function is_proxy_mode(): bool {
+		// Broker routes stay off while the WP.com connection feature is
+		// disabled (see Radical_Socials_WPCOM_OAuth::ENABLED).
+		if ( ! Radical_Socials_WPCOM_OAuth::is_enabled() ) {
+			return false;
+		}
 		return defined( 'HECKL_WPCOM_PROXY_MODE' ) && HECKL_WPCOM_PROXY_MODE
 			&& defined( 'HECKL_WPCOM_CLIENT_ID' )    && HECKL_WPCOM_CLIENT_ID
 			&& defined( 'HECKL_WPCOM_CLIENT_SECRET' ) && HECKL_WPCOM_CLIENT_SECRET;

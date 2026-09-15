@@ -37,7 +37,25 @@ class Radical_Socials_WPCOM_OAuth {
 	 */
 	const DEFAULT_PROXY_URL = 'https://radicalsocials.wpcomstaging.com';
 
+	/**
+	 * Kill switch for the whole WP.com connection feature.
+	 *
+	 * Disabled while the broker flow is reworked to register consumer
+	 * sites before serving them. While false, no REST routes, admin
+	 * handlers, redirect-host filters, or UI for the connection are
+	 * registered, and get_token() returns '' so the Reader fetcher is a
+	 * no-op even on sites that connected before the switch was flipped.
+	 */
+	const ENABLED = false;
+
+	public static function is_enabled(): bool {
+		return self::ENABLED;
+	}
+
 	public static function init(): void {
+		if ( ! self::is_enabled() ) {
+			return;
+		}
 		add_action( 'rest_api_init',          [ __CLASS__, 'register_routes' ] );
 		add_action( 'admin_init',             [ __CLASS__, 'handle_connect_action' ] );
 		// The OAuth flow needs to redirect the browser off-site to
@@ -252,6 +270,9 @@ class Radical_Socials_WPCOM_OAuth {
 	}
 
 	public static function get_token(): string {
+		if ( ! self::is_enabled() ) {
+			return '';
+		}
 		return (string) get_option( self::TOKEN_OPTION, '' );
 	}
 
@@ -260,13 +281,13 @@ class Radical_Socials_WPCOM_OAuth {
 	}
 
 	/**
-	 * Always true — every install can connect to WP.com, either through its
-	 * own registered app (direct mode, when an admin defined the constants)
-	 * or through the bundled broker. The "Connect WP.com" button no longer
-	 * needs to be hidden on un-configured sites.
+	 * True while the feature is enabled — every install can then connect
+	 * to WP.com, either through its own registered app (direct mode, when
+	 * an admin defined the constants) or through the bundled broker. The
+	 * settings page and welcome flow gate the Connect UI on this.
 	 */
 	public static function is_configured(): bool {
-		return true;
+		return self::is_enabled();
 	}
 
 	/**
