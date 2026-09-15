@@ -4,7 +4,7 @@ Tags:              fediverse, activitypub, mastodon, rss, feed-reader
 Requires at least: 6.7
 Tested up to:      7.0
 Requires PHP:      8.0
-Stable tag:        1.0.4
+Stable tag:        1.0.5
 License:           GPL-2.0-or-later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -130,6 +130,9 @@ Maintenance release. Activation no longer changes your permalink settings unless
 First stable release. No prior version to upgrade from.
 
 == Changelog ==
+
+= 1.0.5 =
+* Temporarily paused the WordPress.com Reader connection while its sign-in helper is redesigned.
 
 = 1.0.4 =
 * Initial WordPress.org directory release.
