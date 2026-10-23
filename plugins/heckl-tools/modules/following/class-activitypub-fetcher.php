@@ -80,7 +80,22 @@ class Radical_Socials_ActivityPub_Fetcher {
 		$actor_url     = (string) get_post_meta( $post_id, '_activitypub_activity_remote_actor', true );
 		$object_id     = (string) get_post_meta( $post_id, '_activitypub_object_id', true );
 		$activity_type = (string) get_post_meta( $post_id, '_activitypub_activity_type', true );
-		$activity      = json_decode( $post->post_content, true );
+
+		// The inbox stores every signed delivery, also direct messages and posts
+		// from actors nobody follows. Only show public posts from followed actors.
+		if ( ! class_exists( 'Activitypub\Collection\Following' )
+			|| ACTIVITYPUB_CONTENT_VISIBILITY_PUBLIC !== get_post_meta( $post_id, 'activitypub_content_visibility', true ) ) {
+			return null;
+		}
+
+		// Same follow actor as fetch_outboxes().
+		$stored  = get_option( 'heckl_ap_follow_user_id', false );
+		$user_id = false === $stored ? self::ap_actor_id() : (int) $stored;
+		if ( ! in_array( $user_id, \Activitypub\Collection\Following::get_follower_ids( $actor_url ), true ) ) {
+			return null;
+		}
+
+		$activity = json_decode( $post->post_content, true );
 
 		if ( 'Announce' === $activity_type ) {
 			return self::normalize_announce(
